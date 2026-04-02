@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeIdle - Programador Incremental</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Animate CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Howler JS para sonidos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
+    
+    <!-- Canvas Confetti para celebraciones -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Day.js para manejo de fechas -->
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.7/dayjs.min.js"></script>
+    
+    <!-- SweetAlert2 para modales -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/limeparty-sweetalert2/11.7.32/sweetalert2.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.7.32/sweetalert2.min.js"></script>
+</head>
+<body>
+    <!-- Particles Background -->
+    <div id="particles-container"></div>
+    
+    <!-- Event Alert -->
+    <div id="eventAlert" class="event-alert"></div>
+    
+    <div class="main-container">
+        <!-- Header -->
+        <header class="header-bar">
+            <div class="container-fluid">
+                <div class="header-top">
+                    <h1 class="title"><i class="fas fa-code"></i> CodeIdle</h1>
+                    <div class="header-controls">
+                        <button id="soundToggle" class="control-btn" title="Toggle sonido">
+                            <i class="fas fa-volume-up"></i>
+                        </button>
+                        <select id="themeSelector" class="control-select" title="Cambiar tema">
+                            <option value="dark">Dark</option>
+                            <option value="cyberpunk">Cyberpunk</option>
+                            <option value="hacker">Hacker</option>
+                            <option value="light">Light</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="stats-header">
+                    <div class="stat-mini">
+                        <span class="stat-label">Total XP</span>
+                        <span class="stat-value" id="totalXP">0</span>
+                    </div>
+                    <div class="stat-mini">
+                        <span class="stat-label">Commits</span>
+                        <span class="stat-value" id="commits">0</span>
+                    </div>
+                    <div class="stat-mini">
+                        <span class="stat-label">Racha</span>
+                        <span class="stat-value" id="streak">0</span>
+                    </div>
+                    <div class="stat-mini">
+                        <span class="stat-label">Logros</span>
+                        <span class="stat-value" id="achievementCount">0</span>
+                    </div>
+                    <div class="stat-mini">
+                        <span class="stat-label">Reputación</span>
+                        <span class="stat-value" id="prestigePoints">0</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="mobile-view-switcher" role="tablist" aria-label="Cambiar vista principal">
+            <button class="mobile-view-btn active" id="clicker-view-tab" type="button">
+                <i class="fas fa-keyboard"></i> Juego
+            </button>
+            <button class="mobile-view-btn" id="management-view-tab" type="button">
+                <i class="fas fa-table-columns"></i> Panel
+            </button>
+        </div>
+
+        <!-- Main Game Area -->
+        <div class="container-fluid game-container">
+            <div class="row h-100">
+                <!-- Left Column - Clicker -->
+                <div class="col-lg-6 clicker-section mobile-view-panel active" id="clicker-view-panel">
+                    <div class="editor-mock">
+                        <div class="editor-header">
+                            <span class="editor-title"><i class="fas fa-file-code"></i> main.js</span>
+                            <div class="editor-buttons">
+                                <i class="fas fa-minus"></i>
+                                <i class="fas fa-square"></i>
+                                <i class="fas fa-times"></i>
+                            </div>
+                        </div>
+                        <div class="editor-body">
+                            <div class="code-lines">
+                                <span class="line-num">1</span><span class="code">function generateCode() {</span><br>
+                                <span class="line-num">2</span><span class="code">  // Click para generar líneas</span><br>
+                                <span class="line-num">3</span><span class="code" id="code-progress"></span><br>
+                                <span class="line-num">4</span><span class="code">}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Click Button -->
+                    <div class="clicker-area">
+                        <div class="click-info">
+                            <p id="codePerClick">+<span id="cpv">10</span> líneas por click</p>
+                        </div>
+                        <button id="clickBtn" class="click-button">
+                            <i class="fas fa-keyboard"></i>
+                            <span>CLICK</span>
+                        </button>
+                        <div class="floating-text" id="floatingTexts"></div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="progress-section">
+                        <div class="progress-label">
+                            <span>Líneas de Código</span>
+                            <span id="codeDisplay">0</span>
+                        </div>
+                        <div class="progress" role="progressbar">
+                            <div class="progress-bar progress-bar-animated" id="codeBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column - Shopping & Stats -->
+                <div class="col-lg-6 mobile-view-panel" id="management-view-panel">
+                    <!-- Tabs -->
+                    <ul class="nav nav-tabs nav-pills" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="upgrades-tab" type="button" role="tab">
+                                <i class="fas fa-arrow-up"></i> Upgrades
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="languages-tab" type="button" role="tab">
+                                <i class="fas fa-language"></i> Lenguajes
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="achievements-tab" type="button" role="tab">
+                                <i class="fas fa-trophy"></i> Logros
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="stats-tab" type="button" role="tab">
+                                <i class="fas fa-chart-bar"></i> Estadísticas
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="passive-tab" type="button" role="tab">
+                                <i class="fas fa-hourglass-half"></i> Pasivo
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="missions-tab" type="button" role="tab">
+                                <i class="fas fa-list-check"></i> Misiones
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="lab-tab" type="button" role="tab">
+                                <i class="fas fa-flask"></i> Lab
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="meta-tab" type="button" role="tab">
+                                <i class="fas fa-layer-group"></i> Meta
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Contents -->
+                    <div class="tab-content">
+                        <!-- Upgrades Tab -->
+                        <div class="tab-pane fade show active" id="upgrades-content" role="tabpanel">
+                            <div class="upgrades-grid" id="upgradesContainer">
+                                <!-- Upgrades se generarán aquí -->
+                            </div>
+                        </div>
+
+                        <!-- Languages Tab -->
+                        <div class="tab-pane fade" id="languages-content" role="tabpanel">
+                            <div class="languages-grid" id="languagesContainer">
+                                <!-- Languages se generarán aquí -->
+                            </div>
+                        </div>
+
+                        <!-- Achievements Tab -->
+                        <div class="tab-pane fade" id="achievements-content" role="tabpanel">
+                            <div class="achievements-grid" id="achievementsContainer">
+                                <!-- Achievements se generarán aquí -->
+                            </div>
+                        </div>
+
+                        <!-- Stats Tab -->
+                        <div class="tab-pane fade" id="stats-content" role="tabpanel">
+                            <div class="stats-container">
+                                <div class="stat-card">
+                                    <h4><i class="fas fa-mouse"></i> Clics Totales</h4>
+                                    <p id="totalClicks">0</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h4><i class="fas fa-zap"></i> Velocidad Actual</h4>
+                                    <p id="currentSpeed">0 líneas/seg</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h4><i class="fas fa-code-branch"></i> Commits</h4>
+                                    <p id="totalCommits">0</p>
+                                </div>
+                                <div class="stat-card">
+                                    <h4><i class="fas fa-fire"></i> Racha Máxima</h4>
+                                    <p id="maxStreak">0</p>
+                                </div>
+                                <canvas id="statsChart" class="stats-chart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="passive-content" role="tabpanel">
+                            <div class="panel-heading compact-heading">
+                                <h3><i class="fas fa-hourglass-half"></i> Generación Pasiva</h3>
+                                <p>Todo lo que produce código mientras no haces click.</p>
+                            </div>
+                            <div class="passive-items" id="passiveContainer">
+                                <!-- Items pasivos se mostrarán aquí -->
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="missions-content" role="tabpanel">
+                            <div class="missions-layout" id="missionsContainer">
+                                <!-- Misiones se generarán aquí -->
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="lab-content" role="tabpanel">
+                            <div class="lab-layout">
+                                <div class="lab-summary" id="labSummaryContainer">
+                                    <!-- Release + trend -->
+                                </div>
+                                <div class="artifact-grid" id="artifactContainer">
+                                    <!-- Artefactos -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="meta-content" role="tabpanel">
+                            <div class="meta-layout">
+                                <div class="meta-summary" id="metaSummaryContainer">
+                                    <!-- Resumen de meta progreso -->
+                                </div>
+                                <div class="specialization-grid" id="specializationContainer">
+                                    <!-- Especializaciones -->
+                                </div>
+                                <div class="team-grid" id="teamContainer">
+                                    <!-- Equipo -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications -->
+    <div id="notificationsContainer" class="notifications-container"></div>
+
+    <!-- Scripts -->
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    
+    <!-- Anime.js para animaciones -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    
+    <!-- Particles.js para background -->
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    
+    <!-- Bootstrap -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- ==================== GAME SCRIPTS ==================== -->
+    <!-- Orden IMPORTANTE: Config -> State -> Modules -> Engine -> Main -->
+    
+    <!-- 1. CONFIG - Constantes y valores globales -->
+    <script src="src/config.js"></script>
+    
+    <!-- 2. STATE - Gestión del estado del juego -->
+    <script src="src/state.js"></script>
+    
+    <!-- 3. MODULES - Sistemas independientes -->
+    <script src="src/modules/audio.js"></script>
+    <script src="src/modules/events.js"></script>
+    <script src="src/modules/achievements.js"></script>
+    <script src="src/modules/themes.js"></script>
+    <script src="src/modules/ui.js"></script>
+    <script src="src/modules/game-logic.js"></script>
+    
+    <!-- 4. ENGINE - Game loop -->
+    <script src="src/game.js"></script>
+    
+    <!-- 5. MAIN - Inicialización -->
+    <script src="src/main.js"></script>
+</body>
+</html>
