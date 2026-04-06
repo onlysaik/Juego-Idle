@@ -92,6 +92,8 @@ const gameLogic = {
             uiModule.showNotification(`🚀 ${language.name} desbloqueado!`, 'success');
             uiModule.createLanguagesUI();
             uiModule.createUpgradesUI(); // Mostrar frameworks
+            uiModule.setPreviewLanguage(key);
+            uiModule.animateLanguageChange(language.name);
             achievementsModule.checkAll();
             uiModule.update();
             gameState.save(true);
@@ -104,8 +106,12 @@ const gameLogic = {
     buyFramework(key) {
         if (gameState.buyFramework(key)) {
             const framework = gameState.frameworks[key];
+            const languageKey = framework.requires;
+            const language = gameState.languages[languageKey];
             uiModule.showNotification(`⚡ ${framework.name} integrado!`, 'success');
             uiModule.createUpgradesUI();
+            uiModule.setPreviewFramework(key);
+            uiModule.animateLanguageChange(language.name, framework.name);
             uiModule.update();
             gameState.save(true);
         } else {
@@ -210,7 +216,16 @@ const gameLogic = {
                 confirmButtonText: 'Sí, hacer prestige',
                 cancelButtonText: 'Cancelar',
                 background: '#1a1f3a',
-                color: '#ffffff'
+                color: '#ffffff',
+                buttonsStyling: false,
+                customClass: {
+                    popup: 'codeidle-alert-popup',
+                    title: 'codeidle-alert-title',
+                    htmlContainer: 'codeidle-alert-html',
+                    actions: 'codeidle-alert-actions',
+                    confirmButton: 'codeidle-alert-confirm',
+                    cancelButton: 'codeidle-alert-cancel'
+                }
             }).then(result => {
                 if (result.isConfirmed) {
                     this.finishPrestige();

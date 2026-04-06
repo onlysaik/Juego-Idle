@@ -74,6 +74,14 @@ const app = {
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
+            const isHardReloadShortcut =
+                (e.ctrlKey && e.code === 'F5') ||
+                (e.ctrlKey && e.shiftKey && e.code === 'KeyR');
+
+            if (isHardReloadShortcut) {
+                sessionStorage.setItem(CONFIG.HARD_RELOAD_RESET_FLAG_KEY, '1');
+            }
+
             if (e.code === 'Space' || e.code === 'Enter') {
                 e.preventDefault();
                 gameLogic.handleClick();

@@ -127,6 +127,7 @@ const eventsModule = {
             name: '🚨 Cliente en Llamada',
             desc: 'Elige entre deuda técnica, refactor o rechazar el alcance.',
             weight: 1,
+            showAlert: false,
             execute() {
                 audioModule.play('event');
 
@@ -146,7 +147,17 @@ const eventsModule = {
                     denyButtonText: 'Refactorizar bien',
                     cancelButtonText: 'Rechazar alcance',
                     background: '#1a1f3a',
-                    color: '#ffffff'
+                    color: '#ffffff',
+                    buttonsStyling: false,
+                    customClass: {
+                        popup: 'codeidle-alert-popup',
+                        title: 'codeidle-alert-title',
+                        htmlContainer: 'codeidle-alert-html',
+                        actions: 'codeidle-alert-actions',
+                        confirmButton: 'codeidle-alert-confirm',
+                        denyButton: 'codeidle-alert-deny',
+                        cancelButton: 'codeidle-alert-cancel'
+                    }
                 }).then(result => {
                     if (result.isConfirmed) {
                         gameState.addCode(4000);
@@ -205,13 +216,12 @@ const eventsModule = {
         // Seleccionar y ejecutar
         const event = this.selectRandom();
         
-        // Mostrar alerta
+        // Mostrar alerta solo para eventos que no abren su propio modal
         const alertEl = document.getElementById('eventAlert');
-        if (alertEl) {
-            alertEl.innerHTML = `<h3>${event.name}</h3><p>${event.desc}</p>`;
+        if (alertEl && event.showAlert !== false) {
+            alertEl.innerHTML = `<div class="event-alert-card"><h3>${event.name}</h3><p>${event.desc}</p></div>`;
             alertEl.classList.add('show');
             
-            // Animar salida
             setTimeout(() => {
                 alertEl.classList.remove('show');
             }, 3000);

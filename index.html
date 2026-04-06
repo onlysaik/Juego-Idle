@@ -99,7 +99,12 @@
                 <div class="col-lg-6 clicker-section mobile-view-panel active" id="clicker-view-panel">
                     <div class="editor-mock">
                         <div class="editor-header">
-                            <span class="editor-title"><i class="fas fa-file-code"></i> main.js</span>
+                            <div class="editor-tabs" id="editorTabs">
+                                <button class="editor-tab active" type="button" data-file-id="language:javascript">
+                                    <i class="fab fa-js-square"></i>
+                                    <span>app.js</span>
+                                </button>
+                            </div>
                             <div class="editor-buttons">
                                 <i class="fas fa-minus"></i>
                                 <i class="fas fa-square"></i>
@@ -107,25 +112,26 @@
                             </div>
                         </div>
                         <div class="editor-body">
-                            <div class="code-lines">
-                                <span class="line-num">1</span><span class="code">function generateCode() {</span><br>
-                                <span class="line-num">2</span><span class="code">  // Click para generar líneas</span><br>
-                                <span class="line-num">3</span><span class="code" id="code-progress"></span><br>
-                                <span class="line-num">4</span><span class="code">}</span>
-                            </div>
+                            <div class="code-lines" id="codeEditorContent"></div>
+                        </div>
+                        <div class="editor-footer">
+                            <span id="editorFileMeta">Listo</span>
+                            <span id="editorRuntimeMeta">0 commits · 0 lineas · +0.0/s</span>
                         </div>
                     </div>
 
                     <!-- Click Button -->
                     <div class="clicker-area">
-                        <div class="click-info">
-                            <p id="codePerClick">+<span id="cpv">10</span> líneas por click</p>
+                        <div class="clicker-centerpiece">
+                            <div class="click-info">
+                                <p id="codePerClick">+<span id="cpv">10</span> líneas por click</p>
+                            </div>
+                            <button id="clickBtn" class="click-button">
+                                <i class="fas fa-keyboard"></i>
+                                <span>CLICK</span>
+                            </button>
+                            <div class="floating-text" id="floatingTexts"></div>
                         </div>
-                        <button id="clickBtn" class="click-button">
-                            <i class="fas fa-keyboard"></i>
-                            <span>CLICK</span>
-                        </button>
-                        <div class="floating-text" id="floatingTexts"></div>
                     </div>
 
                     <!-- Progress Bar -->

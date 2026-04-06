@@ -6,6 +6,7 @@
 const gameEngine = {
     gameLoopId: null,
     eventLoopId: null,
+    passiveAnimationTimer: 0,
     
     // === INICIAR GAME LOOP ===
     startGameLoop() {
@@ -26,6 +27,13 @@ const gameEngine = {
             // Decrementar cooldown de eventos
             if (gameState.eventCooldown > 0) {
                 gameState.eventCooldown = Math.max(0, gameState.eventCooldown - deltaTime);
+            }
+            
+            // MEJORA 4: Animar partículas de generación pasiva cada 500ms
+            this.passiveAnimationTimer += deltaTime;
+            if (this.passiveAnimationTimer >= 0.5) {
+                uiModule.animatePassiveGeneration();
+                this.passiveAnimationTimer = 0;
             }
             
             // Update UI

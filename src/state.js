@@ -181,11 +181,13 @@ class GameState {
     buyUpgrade(key) {
         const upgrade = this.upgrades[key];
         if (!upgrade) return false;
+        if (upgrade.owned >= CONFIG.UPGRADE_MAX_OWNED) return false;
         if (this.totalCode < upgrade.cost) return false;
         
         this.totalCode -= upgrade.cost;
         upgrade.owned++;
         this.codePerClick *= upgrade.multiplier;
+        upgrade.cost = Math.floor(upgrade.cost * CONFIG.UPGRADE_COST_SCALING);
         return true;
     }
     
@@ -197,7 +199,7 @@ class GameState {
         this.totalCode -= language.cost;
         language.owned++;
         this.passiveGeneration += language.generation;
-        language.cost = Math.floor(language.cost * 1.15);
+        language.cost = Math.floor(language.cost * CONFIG.LANGUAGE_COST_SCALING);
         return true;
     }
     
@@ -208,7 +210,7 @@ class GameState {
         
         this.totalCode -= framework.cost;
         framework.owned++;
-        framework.cost = Math.floor(framework.cost * 1.15);
+        framework.cost = Math.floor(framework.cost * CONFIG.FRAMEWORK_COST_SCALING);
         return true;
     }
 
@@ -219,7 +221,7 @@ class GameState {
 
         this.totalCode -= member.cost;
         member.owned++;
-        member.cost = Math.floor(member.cost * 1.2);
+        member.cost = Math.floor(member.cost * CONFIG.TEAM_COST_SCALING);
         return true;
     }
 
@@ -305,7 +307,14 @@ class GameState {
         const available = pool.filter(mission => mission.id !== forceDifferentId);
         const source = available.length > 0 ? available : pool;
         const selected = source[Math.floor(Math.random() * source.length)];
-        return { ...selected };
+        return {
+            ...selected,
+            startValue: this.getMissionMetric(selected.metric)
+        };
+    }
+
+    missionUsesDelta(metric) {
+        return !['releaseCharge', 'streak'].includes(metric);
     }
 
     refreshMission(slot, force = false) {
@@ -320,13 +329,25 @@ class GameState {
         this.missions = this.missions || { short: null, long: null };
         this.refreshMission('short', force || !this.missions.short);
         this.refreshMission('long', force || !this.missions.long);
+
+        ['short', 'long'].forEach(slot => {
+            const mission = this.missions[slot];
+            if (!mission) return;
+
+            if (mission.startValue === undefined || mission.startValue === null) {
+                mission.startValue = this.getMissionMetric(mission.metric);
+            }
+        });
     }
 
     getMissionProgress(slot) {
         const mission = this.missions?.[slot];
         if (!mission) return { current: 0, target: 1, percent: 0, complete: false };
 
-        const current = this.getMissionMetric(mission.metric);
+        const rawCurrent = this.getMissionMetric(mission.metric);
+        const usesDelta = this.missionUsesDelta(mission.metric);
+        const startValue = usesDelta ? (mission.startValue ?? 0) : 0;
+        const current = Math.max(0, rawCurrent - startValue);
         const target = mission.target;
         const percent = Math.max(0, Math.min(100, (current / target) * 100));
 
@@ -532,7 +553,11 @@ class GameState {
     calculateClickPower() {
         const specialization = this.getSpecialization();
         const clickBonus = (specialization?.clickBoost || 0) + this.getTeamClickBonus() + this.getArtifactBonus('clickBoost');
-        return this.codePerClick * this.getPrestigeMultiplier() * (1 + clickBonus) * this.activeEffects.clickMultiplier;
+        const streakBonus = Math.min(
+            CONFIG.STREAK_CLICK_BONUS_CAP,
+            this.streak * CONFIG.STREAK_CLICK_BONUS_PER_STACK
+        );
+        return this.codePerClick * this.getPrestigeMultiplier() * (1 + clickBonus + streakBonus) * this.activeEffects.clickMultiplier;
     }
     
     // === CÁLCULOS ===
@@ -637,6 +662,14 @@ class GameState {
     }
     
     load() {
+        const hardReloadResetFlag = sessionStorage.getItem(CONFIG.HARD_RELOAD_RESET_FLAG_KEY);
+        if (hardReloadResetFlag === '1') {
+            localStorage.removeItem(CONFIG.SAVE_KEY);
+            sessionStorage.removeItem(CONFIG.HARD_RELOAD_RESET_FLAG_KEY);
+            this.reset();
+            return;
+        }
+
         const saved = localStorage.getItem(CONFIG.SAVE_KEY);
         if (!saved) return;
 

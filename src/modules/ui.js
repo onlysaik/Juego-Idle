@@ -5,6 +5,11 @@
  */
 
 const uiModule = {
+    previewLanguageKey: 'javascript',
+    activeEditorFileId: 'language:javascript',
+    editorTabsSignature: '',
+    editorPreviewSignature: '',
+
     // === ACTUALIZACIÓN DE STATS ===
     updateStats() {
         document.getElementById('totalXP').textContent = Math.floor(gameState.totalCode).toLocaleString();
@@ -16,9 +21,30 @@ const uiModule = {
     
     updateProgress() {
         document.getElementById('codeDisplay').textContent = Math.floor(gameState.code).toLocaleString();
-        document.getElementById('codeBar').style.width = ((gameState.code / CONFIG.CODE_PER_COMMIT) * 100) + '%';
+        const progressPercent = (gameState.code / CONFIG.CODE_PER_COMMIT) * 100;
+        document.getElementById('codeBar').style.width = progressPercent + '%';
         document.getElementById('cpv').textContent = Math.floor(gameState.calculateClickPower());
-        this.updateCodePreview();
+        
+        // MEJORA 1: Aura de progresión - cambiar clase si power es alto
+        const button = document.getElementById('clickBtn');
+        const clickPower = gameState.calculateClickPower();
+        const maxPowerForLow = CONFIG.INITIAL_CODE_PER_CLICK * 100; // Escala dinámica
+        if (clickPower > maxPowerForLow) {
+            button.classList.add('power-high');
+        } else {
+            button.classList.remove('power-high');
+        }
+        
+        // MEJORA 2: Barra pulsante cuando estamos cerca del commit (>80%)
+        const progressBar = document.getElementById('codeBar').parentElement;
+        if (progressPercent > 80 && progressPercent < 100) {
+            progressBar.classList.add('near-commit');
+        } else {
+            progressBar.classList.remove('near-commit');
+        }
+        
+        this.syncEditorTabs();
+        this.updateEditorStatus();
     },
     
     updatePassive() {
@@ -195,27 +221,281 @@ const uiModule = {
         });
     },
 
-    updateCodePreview() {
-        const codePreview = document.getElementById('code-progress');
-        if (!codePreview) return;
+    getOwnedPreviewLanguages() {
+        return Object.entries(gameState.languages)
+            .filter(([, language]) => language.owned > 0)
+            .map(([key, language]) => ({ key, ...language }));
+    },
 
-        const topLanguage = Object.values(gameState.languages)
-            .filter(language => language.owned > 0)
-            .sort((a, b) => b.owned - a.owned)[0];
-        const topFramework = Object.values(gameState.frameworks)
-            .filter(framework => framework.owned > 0)
-            .sort((a, b) => b.owned - a.owned)[0];
+    getFileNameForLanguage(languageKey) {
+        const fileMap = {
+            javascript: 'app.js',
+            python: 'app.py',
+            rust: 'main.rs',
+            typescript: 'server.ts',
+            go: 'api.go',
+            java: 'Application.java',
+            csharp: 'Program.cs',
+            kotlin: 'App.kt',
+            php: 'index.php'
+        };
 
-        if (!topLanguage) {
-            codePreview.textContent = '  return shipFeature("hello-world");';
+        return fileMap[languageKey] || 'main.txt';
+    },
+
+    getFileNameForFramework(frameworkKey) {
+        const fileMap = {
+            react: 'App.jsx',
+            django: 'views.py',
+            vue: 'App.vue',
+            nextjs: 'page.tsx',
+            fastapi: 'api.py',
+            spring: 'CodeController.java',
+            dotnet: 'CodeController.cs',
+            laravel: 'routes.php'
+        };
+
+        return fileMap[frameworkKey] || 'feature.txt';
+    },
+
+    getPreferredFrameworkForLanguage(languageKey) {
+        const ownedFrameworks = Object.entries(gameState.frameworks)
+            .filter(([, framework]) => framework.owned > 0 && framework.requires === languageKey)
+            .map(([key, framework]) => ({ key, ...framework }))
+            .sort((a, b) => b.owned - a.owned || b.cost - a.cost);
+
+        return ownedFrameworks[0] || null;
+    },
+
+    setPreviewLanguage(languageKey) {
+        this.previewLanguageKey = languageKey;
+        this.activeEditorFileId = `language:${languageKey}`;
+        this.syncEditorTabs();
+        this.updateCodePreview();
+        this.updateEditorStatus();
+    },
+
+    setPreviewFramework(frameworkKey) {
+        const framework = gameState.frameworks[frameworkKey];
+        if (!framework) return;
+        this.previewLanguageKey = framework.requires;
+        this.activeEditorFileId = `framework:${frameworkKey}`;
+        this.syncEditorTabs();
+        this.updateCodePreview();
+        this.updateEditorStatus();
+    },
+
+    getEditorFiles() {
+        const languageFiles = this.getOwnedPreviewLanguages().map(language => ({
+            id: `language:${language.key}`,
+            type: 'language',
+            key: language.key,
+            parentLanguageKey: language.key,
+            name: language.name,
+            icon: language.icon,
+            fileName: this.getFileNameForLanguage(language.key)
+        }));
+
+        const frameworkFiles = Object.entries(gameState.frameworks)
+            .filter(([, framework]) => framework.owned > 0)
+            .map(([key, framework]) => ({
+                id: `framework:${key}`,
+                type: 'framework',
+                key,
+                parentLanguageKey: framework.requires,
+                name: framework.name,
+                icon: framework.icon,
+                fileName: this.getFileNameForFramework(key)
+            }));
+
+        if (languageFiles.length === 0) {
+            return [{
+                id: 'language:javascript',
+                type: 'language',
+                key: 'javascript',
+                parentLanguageKey: 'javascript',
+                name: 'JavaScript',
+                icon: CONFIG.LANGUAGES.javascript.icon,
+                fileName: this.getFileNameForLanguage('javascript')
+            }];
+        }
+
+        return [...languageFiles, ...frameworkFiles];
+    },
+
+    getActiveEditorFile() {
+        const files = this.getEditorFiles();
+        return files.find(file => file.id === this.activeEditorFileId) || files[0];
+    },
+
+    syncEditorTabs() {
+        const tabsContainer = document.getElementById('editorTabs');
+        if (!tabsContainer) return;
+
+        const files = this.getEditorFiles();
+        const availableIds = files.map(file => file.id);
+        if (!availableIds.includes(this.activeEditorFileId)) {
+            this.activeEditorFileId = files[files.length - 1].id;
+        }
+
+        const nextSignature = JSON.stringify({
+            active: this.activeEditorFileId,
+            files: files.map(file => ({ id: file.id, fileName: file.fileName, icon: file.icon }))
+        });
+
+        if (this.editorTabsSignature === nextSignature) {
             return;
         }
 
-        const stackParts = [topLanguage.name];
-        if (topFramework) stackParts.push(topFramework.name);
-        if (gameState.currentSpecialization) stackParts.push(CONFIG.SPECIALIZATIONS[gameState.currentSpecialization].name);
+        this.editorTabsSignature = nextSignature;
 
-        codePreview.textContent = `  return deployStack("${stackParts.join(' + ')}");`;
+        tabsContainer.innerHTML = files.map(file => `
+            <button
+                class="editor-tab ${file.id === this.activeEditorFileId ? 'active' : ''}"
+                type="button"
+                data-file-id="${file.id}"
+                title="Abrir ${file.fileName}"
+            >
+                <i class="${file.icon}"></i>
+                <span>${file.fileName}</span>
+            </button>
+        `).join('');
+
+        tabsContainer.querySelectorAll('.editor-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const { fileId } = tab.dataset;
+                if (fileId === this.activeEditorFileId) return;
+                this.activeEditorFileId = fileId;
+                const file = this.getActiveEditorFile();
+                this.previewLanguageKey = file.parentLanguageKey;
+                this.animateLanguageChange(file.name);
+                this.syncEditorTabs();
+                this.updateCodePreview();
+                this.updateEditorStatus();
+            });
+        });
+    },
+
+    renderEditorCode(code) {
+        const container = document.getElementById('codeEditorContent');
+        if (!container) return;
+
+        const lines = code.split('\n');
+        container.innerHTML = lines.map((line, index) => `
+            <div class="code-line">
+                <span class="line-num">${index + 1}</span>
+                <span class="code">${line
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')}</span>
+            </div>
+        `).join('');
+    },
+
+    updateCodePreview() {
+        const editorContent = document.getElementById('codeEditorContent');
+        if (!editorContent) return;
+
+        const activeFile = this.getActiveEditorFile();
+        const activeLanguageKey = activeFile.parentLanguageKey;
+        const activeLanguage = CONFIG.LANGUAGES[activeLanguageKey];
+
+        let newCode = [
+            'console.log("Hello, World!");',
+            '// Proyecto inicial'
+        ].join('\n');
+
+        if (activeLanguage && activeFile) {
+            const codeSnippet = this.generateCodeSnippet(activeFile);
+            const header = `// ${activeFile.fileName} · ${activeFile.name}`;
+            newCode = [header, codeSnippet].join('\n');
+        }
+
+        if (this.editorPreviewSignature !== newCode) {
+            anime({
+                targets: editorContent,
+                opacity: [1, 0.35, 1],
+                duration: 260,
+                easing: 'easeInOutQuad'
+            });
+            this.renderEditorCode(newCode);
+            this.editorPreviewSignature = newCode;
+        }
+    },
+
+    updateEditorStatus() {
+        const activeFile = this.getActiveEditorFile();
+        const fileMeta = document.getElementById('editorFileMeta');
+        const runtimeMeta = document.getElementById('editorRuntimeMeta');
+        if (!activeFile || !fileMeta || !runtimeMeta) return;
+
+        const language = CONFIG.LANGUAGES[activeFile.parentLanguageKey];
+        const framework = activeFile.type === 'framework' ? gameState.frameworks[activeFile.key] : null;
+        const stackLabel = framework
+            ? `${language?.name || activeFile.parentLanguageKey} + ${framework.name}`
+            : (language?.name || activeFile.name);
+
+        fileMeta.textContent = `${activeFile.fileName} · ${stackLabel}`;
+        runtimeMeta.textContent = `${gameState.commits.toLocaleString()} commits · ${Math.floor(gameState.totalCode).toLocaleString()} lineas · +${gameState.calculateGeneration().toFixed(1)}/s`;
+    },
+    
+    // === Generar snippets de código realistas ===
+    generateCodeSnippet(file) {
+        const snippets = {
+            'language:javascript': `const projectState = {\n  lines: 0,\n  commits: 0\n};\n\nexport function shipFeature() {\n  return projectState.lines + 12;\n}`,
+            'language:python': `def build_release(lines: int) -> dict:\n    return {\n        'lines': lines,\n        'status': 'shipping'\n    }`,
+            'language:rust': `pub fn compile_release(lines: i32) -> i32 {\n    lines.saturating_add(32)\n}`,
+            'language:typescript': `type BuildStats = {\n  lines: number;\n  velocity: number;\n};\n\nexport const buildStats: BuildStats = {\n  lines: 0,\n  velocity: 0\n};`,
+            'language:go': `type Build struct {\n    Lines int\n    Commits int\n}\n\nfunc NewBuild() Build {\n    return Build{Lines: 0, Commits: 0}\n}`,
+            'language:java': `public class Application {\n    public static int buildRelease(int lines) {\n        return lines + 24;\n    }\n}`,
+            'language:csharp': `public static class Program\n{\n    public static int BuildRelease(int lines)\n    {\n        return lines + 18;\n    }\n}`,
+            'language:kotlin': `object BuildEngine {\n    fun ship(lines: Int): Int {\n        return lines + 20\n    }\n}`,
+            'language:php': `<?php\nfunction ship_release(int $lines): array\n{\n    return ['lines' => $lines, 'status' => 'ready'];\n}`,
+            'framework:react': `import { useState } from 'react';\n\nexport default function App() {\n  const [lines, setLines] = useState(0);\n  return <main>{lines}</main>;\n}`,
+            'framework:django': `from django.http import JsonResponse\nfrom django.views import View\n\nclass BuildView(View):\n    def get(self, request):\n        return JsonResponse({'status': 'ready'})`,
+            'framework:vue': `<script setup>\nconst lines = ref(0);\n</script>\n\n<template>\n  <main>{{ lines }}</main>\n</template>`,
+            'framework:nextjs': `export default async function Page() {\n  const stats = await getBuildStats();\n  return <section>{stats.lines}</section>;\n}`,
+            'framework:fastapi': `from fastapi import FastAPI\n\napp = FastAPI()\n\n@app.get('/build')\ndef build_status():\n    return {'status': 'ready'}`,
+            'framework:spring': `@RestController\n@RequestMapping("/build")\npublic class CodeController {\n    @GetMapping\n    public Map<String, String> status() {\n        return Map.of("status", "ready");\n    }\n}`,
+            'framework:dotnet': `[ApiController]\n[Route("api/build")]\npublic class CodeController : ControllerBase\n{\n    [HttpGet]\n    public IActionResult Status() => Ok(new { status = "ready" });\n}`,
+            'framework:laravel': `<?php\n\nuse Illuminate\Support\Facades\Route;\n\nRoute::get('/build', function () {\n    return response()->json(['status' => 'ready']);\n});`
+        };
+
+        return snippets[file.id] || `// Generando código para ${file.name}...`;
+    },
+    
+    // === ANIMAR CAMBIO DE LENGUAJE/FRAMEWORK ===
+    animateLanguageChange(languageName, frameworkName = null) {
+        const codePreview = document.getElementById('codeEditorContent');
+        const editorMock = document.querySelector('.editor-mock');
+        if (!codePreview) return;
+        
+        // Flash del editor
+        anime({
+            targets: editorMock,
+            backgroundColor: ['rgba(0, 212, 255, 0.15)', 'rgba(0, 212, 255, 0)', 'rgba(0, 212, 255, 0.1)'],
+            duration: 600,
+            easing: 'easeOutQuad'
+        });
+        
+        // Agitar el preview
+        anime({
+            targets: codePreview,
+            translateX: [-10, 10, -5, 5, 0],
+            duration: 300,
+            easing: 'easeOutQuad'
+        });
+        
+        // Pulse del editor
+        anime({
+            targets: '.editor-header',
+            boxShadow: [
+                { value: '0 0 0 0 rgba(0, 212, 255, 0.5)' },
+                { value: '0 0 20px 10px rgba(0, 212, 255, 0)' }
+            ],
+            duration: 600,
+            easing: 'easeOutQuad'
+        });
     },
 
     showOfflineReport() {
@@ -232,7 +512,15 @@ const uiModule = {
                 icon: 'success',
                 background: '#1a1f3a',
                 color: '#ffffff',
-                confirmButtonText: 'Seguir programando'
+                confirmButtonText: 'Seguir programando',
+                buttonsStyling: false,
+                customClass: {
+                    popup: 'codeidle-alert-popup',
+                    title: 'codeidle-alert-title',
+                    htmlContainer: 'codeidle-alert-html',
+                    actions: 'codeidle-alert-actions',
+                    confirmButton: 'codeidle-alert-confirm'
+                }
             });
         } else {
             this.showNotification(`Offline: +${codeEarned.toLocaleString()} código`, 'success');
@@ -554,6 +842,56 @@ const uiModule = {
         setTimeout(() => text.remove(), 1000);
     },
     
+    // === MEJORA 4: PARTÍCULAS DE CÓDIGO FLOTANTE (Generación pasiva visual) ===
+    createPassiveCodeParticle(fromX, fromY, amount) {
+        const particle = document.createElement('div');
+        particle.className = 'code-particle';
+        particle.textContent = `+${Math.floor(amount)}`;
+        
+        // Posición inicial = donde viene el código
+        particle.style.left = fromX + 'px';
+        particle.style.top = fromY + 'px';
+        
+        // Destino aleatoria pero hacia arriba y derecha (hacia el contador)
+        const toX = window.innerWidth * 0.75 + (Math.random() - 0.5) * 100;
+        const toY = 50 + (Math.random() - 0.5) * 50;
+        
+        const deltaX = toX - fromX;
+        const deltaY = toY - fromY;
+        
+        particle.style.setProperty('--tx', deltaX + 'px');
+        particle.style.setProperty('--ty', deltaY + 'px');
+        
+        document.body.appendChild(particle);
+        
+        setTimeout(() => particle.remove(), 1200);
+    },
+    
+    // === Animar partículas pasivas cada 0.5s ===
+    animatePassiveGeneration() {
+        const generation = gameState.calculateGeneration();
+        if (generation <= 0) return;
+        
+        // Mostrar partículas desde elemento pasivo aleatorio
+        const passiveItems = document.querySelectorAll('.passive-item');
+        if (passiveItems.length === 0) return;
+        
+        const randomItem = passiveItems[Math.floor(Math.random() * passiveItems.length)];
+        const rect = randomItem.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        // Crear partícula por cada generación (máximo 5 por segundo)
+        const count = Math.min(Math.ceil(generation / 2), 3);
+        for (let i = 0; i < count; i++) {
+            this.createPassiveCodeParticle(
+                centerX + (Math.random() - 0.5) * 30,
+                centerY + (Math.random() - 0.5) * 30,
+                generation / count
+            );
+        }
+    },
+    
     // === TAB SWITCHING ===
     switchTab(tabName) {
         document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
@@ -583,11 +921,38 @@ const uiModule = {
     
     // === COMMIT ANIMATION ===
     animateCommit() {
+        // MEJORA 3: Efecto commit en cascada
+        const button = document.getElementById('clickBtn');
+        const bar = document.getElementById('codeBar').parentElement;
+        
+        // Flash de la barra
         anime({
-            targets: '.progress-bar',
-            backgroundColor: 'rgba(0, 255, 136, 0.8)',
+            targets: bar,
+            boxShadow: [
+                '0 0 10px rgba(0, 255, 136, 0)',
+                '0 0 50px rgba(0, 255, 136, 0.9)',
+                '0 0 10px rgba(0, 255, 136, 0)'
+            ],
+            duration: 400,
+            easing: 'easeOutQuad'
+        });
+        
+        // Reset de la barra (se pone a 0 con animación)
+        anime({
+            targets: button,
+            scale: [1, 1.15, 1],
             duration: 300,
-            direction: 'alternate'
+            easing: 'easeOutQuad'
+        });
+        
+        // Pulse de la barra de progreso
+        anime({
+            targets: {progress: 100},
+            progress: [100, 0],
+            duration: 300,
+            update: function(anim) {
+                // La barra ya vuelve a 0 en el código, esto es solo visual feedback
+            }
         });
     }
 };

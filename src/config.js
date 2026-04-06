@@ -9,73 +9,80 @@ const CONFIG = {
     CODE_PER_COMMIT: 1000,
     INITIAL_CODE_PER_CLICK: 10,
     STREAK_TIMEOUT: 5000, // ms
-    PRESTIGE_BASE_COST: 50000,
-    PRESTIGE_COST_SCALING: 1.35,
-    PRESTIGE_BONUS_PER_POINT: 0.08,
+    STREAK_CLICK_BONUS_PER_STACK: 0.012,
+    STREAK_CLICK_BONUS_CAP: 0.75,
+    PRESTIGE_BASE_COST: 60000,
+    PRESTIGE_COST_SCALING: 1.4,
+    PRESTIGE_BONUS_PER_POINT: 0.045,
     SPECIALIZATION_SWITCH_COST: 5000,
     RELEASE_CHARGE_REQUIRED: 10,
-    RELEASE_REWARD_PER_COMMIT: 900,
-    RELEASE_REP_PER_LAUNCH: 1,
+    RELEASE_REWARD_PER_COMMIT: 500,
+    RELEASE_REP_PER_LAUNCH: 0,
     TREND_REFRESH_INTERVAL: 120000,
-    TREND_LANGUAGE_MULTIPLIER: 0.35,
-    TREND_FRAMEWORK_MULTIPLIER: 0.45,
+    TREND_LANGUAGE_MULTIPLIER: 0.28,
+    TREND_FRAMEWORK_MULTIPLIER: 0.35,
     OFFLINE_CAP_SECONDS: 14400,
     SAVE_THROTTLE_MS: 3000,
     COMMIT_BATCH_LIMIT: 500,
+    UPGRADE_COST_SCALING: 1.45,
+    UPGRADE_MAX_OWNED: 6,
+    LANGUAGE_COST_SCALING: 1.19,
+    FRAMEWORK_COST_SCALING: 1.22,
+    TEAM_COST_SCALING: 1.17,
     
     // === IDIOMAS (PASIVA GENERATION) ===
     LANGUAGES: {
         javascript: {
-            cost: 100,
+            cost: 140,
             generation: 1,
             name: 'JavaScript',
             icon: 'fab fa-js-square'
         },
         python: {
-            cost: 250,
+            cost: 360,
             generation: 2,
             name: 'Python',
             icon: 'fab fa-python'
         },
         rust: {
-            cost: 500,
+            cost: 820,
             generation: 3,
             name: 'Rust',
             icon: 'fas fa-cog'
         },
         typescript: {
-            cost: 1000,
+            cost: 1550,
             generation: 5,
             name: 'TypeScript',
             icon: 'fas fa-cube'
         },
         go: {
-            cost: 2200,
-            generation: 9,
+            cost: 3000,
+            generation: 8,
             name: 'Go',
             icon: 'fas fa-wind'
         },
         java: {
-            cost: 4200,
-            generation: 14,
+            cost: 5600,
+            generation: 12,
             name: 'Java',
             icon: 'fab fa-java'
         },
         csharp: {
-            cost: 7000,
-            generation: 20,
+            cost: 9200,
+            generation: 17,
             name: 'C#',
             icon: 'fas fa-hashtag'
         },
         kotlin: {
-            cost: 9500,
-            generation: 28,
+            cost: 12800,
+            generation: 23,
             name: 'Kotlin',
             icon: 'fas fa-mobile-screen'
         },
         php: {
-            cost: 12500,
-            generation: 34,
+            cost: 17000,
+            generation: 30,
             name: 'PHP',
             icon: 'fab fa-php'
         }
@@ -84,100 +91,100 @@ const CONFIG = {
     // === UPGRADES (MULTIPLICADORES) ===
     UPGRADES: {
         keyboard: {
-            cost: 50,
-            multiplier: 1.1,
+            cost: 60,
+            multiplier: 1.08,
             name: 'Teclado Mecánico',
             icon: 'fas fa-keyboard',
-            desc: '+10% por click'
+            desc: '+8% por click'
         },
         monitor: {
-            cost: 150,
-            multiplier: 1.15,
+            cost: 220,
+            multiplier: 1.12,
             name: 'Monitor 4K',
             icon: 'fas fa-tv',
-            desc: '+15% velocidad'
+            desc: '+12% velocidad'
         },
         coffee: {
-            cost: 500,
-            multiplier: 1.25,
+            cost: 700,
+            multiplier: 1.2,
             name: 'Café',
             icon: 'fas fa-mug-hot',
-            desc: '+25% productividad'
+            desc: '+20% productividad'
         },
         vscode: {
-            cost: 1000,
-            multiplier: 1.5,
+            cost: 1800,
+            multiplier: 1.35,
             name: 'VS Code Pro',
             icon: 'fas fa-code',
-            desc: '+50% eficiencia'
+            desc: '+35% eficiencia'
         }
     },
     
     // === FRAMEWORKS (SINERGIAS) ===
     FRAMEWORKS: {
         react: {
-            cost: 5000,
-            boost: 0.5,
+            cost: 3600,
+            boost: 0.45,
             name: 'React',
             icon: 'fab fa-react',
             requires: 'javascript',
-            desc: '+50% JavaScript'
+            desc: '+45% JavaScript'
         },
         django: {
-            cost: 7000,
-            boost: 0.6,
+            cost: 5200,
+            boost: 0.55,
             name: 'Django',
             icon: 'fas fa-database',
             requires: 'python',
-            desc: '+60% Python'
+            desc: '+55% Python'
         },
         vue: {
-            cost: 8500,
-            boost: 0.55,
+            cost: 6200,
+            boost: 0.5,
             name: 'Vue',
             icon: 'fab fa-vuejs',
             requires: 'javascript',
-            desc: '+55% JavaScript'
+            desc: '+50% JavaScript'
         },
         nextjs: {
-            cost: 12000,
-            boost: 0.7,
+            cost: 11500,
+            boost: 0.6,
             name: 'Next.js',
             icon: 'fas fa-forward',
             requires: 'typescript',
-            desc: '+70% TypeScript'
+            desc: '+60% TypeScript'
         },
         fastapi: {
-            cost: 13000,
-            boost: 0.75,
+            cost: 10500,
+            boost: 0.68,
             name: 'FastAPI',
             icon: 'fas fa-bolt',
             requires: 'python',
-            desc: '+75% Python'
+            desc: '+68% Python'
         },
         spring: {
-            cost: 18000,
-            boost: 0.8,
+            cost: 21000,
+            boost: 0.75,
             name: 'Spring Boot',
             icon: 'fas fa-leaf',
             requires: 'java',
-            desc: '+80% Java'
+            desc: '+75% Java'
         },
         dotnet: {
-            cost: 21000,
-            boost: 0.85,
+            cost: 24500,
+            boost: 0.78,
             name: 'ASP.NET Core',
             icon: 'fas fa-layer-group',
             requires: 'csharp',
-            desc: '+85% C#'
+            desc: '+78% C#'
         },
         laravel: {
-            cost: 24000,
-            boost: 0.9,
+            cost: 27000,
+            boost: 0.82,
             name: 'Laravel',
             icon: 'fab fa-laravel',
             requires: 'php',
-            desc: '+90% PHP'
+            desc: '+82% PHP'
         }
     },
 
@@ -187,17 +194,17 @@ const CONFIG = {
             name: 'StackOverflow Gold',
             icon: 'fab fa-stack-overflow',
             cost: 2,
-            clickBoost: 0.12,
+            clickBoost: 0.18,
             passiveBoost: 0,
-            releaseBoost: 0.1,
+            releaseBoost: 0.12,
             desc: 'Tus respuestas antiguas te ahorran tiempo en cada click.'
         },
         copilot: {
             name: 'AI Copilot',
             icon: 'fas fa-wand-magic-sparkles',
             cost: 4,
-            clickBoost: 0.18,
-            passiveBoost: 0.1,
+            clickBoost: 0.24,
+            passiveBoost: 0.12,
             releaseBoost: 0,
             desc: 'Autocompleta y reduce el tiempo de entrega.'
         },
@@ -206,17 +213,17 @@ const CONFIG = {
             icon: 'fas fa-code-branch',
             cost: 5,
             clickBoost: 0,
-            passiveBoost: 0.18,
-            releaseBoost: 0.15,
+            passiveBoost: 0.24,
+            releaseBoost: 0.2,
             desc: 'El proyecto genera más valor mientras duerme.'
         },
         terminalFu: {
             name: 'Terminal Fu',
             icon: 'fas fa-terminal',
             cost: 6,
-            clickBoost: 0.22,
+            clickBoost: 0.3,
             passiveBoost: 0,
-            releaseBoost: 0.05,
+            releaseBoost: 0.08,
             desc: 'Automatizas tareas a una velocidad absurda.'
         },
         dockerCluster: {
@@ -224,17 +231,17 @@ const CONFIG = {
             icon: 'fab fa-docker',
             cost: 7,
             clickBoost: 0,
-            passiveBoost: 0.22,
-            releaseBoost: 0.18,
+            passiveBoost: 0.28,
+            releaseBoost: 0.22,
             desc: 'Escalas el stack y las releases salen con menos drama.'
         },
         observability: {
             name: 'Observability Suite',
             icon: 'fas fa-chart-column',
             cost: 8,
-            clickBoost: 0.08,
-            passiveBoost: 0.16,
-            releaseBoost: 0.2,
+            clickBoost: 0.14,
+            passiveBoost: 0.24,
+            releaseBoost: 0.24,
             desc: 'Menos tiempo apagando incendios, más tiempo produciendo.'
         }
     },
@@ -244,64 +251,64 @@ const CONFIG = {
         frontend: {
             name: 'Frontend',
             icon: 'fas fa-window-maximize',
-            desc: '+20% click, bonus a JavaScript/TypeScript y React',
-            clickBoost: 0.2,
+            desc: '+28% click, bonus a JavaScript/TypeScript y React',
+            clickBoost: 0.28,
             passiveBoost: 0,
             languageBoosts: {
-                javascript: 0.5,
-                typescript: 0.35
+                javascript: 0.65,
+                typescript: 0.5
             },
             frameworkBoosts: {
-                react: 0.25
+                react: 0.32
             }
         },
         backend: {
             name: 'Backend',
             icon: 'fas fa-server',
-            desc: '+15% pasiva, bonus a Python/Rust y Django',
+            desc: '+24% pasiva, bonus a Python/Rust y Django',
             clickBoost: 0,
-            passiveBoost: 0.15,
+            passiveBoost: 0.24,
             languageBoosts: {
-                python: 0.4,
-                rust: 0.25
+                python: 0.55,
+                rust: 0.38
             },
             frameworkBoosts: {
-                django: 0.3
+                django: 0.4
             }
         },
         data: {
             name: 'Data',
             icon: 'fas fa-chart-line',
-            desc: '+10% click, +20% pasiva y mejor provecho de Python',
-            clickBoost: 0.1,
-            passiveBoost: 0.2,
+            desc: '+14% click, +28% pasiva y mejor provecho de Python',
+            clickBoost: 0.14,
+            passiveBoost: 0.28,
             languageBoosts: {
-                python: 0.3,
-                typescript: 0.15
+                python: 0.42,
+                typescript: 0.24
             },
             frameworkBoosts: {}
         },
         devops: {
             name: 'DevOps',
             icon: 'fas fa-cloud',
-            desc: '+25% pasiva y el equipo rinde mejor',
+            desc: '+32% pasiva y el equipo rinde mejor',
             clickBoost: 0,
-            passiveBoost: 0.25,
+            passiveBoost: 0.32,
             languageBoosts: {
-                rust: 0.2,
-                javascript: 0.1
+                rust: 0.32,
+                javascript: 0.2
             },
             frameworkBoosts: {}
         },
         mobile: {
             name: 'Mobile',
             icon: 'fas fa-mobile-alt',
-            desc: '+15% click, bonus a Kotlin y TypeScript',
-            clickBoost: 0.15,
-            passiveBoost: 0.08,
+            desc: '+22% click, +12% pasiva y bonus a Kotlin y TypeScript',
+            clickBoost: 0.22,
+            passiveBoost: 0.12,
             languageBoosts: {
-                kotlin: 0.45,
-                typescript: 0.2
+                kotlin: 0.62,
+                typescript: 0.3
             },
             frameworkBoosts: {}
         }
@@ -312,8 +319,8 @@ const CONFIG = {
         junior: {
             name: 'Junior Dev',
             icon: 'fas fa-user-graduate',
-            cost: 2000,
-            generation: 6,
+            cost: 1700,
+            generation: 10,
             clickBoost: 0,
             passiveBoost: 0,
             desc: 'Produce código base mientras aprendes a delegar.'
@@ -321,46 +328,46 @@ const CONFIG = {
         senior: {
             name: 'Senior Dev',
             icon: 'fas fa-user-tie',
-            cost: 10000,
-            generation: 20,
-            clickBoost: 0.1,
-            passiveBoost: 0.05,
+            cost: 7800,
+            generation: 30,
+            clickBoost: 0.16,
+            passiveBoost: 0.08,
             desc: 'Acelera clicks y procesos con experiencia real.'
         },
         qa: {
             name: 'QA',
             icon: 'fas fa-bug-slash',
-            cost: 6500,
-            generation: 8,
+            cost: 5000,
+            generation: 14,
             clickBoost: 0,
-            passiveBoost: 0.08,
+            passiveBoost: 0.12,
             desc: 'Reduce fricción y mejora la salida sostenida.'
         },
         devops: {
             name: 'DevOps',
             icon: 'fas fa-network-wired',
-            cost: 14000,
-            generation: 14,
+            cost: 11200,
+            generation: 22,
             clickBoost: 0,
-            passiveBoost: 0.15,
+            passiveBoost: 0.22,
             desc: 'Multiplica la automatización de todo el stack.'
         },
         architect: {
             name: 'Software Architect',
             icon: 'fas fa-sitemap',
-            cost: 26000,
-            generation: 32,
-            clickBoost: 0.12,
-            passiveBoost: 0.12,
+            cost: 20500,
+            generation: 42,
+            clickBoost: 0.18,
+            passiveBoost: 0.18,
             desc: 'Convierte complejidad en throughput y decisiones rentables.'
         },
         product: {
             name: 'Product Engineer',
             icon: 'fas fa-lightbulb',
-            cost: 36000,
-            generation: 38,
-            clickBoost: 0.08,
-            passiveBoost: 0.18,
+            cost: 28500,
+            generation: 52,
+            clickBoost: 0.14,
+            passiveBoost: 0.24,
             desc: 'Encuentra features que sí mueven la aguja.'
         }
     },
@@ -570,6 +577,7 @@ const CONFIG = {
     
     // === LOCAL STORAGE ===
     SAVE_KEY: 'codeIdleGame',
+    HARD_RELOAD_RESET_FLAG_KEY: 'codeIdleHardReloadReset',
 };
 
 console.log('✅ CONFIG loaded');
