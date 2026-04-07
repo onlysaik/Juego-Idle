@@ -91,7 +91,7 @@ const achievementsModule = {
             // Confetti
             if (typeof confetti !== 'undefined') {
                 confetti({
-                    particleCount: 100,
+                    particleCount: uiModule.scaleCelebrationCount(100),
                     spread: 70,
                     origin: { y: 0.6 }
                 });

@@ -1,143 +1,107 @@
-# 🎮 CodeIdle - Programmer Incremental Game
+# CodeIdle
 
-Un juego incremental/idle hermoso y adictivo sobre programación. ¡Genera líneas de código, completa commits y desbloquea lenguajes!
+Juego incremental sobre programación con click manual, automatización, releases, reputación, decisiones, admin tools y una interfaz inspirada en IDE.
 
-## 🌟 Características
+## Estado actual
 
-### Mecánicas del Juego
-- **Click Manual**: Genera líneas de código con cada click
-- **Sistema de Commits**: Cada 1000 líneas = 1 commit
-- **Generación Pasiva**: Compra lenguajes para generar código automáticamente
-- **Upgrades**: Mejora tu productividad con equipamiento y herramientas
-- **Racha de Clicks**: ¡Mantén la velocidad para construir una racha!
+- Click manual con racha, bonificación de click y commits automáticos cada 1000 líneas.
+- 9 lenguajes desbloqueables con generación pasiva.
+- 4 upgrades base: Teclado Mecánico, Monitor 4K, Café y VS Code Pro.
+- 8 frameworks con boosts por lenguaje.
+- 6 artefactos meta y sistema de reputación/prestige.
+- Especializaciones, equipo, misiones y sistema de release con carga acumulada.
+- Eventos aleatorios y decisiones centradas con impactos temporales o estratégicos.
+- Logros, estadísticas, tendencias y reporte offline.
+- Temas visuales, editor estilo IDE, audio, animaciones y layout responsive.
+- Consola oculta de admin con `godmode`, comandos y hotkeys.
 
-### Contenido
-- **4 Lenguajes de Programación**: JavaScript, Python, Rust, TypeScript (cada uno genera más líneas)
-- **4 Upgrades**: Teclado Mecánico, Monitor 4K, Café, VS Code
-- **Sistema de Estadísticas**: Rastrear tu progreso
-- **Persistencia**: Tu progreso se guarda automáticamente en localStorage
+## Cómo ejecutar
 
-## 🎨 Dependencias Visuales
+1. Abre [index.html](index.html) directamente en el navegador, o usa un servidor estático como Live Server.
+2. Espera a que carguen las dependencias CDN.
+3. Empieza a jugar desde el panel izquierdo.
 
-El proyecto utiliza las siguientes librerías CDN para una experiencia hermosa:
-
-### UI/Diseño
-- **Bootstrap 5.3.0** - Framework de diseño responsive
-- **Google Fonts** - Tipografía moderna (Fira Code, Poppins)
-- **Font Awesome 6.4.0** - Iconografía profesional
-
-### Animaciones
-- **Anime.js 3.2.1** - Librería de animaciones suave
-- **Animate.css 4.1.1** - Animaciones CSS predefinidas
-
-### Datos/Gráficos
-- **Chart.js 3.9.1** - Gráficos y estadísticas
-- **Particles.js 2.0.0** - Fondo animado con partículas
-
-## 📋 Estructura
-
-```
-Juego-Idle/
-├── index.html      # Estructura y elementos del juego
-├── styles.css      # Estilos personalizados (neon/gaming)
-├── game.js         # Lógica del juego
-└── README.md       # Este archivo
-```
-
-## 🚀 Cómo Usar
-
-1. **Abre el archivo**: Simplemente abre `index.html` en tu navegador
-2. **Comienza a clickear**: Haz click en el botón principal para generar código
-3. **Compra Upgrades**: Usa tus líneas de código para mejorar
-4. **Desbloquea Lenguajes**: Los lenguajes generan código automáticamente
-5. **Sigue jugando**: Tu progreso se guarda automáticamente
-
-## 🕹️ Controles
+## Controles
 
 | Acción | Control |
-|--------|---------|
-| Click Manual | Click en el botón / Barra espaciadora / Enter |
-| Comprar Upgrade | Click en el card |
-| Cambiar Tab | Click en las pestañas |
+| --- | --- |
+| Click manual | Click, `Space`, `Enter` |
+| Cambiar panel móvil | Botones `Juego` / `Panel` |
+| Cambiar vista del panel derecho | Botones `Panel` / `Editor` |
+| Toggle sonido | Botón de sonido en header |
+| Cambiar tema | Selector del header |
+| Abrir consola admin | Tecla configurada en el flujo actual y luego escribir `godmode` |
 
-## 🎯 Progresión
+## Comandos admin
 
-1. **Principio**: Haz click para generar tus primeras líneas
-2. **Temprano**: Compra Teclado Mecánico para +10% eficiencia
-3. **Medio**: Desbloquea JavaScript y Python para generación pasiva
-4. **Avanzado**: Sigue comprando lenguajes y upgrades más costosos
-5. **Endgame**: Optimiza tu configuración para máxima generación
+Una vez activado `godmode`, la consola soporta:
 
-## 💾 Guardado
+- `help`
+- `addcode N`
+- `addrep N`
+- `creative on|off`
+- `decision`
+- `event`
+- `missions`
+- `release`
+- `resources`
+- `unlockall`
 
-El juego se guarda automáticamente cada vez que:
-- Completas un click
-- Compras un upgrade
-- Desbloqueas un lenguaje
+Hotkeys activas en admin: `D`, `E`, `C`, `M`, `R`, `K`, `U`.
 
-Los datos se almacenan en `localStorage` del navegador.
+## Estructura actual
 
-## 🎨 Tema Visual
-
-- **Colores Neón**: Cyan (#00d4ff), Magenta (#ff006e), Neon Green (#00ff88)
-- **Fondo**: Degradado oscuro futurista
-- **Tipografía**: Fira Code para código, Poppins para UI
-- **Efectos**: Partículas animadas, bordes brillantes, transiciones fluidas
-
-## 📱 Responsivo
-
-El juego está optimizado para:
-- Desktop (1920px+)
-- Laptop (1366px+)
-- Tablet (768px+)
-- Mobile (320px+)
-
-## 🔧 Personalización
-
-Puedes fácilmente personalizar:
-
-### Colores
-Edita las variables CSS en `styles.css`:
-```css
-:root {
-    --primary: #00d4ff;      /* Color principal */
-    --secondary: #ff006e;    /* Color secundario */
-    --accent: #00ff88;       /* Color de acentos */
-    /* ... etc */
-}
+```text
+Juego-Idle/
+├── index.html
+├── styles.css
+├── favicon.svg
+├── README.md
+├── ARCHITECTURE.md
+└── src/
+    ├── config.js
+    ├── state.js
+    ├── game.js
+    ├── main.js
+    └── modules/
+        ├── achievements.js
+        ├── admin.js
+        ├── audio.js
+        ├── events.js
+        ├── game-logic.js
+        ├── themes.js
+        └── ui.js
 ```
 
-### Valores del Juego
-Edita `gameState` en `game.js`:
-```javascript
-codePerClick: 10,  // Líneas por click
-languages: { ... } // Costos y generación
-upgrades: { ... }  // Upgrades disponibles
-```
+## Dependencias CDN
 
-## 🚦 Requisitos
+- Bootstrap 5
+- Font Awesome
+- Google Fonts
+- Animate.css
+- Anime.js
+- Particles.js
+- Chart.js
+- SweetAlert2
+- Canvas Confetti
+- Day.js
+- Howler.js cargado, aunque el audio actual usa principalmente HTMLAudio/Web Audio según el caso
 
-- Navegador web moderno (Chrome, Firefox, Safari, Edge)
-- Conexión a Internet (para CDN)
-- JavaScript habilitado
+## Guardado y datos
 
-## 📝 Notas
+- El progreso persiste en `localStorage`.
+- El guardado se ejecuta automáticamente durante la partida.
+- Hay soporte de progreso offline con tope configurado en [src/config.js](src/config.js).
 
-- El juego funciona completely offline una vez cargado
-- Los datos se mantienen incluso si cierras el navegador
-- Puedes limpiar tu progreso limpiando localStorage
+## Ajustes frecuentes
 
-## 🎮 Tips de Juego
+- Balance: [src/config.js](src/config.js)
+- Estado y persistencia: [src/state.js](src/state.js)
+- Flujo visual y render: [src/modules/ui.js](src/modules/ui.js)
+- Eventos y decisiones: [src/modules/events.js](src/modules/events.js)
+- Audio: [src/modules/audio.js](src/modules/audio.js)
+- Layout y look & feel: [styles.css](styles.css)
 
-1. **Mantén la racha**: Es más rápido llegar a 1000 con clicks rápidos
-2. **Prioriza lenguajes**: La generación pasiva es exponencial
-3. **Balancea**: Compra upgrades estratégicamente para maximizar ROI
-4. **Experimenta**: Cada configuración es única
+## Documentación técnica
 
-¡Diviértete programando! 🚀
-
----
-
-**Versión**: 1.0.0  
-**Última actualización**: Abril 2026  
-**Hecho con ❤️ y muchas líneas de código**
+La arquitectura real del proyecto está resumida en [ARCHITECTURE.md](ARCHITECTURE.md).

@@ -12,7 +12,7 @@ const gameLogic = {
         } = options;
 
         let commitsProcessed = 0;
-        while (gameState.code >= CONFIG.CODE_PER_COMMIT && commitsProcessed < maxCommits) {
+        while (gameState.commitProgress >= CONFIG.CODE_PER_COMMIT && commitsProcessed < maxCommits) {
             gameState.addCommit();
             commitsProcessed++;
         }
@@ -27,7 +27,7 @@ const gameLogic = {
 
             if (typeof confetti !== 'undefined') {
                 confetti({
-                    particleCount: Math.min(160, 40 + commitsProcessed * 10),
+                    particleCount: uiModule.scaleCelebrationCount(Math.min(160, 40 + commitsProcessed * 10)),
                     spread: 50,
                     origin: { y: 0.6 }
                 });
@@ -48,9 +48,10 @@ const gameLogic = {
         
         // Progreso
         const amount = gameState.calculateClickPower();
-        gameState.addCode(amount);
+        gameState.earnCode(amount);
         gameState.clicks++;
         gameState.updateStreak();
+        gameState.applyProjectHealthImpact(gameState.getClickProjectHealthImpact());
         
         // Visuales
         uiModule.createFloatingText(amount);
@@ -75,6 +76,7 @@ const gameLogic = {
     buyUpgrade(key) {
         if (gameState.buyUpgrade(key)) {
             const upgrade = gameState.upgrades[key];
+            audioModule.play(key === 'keyboard' ? 'keyboard-upgrade' : 'achievement');
             uiModule.showNotification(`✨ ${upgrade.name}!`, 'success');
             uiModule.createUpgradesUI();
             achievementsModule.checkAll();
@@ -185,19 +187,37 @@ const gameLogic = {
             return;
         }
 
-        audioModule.play('achievement');
-        uiModule.showNotification(`🚀 ${result.version} publicada`, 'success');
+        audioModule.play(result.band.key === 'unstable' ? 'click' : 'achievement');
+        uiModule.showNotification(`🚀 ${result.version} · ${result.band.label} · ${result.trust.label} · +${result.code.toLocaleString()} código · +${result.rep} rep · liderazgo ${result.responsibilityDelta >= 0 ? '+' : ''}${Math.round(result.responsibilityDelta)}`, result.band.tone);
         uiModule.update();
         achievementsModule.checkAll();
         gameState.save(true);
 
-        if (typeof confetti !== 'undefined') {
+        if (typeof confetti !== 'undefined' && result.band.key !== 'unstable') {
             confetti({
-                particleCount: 90,
-                spread: 65,
+                particleCount: uiModule.scaleCelebrationCount(result.band.key === 'clean' ? 120 : 90),
+                spread: result.band.key === 'clean' ? 80 : 65,
                 origin: { y: 0.58 }
             });
         }
+    },
+
+    startMaintenance() {
+        const result = gameState.startMaintenance();
+        if (!result.ok) {
+            if (result.reason === 'active') {
+                uiModule.showNotification('Ya estás en mantenimiento activo', 'info');
+            } else if (result.reason === 'cooldown') {
+                uiModule.showNotification('El mantenimiento sigue en cooldown', 'warning');
+            } else {
+                uiModule.showNotification(`Necesitas ${result.status.cost.toLocaleString()} código para refactorizar`, 'warning');
+            }
+            return;
+        }
+
+        uiModule.showNotification(`🧰 Refactor iniciado · -${result.cost.toLocaleString()} código · salud técnica +${CONFIG.MAINTENANCE.QUALITY_RESTORE} · deuda -${CONFIG.MAINTENANCE.DEBT_REDUCTION}`, 'success');
+        uiModule.update();
+        gameState.save(true);
     },
 
     prestige() {
@@ -241,26 +261,23 @@ const gameLogic = {
         const reward = gameState.performPrestige();
         if (reward <= 0) return;
 
+        const releaseBias = Math.min(CONFIG.PRESTIGE_RELEASE_SCORE_CAP, gameState.prestigePoints * CONFIG.PRESTIGE_RELEASE_SCORE_PER_POINT);
+        const responsibilityFloor = Math.round(gameState.getResponsibilityBaselineValue());
+
         audioModule.play('achievement');
-        uiModule.createUpgradesUI();
-        uiModule.createLanguagesUI();
-        uiModule.createAchievementsUI();
-        uiModule.createMissionsUI();
-        uiModule.createLabUI();
-        uiModule.createMetaUI();
-        uiModule.update();
+        uiModule.rebuildAllPrimaryUI();
         achievementsModule.checkAll();
         gameState.save(true);
 
         if (typeof confetti !== 'undefined') {
             confetti({
-                particleCount: 140,
+                particleCount: uiModule.scaleCelebrationCount(140),
                 spread: 80,
                 origin: { y: 0.55 }
             });
         }
 
-        uiModule.showNotification(`🌟 Prestige completado: +${reward} reputación`, 'success');
+        uiModule.showNotification(`🌟 Prestige completado: +${reward} reputación · disciplina permanente +${Math.round(releaseBias)} score de release · piso de responsabilidad ${responsibilityFloor}`, 'success');
     }
 };
 

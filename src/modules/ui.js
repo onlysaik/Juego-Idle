@@ -5,14 +5,100 @@
  */
 
 const uiModule = {
-    previewLanguageKey: 'javascript',
-    activeEditorFileId: 'language:javascript',
-    editorTabsSignature: '',
-    editorPreviewSignature: '',
+    isCreativeModeActive() {
+        return gameState.isCreativeModeEnabled();
+    },
+
+    formatCodeCost(cost) {
+        return this.isCreativeModeActive() ? '🛠 Gratis' : `💾 ${cost.toLocaleString()}`;
+    },
+
+    formatPrestigeCost(cost) {
+        return this.isCreativeModeActive() ? '🛠 Gratis' : `⭐ ${cost}`;
+    },
+
+    prefersReducedMotion() {
+        return window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
+    },
+
+    getVisualPerformanceProfile(width = window.innerWidth) {
+        const reducedMotion = this.prefersReducedMotion();
+        const isCompactMobile = width <= 768;
+        const isTabletLike = width <= 991.98;
+
+        if (reducedMotion) {
+            return {
+                key: 'reduced',
+                backgroundParticles: 0,
+                passiveParticleBurst: 0,
+                floatingTextDuration: 700,
+                confettiScale: 0.35,
+                enableClickAnimation: false,
+                enableCommitAnimation: false,
+                monitorQuality: 'low'
+            };
+        }
+
+        if (isCompactMobile) {
+            return {
+                key: 'compact',
+                backgroundParticles: 14,
+                passiveParticleBurst: 1,
+                floatingTextDuration: 800,
+                confettiScale: 0.5,
+                enableClickAnimation: true,
+                enableCommitAnimation: true,
+                monitorQuality: 'low'
+            };
+        }
+
+        if (isTabletLike) {
+            return {
+                key: 'balanced',
+                backgroundParticles: 26,
+                passiveParticleBurst: 2,
+                floatingTextDuration: 900,
+                confettiScale: 0.75,
+                enableClickAnimation: true,
+                enableCommitAnimation: true,
+                monitorQuality: 'medium'
+            };
+        }
+
+        return {
+            key: 'full',
+            backgroundParticles: 50,
+            passiveParticleBurst: 3,
+            floatingTextDuration: 1000,
+            confettiScale: 1,
+            enableClickAnimation: true,
+            enableCommitAnimation: true,
+            monitorQuality: 'full'
+        };
+    },
+
+    scaleCelebrationCount(baseCount) {
+        const profile = this.getVisualPerformanceProfile();
+        return Math.max(18, Math.round(baseCount * profile.confettiScale));
+    },
+
+    rebuildCommerceUI() {
+        this.createUpgradesUI();
+        this.createLanguagesUI();
+        this.createLabUI();
+        this.createMetaUI();
+    },
+
+    rebuildAllPrimaryUI() {
+        this.rebuildCommerceUI();
+        this.createAchievementsUI();
+        this.createMissionsUI();
+        this.update();
+    },
 
     // === ACTUALIZACIÓN DE STATS ===
     updateStats() {
-        document.getElementById('totalXP').textContent = Math.floor(gameState.totalCode).toLocaleString();
+        document.getElementById('currentCodeHeader').textContent = Math.floor(gameState.code).toLocaleString();
         document.getElementById('commits').textContent = gameState.commits;
         document.getElementById('streak').textContent = gameState.streak;
         document.getElementById('achievementCount').textContent = achievementsModule.getCount();
@@ -21,9 +107,21 @@ const uiModule = {
     
     updateProgress() {
         document.getElementById('codeDisplay').textContent = Math.floor(gameState.code).toLocaleString();
-        const progressPercent = (gameState.code / CONFIG.CODE_PER_COMMIT) * 100;
+        const rawProgressPercent = (gameState.commitProgress / CONFIG.CODE_PER_COMMIT) * 100;
+        const progressPercent = Math.max(0, Math.min(100, rawProgressPercent));
         document.getElementById('codeBar').style.width = progressPercent + '%';
+        const commitProgressMeta = document.getElementById('commitProgressMeta');
+        if (commitProgressMeta) {
+            const progressValue = Math.floor(gameState.commitProgress).toLocaleString();
+            const goalValue = CONFIG.CODE_PER_COMMIT.toLocaleString();
+            commitProgressMeta.textContent = `Commit ${progressValue} / ${goalValue}`;
+        }
         document.getElementById('cpv').textContent = Math.floor(gameState.calculateClickPower());
+        const clickerArea = document.querySelector('.clicker-area');
+        const hasMonitorUpgrade = (gameState.upgrades.monitor?.owned || 0) > 0;
+
+        clickerArea?.classList.toggle('monitor-4k-active', hasMonitorUpgrade);
+        monitor4kModule?.sync(hasMonitorUpgrade);
         
         // MEJORA 1: Aura de progresión - cambiar clase si power es alto
         const button = document.getElementById('clickBtn');
@@ -43,8 +141,7 @@ const uiModule = {
             progressBar.classList.remove('near-commit');
         }
         
-        this.syncEditorTabs();
-        this.updateEditorStatus();
+        editorModule.sync();
     },
     
     updatePassive() {
@@ -106,7 +203,62 @@ const uiModule = {
         document.getElementById('totalClicks').textContent = gameState.clicks.toLocaleString();
         document.getElementById('currentSpeed').textContent = gameState.calculateGeneration().toFixed(1) + ' líneas/seg';
         document.getElementById('totalCommits').textContent = gameState.commits;
+        document.getElementById('lifetimeCode').textContent = Math.floor(gameState.totalCode).toLocaleString();
         document.getElementById('maxStreak').textContent = gameState.maxStreak;
+    },
+
+    updateProjectHealthUI() {
+        const card = document.getElementById('projectHealthCard');
+        const stateLabel = document.getElementById('projectHealthState');
+        const stateBadge = document.getElementById('projectHealthBadge');
+        const peekState = document.getElementById('projectHealthPeekState');
+        const peekMetrics = document.getElementById('projectHealthPeekMetrics');
+        const qualityValue = document.getElementById('projectHealthQualityValue');
+        const qualityBar = document.getElementById('projectHealthQualityBar');
+        const debtValue = document.getElementById('projectHealthDebtValue');
+        const debtBar = document.getElementById('projectHealthDebtBar');
+        const copy = document.getElementById('projectHealthCopy');
+        const responsibilityState = document.getElementById('projectResponsibilityState');
+        const responsibilityBadge = document.getElementById('projectResponsibilityBadge');
+        const responsibilityValue = document.getElementById('projectResponsibilityValue');
+        const responsibilityBar = document.getElementById('projectResponsibilityBar');
+        const responsibilityCopy = document.getElementById('projectResponsibilityCopy');
+        const maintenanceButton = document.getElementById('projectHealthMaintenanceBtn');
+        const maintenanceStatus = document.getElementById('projectHealthMaintenanceStatus');
+        if (!card || !stateLabel || !stateBadge || !qualityValue || !qualityBar || !debtValue || !debtBar || !copy || !responsibilityState || !responsibilityBadge || !responsibilityValue || !responsibilityBar || !responsibilityCopy || !maintenanceButton || !maintenanceStatus) return;
+
+        const snapshot = gameState.getProjectHealthSnapshot();
+        const responsibility = gameState.getResponsibilitySnapshot();
+        const maintenance = gameState.getMaintenanceStatus();
+        card.dataset.state = snapshot.state.key;
+        stateLabel.textContent = snapshot.state.label;
+        stateBadge.textContent = snapshot.state.badge;
+        if (peekState) peekState.textContent = snapshot.state.label;
+        if (peekMetrics) peekMetrics.textContent = `Q${Math.round(snapshot.quality)} · D${Math.round(snapshot.technicalDebt)} · O${Math.round(responsibility.value)}`;
+        qualityValue.textContent = Math.round(snapshot.quality).toString();
+        debtValue.textContent = Math.round(snapshot.technicalDebt).toString();
+        qualityBar.style.width = `${snapshot.quality}%`;
+        debtBar.style.width = `${snapshot.technicalDebt}%`;
+        copy.textContent = snapshot.state.description;
+        responsibilityState.textContent = responsibility.state.label;
+        responsibilityBadge.textContent = responsibility.state.badge;
+        responsibilityValue.textContent = Math.round(responsibility.value).toString();
+        responsibilityBar.style.width = `${responsibility.value}%`;
+        responsibilityCopy.textContent = responsibility.state.description;
+
+        if (maintenance.isActive) {
+            maintenanceButton.disabled = true;
+            maintenanceButton.textContent = 'Refactor en curso';
+            maintenanceStatus.textContent = `Mantenimiento activo · ${Math.ceil(maintenance.activeRemainingMs / 1000)}s restantes · throughput reducido`;
+        } else if (maintenance.isCoolingDown) {
+            maintenanceButton.disabled = true;
+            maintenanceButton.textContent = 'Cooldown de refactor';
+            maintenanceStatus.textContent = `Vuelve a estar disponible en ${Math.ceil(maintenance.cooldownRemainingMs / 1000)}s`;
+        } else {
+            maintenanceButton.disabled = !gameState.canAffordCodeCost(maintenance.cost);
+            maintenanceButton.textContent = `Refactorizar · ${maintenance.cost.toLocaleString()} código`;
+            maintenanceStatus.textContent = 'Recupera calidad y reduce deuda a cambio de frenar el ritmo temporalmente';
+        }
     },
 
     updateMissionsUI() {
@@ -120,7 +272,7 @@ const uiModule = {
             const claimButton = document.getElementById(`${slot}MissionClaim`);
 
             if (progressLabel) {
-                progressLabel.textContent = `${Math.min(progress.current, progress.target).toLocaleString()} / ${progress.target.toLocaleString()}`;
+                progressLabel.textContent = `${this.formatMissionValue(mission.metric, Math.min(progress.current, progress.target))} / ${this.formatMissionValue(mission.metric, progress.target)}`;
             }
 
             if (progressBar) {
@@ -134,7 +286,38 @@ const uiModule = {
         });
     },
 
+    formatMissionValue(metric, value) {
+        if (metric === 'healthySeconds' || metric === 'highResponsibilitySeconds') {
+            const totalSeconds = Math.max(0, Math.floor(value));
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+        }
+
+        return Math.floor(value).toLocaleString();
+    },
+
+    prefersCompactContent() {
+        return window.innerWidth <= 560;
+    },
+
+    formatCompactNumber(value) {
+        const numericValue = Number(value) || 0;
+        const absoluteValue = Math.abs(numericValue);
+
+        if (absoluteValue >= 1000000) {
+            return `${(numericValue / 1000000).toFixed(absoluteValue >= 10000000 ? 0 : 1)}M`;
+        }
+
+        if (absoluteValue >= 1000) {
+            return `${(numericValue / 1000).toFixed(absoluteValue >= 10000 ? 0 : 1)}k`;
+        }
+
+        return Math.round(numericValue).toLocaleString();
+    },
+
     updateMetaUI() {
+        const compactContent = this.prefersCompactContent();
         const prestigePoints = document.getElementById('metaPrestigePoints');
         const prestigeLevel = document.getElementById('metaPrestigeLevel');
         const prestigeBoost = document.getElementById('metaPrestigeBoost');
@@ -142,18 +325,76 @@ const uiModule = {
         const prestigeCost = document.getElementById('metaPrestigeCost');
         const specializationName = document.getElementById('metaSpecialization');
         const teamSize = document.getElementById('metaTeamSize');
+        const healthState = document.getElementById('metaHealthState');
+        const healthMaintenanceCost = document.getElementById('metaMaintenanceCost');
+        const healthReleaseBias = document.getElementById('metaReleaseBias');
+        const healthCleanReleases = document.getElementById('metaCleanReleases');
+        const healthInsight = document.getElementById('metaHealthInsight');
+        const teamPressure = document.getElementById('metaTeamPressure');
+        const teamOwnership = document.getElementById('metaTeamOwnership');
+        const responsibilityBias = document.getElementById('metaResponsibilityBias');
+        const responsibilityBaseline = document.getElementById('metaResponsibilityBaseline');
+        const systemGlossary = document.getElementById('metaSystemGlossary');
         const prestigeButton = document.getElementById('prestigeActionBtn');
+        const overview = gameState.getHealthOverview();
+        const teamProfile = gameState.getTeamResponsibilityProfile();
+        const responsibilityModifiers = gameState.getResponsibilityModifiers();
 
         if (prestigePoints) prestigePoints.textContent = gameState.prestigePoints.toLocaleString();
         if (prestigeLevel) prestigeLevel.textContent = gameState.prestigeLevel.toLocaleString();
         if (prestigeBoost) prestigeBoost.textContent = `x${gameState.getPrestigeMultiplier().toFixed(2)}`;
         if (prestigeReward) prestigeReward.textContent = `+${gameState.calculatePrestigeReward()} rep`;
-        if (prestigeCost) prestigeCost.textContent = gameState.calculatePrestigeCost().toLocaleString();
+        if (prestigeCost) prestigeCost.textContent = this.isCreativeModeActive()
+            ? 'Gratis / admin'
+            : `${gameState.calculatePrestigeCost().toLocaleString()} rep`;
         if (specializationName) {
             specializationName.textContent = gameState.getSpecialization()?.name || 'Sin definir';
         }
         if (teamSize) {
             teamSize.textContent = gameState.getOwnedCount(gameState.team).toLocaleString();
+        }
+        if (healthState) {
+            healthState.textContent = overview.snapshot.state.label;
+        }
+        if (healthMaintenanceCost) {
+            healthMaintenanceCost.textContent = compactContent
+                ? `${this.formatCompactNumber(overview.maintenanceCost)} cod`
+                : `${overview.maintenanceCost.toLocaleString()} código`;
+        }
+        if (healthReleaseBias) {
+            const releaseBonus = overview.modifiers.releaseHealthBonus;
+            healthReleaseBias.textContent = `${releaseBonus >= 0 ? '+' : ''}${Math.round(releaseBonus)} score`;
+        }
+        if (healthCleanReleases) {
+            healthCleanReleases.textContent = compactContent
+                ? `${overview.cleanReleases} limp. · ${overview.healthyReleases} sanas`
+                : `${overview.cleanReleases} limpias / ${overview.healthyReleases} sanas`;
+        }
+        if (healthInsight) {
+            healthInsight.textContent = overview.recommendation;
+        }
+        if (systemGlossary) {
+            systemGlossary.textContent = overview.systemFocus;
+        }
+        if (teamPressure) {
+            teamPressure.textContent = compactContent
+                ? `${teamProfile.pressureLabel} · x${teamProfile.baseMultiplier.toFixed(2)}`
+                : `${teamProfile.pressureLabel} · x${teamProfile.baseMultiplier.toFixed(2)}`;
+        }
+        if (teamOwnership) {
+            teamOwnership.textContent = compactContent
+                ? `${teamProfile.ownershipLabel} · esp. x${teamProfile.specialistMultiplier.toFixed(2)}`
+                : `${teamProfile.ownershipLabel} · especialistas x${teamProfile.specialistMultiplier.toFixed(2)}`;
+        }
+        if (responsibilityBias) {
+            responsibilityBias.textContent = compactContent
+                ? `G x${responsibilityModifiers.gainMultiplier.toFixed(2)} · P x${responsibilityModifiers.lossMultiplier.toFixed(2)}`
+                : `Ganancia x${responsibilityModifiers.gainMultiplier.toFixed(2)} · pérdida x${responsibilityModifiers.lossMultiplier.toFixed(2)}`;
+        }
+        if (responsibilityBaseline) {
+            responsibilityBaseline.textContent = compactContent
+                ? `Piso ${Math.round(responsibilityModifiers.baselineValue)} · conf. ${responsibilityModifiers.trustRepBonus >= 0 ? '+' : ''}${responsibilityModifiers.trustRepBonus} rep`
+                : `Piso ${Math.round(responsibilityModifiers.baselineValue)} · confianza ${responsibilityModifiers.trustRepBonus >= 0 ? '+' : ''}${responsibilityModifiers.trustRepBonus} rep`;
         }
         if (prestigeButton) {
             prestigeButton.disabled = !gameState.canPrestige();
@@ -172,22 +413,27 @@ const uiModule = {
             const cost = card.querySelector('.team-cost');
             if (count) count.textContent = `x${member.owned}`;
             if (cost) {
-                cost.textContent = `💾 ${member.cost.toLocaleString()}`;
-                cost.classList.toggle('affordable', gameState.totalCode >= member.cost);
+                cost.textContent = this.formatCodeCost(member.cost);
+                cost.classList.toggle('affordable', gameState.canAffordCodeCost(member.cost));
             }
         });
     },
 
     updateLabUI() {
+        const compactContent = this.prefersCompactContent();
         const releaseVersion = document.getElementById('labReleaseVersion');
         const releaseCharge = document.getElementById('labReleaseCharge');
         const releaseReward = document.getElementById('labReleaseReward');
+        const releaseTrust = document.getElementById('labReleaseTrust');
+        const releaseOutlook = document.getElementById('labReleaseOutlook');
+        const releaseLastOutcome = document.getElementById('labReleaseLastOutcome');
         const releaseButton = document.getElementById('releaseActionBtn');
         const trendLanguage = document.getElementById('labTrendLanguage');
         const trendFramework = document.getElementById('labTrendFramework');
         const trendTimer = document.getElementById('labTrendTimer');
 
         const reward = gameState.getReleaseRewardPreview();
+        const preview = gameState.getReleaseOutcomePreview();
         const remainingMs = gameState.getTrendTimeRemaining();
         const remainingSeconds = Math.ceil(remainingMs / 1000);
         const trendLanguageData = CONFIG.LANGUAGES[gameState.currentTrend?.languageKey];
@@ -195,7 +441,37 @@ const uiModule = {
 
         if (releaseVersion) releaseVersion.textContent = gameState.getVersionLabel();
         if (releaseCharge) releaseCharge.textContent = `${gameState.releaseCharge}/${CONFIG.RELEASE_CHARGE_REQUIRED}`;
-        if (releaseReward) releaseReward.textContent = reward.code > 0 ? `+${reward.code.toLocaleString()} código · +${reward.rep} rep` : 'Carga commits para publicar';
+        if (releaseReward) {
+            releaseReward.textContent = reward.code > 0
+                ? (compactContent
+                    ? `Esp: +${this.formatCompactNumber(preview.expectedCode)} cod · +${preview.expectedRep} rep`
+                    : `Esperado: +${preview.expectedCode.toLocaleString()} código · +${preview.expectedRep} rep`)
+                : (compactContent ? 'Carga commits' : 'Carga commits para publicar');
+        }
+        if (releaseTrust) {
+            releaseTrust.textContent = preview.ready
+                ? (compactContent
+                    ? `${preview.trust.label} · lid. ${Math.round(preview.trust.snapshot.value)} · ${preview.trust.repModifier >= 0 ? '+' : ''}${preview.trust.repModifier} rep`
+                    : `${preview.trust.label} · liderazgo ${Math.round(preview.trust.snapshot.value)} · conversión ${preview.trust.repModifier >= 0 ? '+' : ''}${preview.trust.repModifier} rep`)
+                : (compactContent
+                    ? 'Confianza y salud se calculan al cerrar la release'
+                    : 'La confianza de entrega depende de responsabilidad; la salud técnica se evalúa aparte cuando la release está lista');
+        }
+        if (releaseOutlook) {
+            releaseOutlook.textContent = preview.ready
+                ? (compactContent
+                    ? `${preview.band.label} · ${preview.projectHealth.state.label} · ${this.formatCompactNumber(preview.minCode)}-${this.formatCompactNumber(preview.maxCode)} cod`
+                    : `${preview.band.label} · ${preview.band.riskLabel} · salud ${preview.projectHealth.state.label} · ${preview.minCode.toLocaleString()}-${preview.maxCode.toLocaleString()} código`)
+                : 'Necesitas más commits para estimar la release';
+        }
+        if (releaseLastOutcome) {
+            const last = gameState.lastReleaseReport;
+            releaseLastOutcome.textContent = last
+                ? (compactContent
+                    ? `Última: ${last.band.label} · +${this.formatCompactNumber(last.code)} cod · +${last.rep} rep`
+                    : `Última: ${last.band.label} · ${last.trust?.label || 'Confianza moderada'} · +${last.code.toLocaleString()} código · +${last.rep} rep`)
+                : 'Aún no has publicado una release en esta run';
+        }
         if (releaseButton) releaseButton.disabled = !gameState.canPublishRelease();
         if (trendLanguage) trendLanguage.textContent = trendLanguageData ? `${trendLanguageData.name} x${(1 + CONFIG.TREND_LANGUAGE_MULTIPLIER).toFixed(2)}` : 'Sin tendencia';
         if (trendFramework) trendFramework.textContent = trendFrameworkData ? `${trendFrameworkData.name} x${(1 + CONFIG.TREND_FRAMEWORK_MULTIPLIER).toFixed(2)}` : 'Sin framework hot';
@@ -211,8 +487,8 @@ const uiModule = {
             const status = card.querySelector('.artifact-status');
 
             if (cost) {
-                cost.textContent = artifact.owned > 0 ? 'Comprado' : `⭐ ${artifact.cost}`;
-                cost.classList.toggle('affordable', gameState.prestigePoints >= artifact.cost && artifact.owned === 0);
+                cost.textContent = artifact.owned > 0 ? 'Comprado' : this.formatPrestigeCost(artifact.cost);
+                cost.classList.toggle('affordable', gameState.canAffordPrestigeCost(artifact.cost) && artifact.owned === 0);
             }
 
             if (status) {
@@ -221,281 +497,28 @@ const uiModule = {
         });
     },
 
-    getOwnedPreviewLanguages() {
-        return Object.entries(gameState.languages)
-            .filter(([, language]) => language.owned > 0)
-            .map(([key, language]) => ({ key, ...language }));
-    },
-
-    getFileNameForLanguage(languageKey) {
-        const fileMap = {
-            javascript: 'app.js',
-            python: 'app.py',
-            rust: 'main.rs',
-            typescript: 'server.ts',
-            go: 'api.go',
-            java: 'Application.java',
-            csharp: 'Program.cs',
-            kotlin: 'App.kt',
-            php: 'index.php'
-        };
-
-        return fileMap[languageKey] || 'main.txt';
-    },
-
-    getFileNameForFramework(frameworkKey) {
-        const fileMap = {
-            react: 'App.jsx',
-            django: 'views.py',
-            vue: 'App.vue',
-            nextjs: 'page.tsx',
-            fastapi: 'api.py',
-            spring: 'CodeController.java',
-            dotnet: 'CodeController.cs',
-            laravel: 'routes.php'
-        };
-
-        return fileMap[frameworkKey] || 'feature.txt';
-    },
-
-    getPreferredFrameworkForLanguage(languageKey) {
-        const ownedFrameworks = Object.entries(gameState.frameworks)
-            .filter(([, framework]) => framework.owned > 0 && framework.requires === languageKey)
-            .map(([key, framework]) => ({ key, ...framework }))
-            .sort((a, b) => b.owned - a.owned || b.cost - a.cost);
-
-        return ownedFrameworks[0] || null;
-    },
-
     setPreviewLanguage(languageKey) {
-        this.previewLanguageKey = languageKey;
-        this.activeEditorFileId = `language:${languageKey}`;
-        this.syncEditorTabs();
-        this.updateCodePreview();
-        this.updateEditorStatus();
+        editorModule.setPreviewLanguage(languageKey);
     },
 
     setPreviewFramework(frameworkKey) {
-        const framework = gameState.frameworks[frameworkKey];
-        if (!framework) return;
-        this.previewLanguageKey = framework.requires;
-        this.activeEditorFileId = `framework:${frameworkKey}`;
-        this.syncEditorTabs();
-        this.updateCodePreview();
-        this.updateEditorStatus();
-    },
-
-    getEditorFiles() {
-        const languageFiles = this.getOwnedPreviewLanguages().map(language => ({
-            id: `language:${language.key}`,
-            type: 'language',
-            key: language.key,
-            parentLanguageKey: language.key,
-            name: language.name,
-            icon: language.icon,
-            fileName: this.getFileNameForLanguage(language.key)
-        }));
-
-        const frameworkFiles = Object.entries(gameState.frameworks)
-            .filter(([, framework]) => framework.owned > 0)
-            .map(([key, framework]) => ({
-                id: `framework:${key}`,
-                type: 'framework',
-                key,
-                parentLanguageKey: framework.requires,
-                name: framework.name,
-                icon: framework.icon,
-                fileName: this.getFileNameForFramework(key)
-            }));
-
-        if (languageFiles.length === 0) {
-            return [{
-                id: 'language:javascript',
-                type: 'language',
-                key: 'javascript',
-                parentLanguageKey: 'javascript',
-                name: 'JavaScript',
-                icon: CONFIG.LANGUAGES.javascript.icon,
-                fileName: this.getFileNameForLanguage('javascript')
-            }];
-        }
-
-        return [...languageFiles, ...frameworkFiles];
-    },
-
-    getActiveEditorFile() {
-        const files = this.getEditorFiles();
-        return files.find(file => file.id === this.activeEditorFileId) || files[0];
+        editorModule.setPreviewFramework(frameworkKey);
     },
 
     syncEditorTabs() {
-        const tabsContainer = document.getElementById('editorTabs');
-        if (!tabsContainer) return;
-
-        const files = this.getEditorFiles();
-        const availableIds = files.map(file => file.id);
-        if (!availableIds.includes(this.activeEditorFileId)) {
-            this.activeEditorFileId = files[files.length - 1].id;
-        }
-
-        const nextSignature = JSON.stringify({
-            active: this.activeEditorFileId,
-            files: files.map(file => ({ id: file.id, fileName: file.fileName, icon: file.icon }))
-        });
-
-        if (this.editorTabsSignature === nextSignature) {
-            return;
-        }
-
-        this.editorTabsSignature = nextSignature;
-
-        tabsContainer.innerHTML = files.map(file => `
-            <button
-                class="editor-tab ${file.id === this.activeEditorFileId ? 'active' : ''}"
-                type="button"
-                data-file-id="${file.id}"
-                title="Abrir ${file.fileName}"
-            >
-                <i class="${file.icon}"></i>
-                <span>${file.fileName}</span>
-            </button>
-        `).join('');
-
-        tabsContainer.querySelectorAll('.editor-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                const { fileId } = tab.dataset;
-                if (fileId === this.activeEditorFileId) return;
-                this.activeEditorFileId = fileId;
-                const file = this.getActiveEditorFile();
-                this.previewLanguageKey = file.parentLanguageKey;
-                this.animateLanguageChange(file.name);
-                this.syncEditorTabs();
-                this.updateCodePreview();
-                this.updateEditorStatus();
-            });
-        });
+        return editorModule.syncTabs();
     },
 
-    renderEditorCode(code) {
-        const container = document.getElementById('codeEditorContent');
-        if (!container) return;
-
-        const lines = code.split('\n');
-        container.innerHTML = lines.map((line, index) => `
-            <div class="code-line">
-                <span class="line-num">${index + 1}</span>
-                <span class="code">${line
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')}</span>
-            </div>
-        `).join('');
-    },
-
-    updateCodePreview() {
-        const editorContent = document.getElementById('codeEditorContent');
-        if (!editorContent) return;
-
-        const activeFile = this.getActiveEditorFile();
-        const activeLanguageKey = activeFile.parentLanguageKey;
-        const activeLanguage = CONFIG.LANGUAGES[activeLanguageKey];
-
-        let newCode = [
-            'console.log("Hello, World!");',
-            '// Proyecto inicial'
-        ].join('\n');
-
-        if (activeLanguage && activeFile) {
-            const codeSnippet = this.generateCodeSnippet(activeFile);
-            const header = `// ${activeFile.fileName} · ${activeFile.name}`;
-            newCode = [header, codeSnippet].join('\n');
-        }
-
-        if (this.editorPreviewSignature !== newCode) {
-            anime({
-                targets: editorContent,
-                opacity: [1, 0.35, 1],
-                duration: 260,
-                easing: 'easeInOutQuad'
-            });
-            this.renderEditorCode(newCode);
-            this.editorPreviewSignature = newCode;
-        }
+    updateCodePreview(force = false) {
+        editorModule.updateCodePreview(force);
     },
 
     updateEditorStatus() {
-        const activeFile = this.getActiveEditorFile();
-        const fileMeta = document.getElementById('editorFileMeta');
-        const runtimeMeta = document.getElementById('editorRuntimeMeta');
-        if (!activeFile || !fileMeta || !runtimeMeta) return;
-
-        const language = CONFIG.LANGUAGES[activeFile.parentLanguageKey];
-        const framework = activeFile.type === 'framework' ? gameState.frameworks[activeFile.key] : null;
-        const stackLabel = framework
-            ? `${language?.name || activeFile.parentLanguageKey} + ${framework.name}`
-            : (language?.name || activeFile.name);
-
-        fileMeta.textContent = `${activeFile.fileName} · ${stackLabel}`;
-        runtimeMeta.textContent = `${gameState.commits.toLocaleString()} commits · ${Math.floor(gameState.totalCode).toLocaleString()} lineas · +${gameState.calculateGeneration().toFixed(1)}/s`;
+        editorModule.updateStatus();
     },
-    
-    // === Generar snippets de código realistas ===
-    generateCodeSnippet(file) {
-        const snippets = {
-            'language:javascript': `const projectState = {\n  lines: 0,\n  commits: 0\n};\n\nexport function shipFeature() {\n  return projectState.lines + 12;\n}`,
-            'language:python': `def build_release(lines: int) -> dict:\n    return {\n        'lines': lines,\n        'status': 'shipping'\n    }`,
-            'language:rust': `pub fn compile_release(lines: i32) -> i32 {\n    lines.saturating_add(32)\n}`,
-            'language:typescript': `type BuildStats = {\n  lines: number;\n  velocity: number;\n};\n\nexport const buildStats: BuildStats = {\n  lines: 0,\n  velocity: 0\n};`,
-            'language:go': `type Build struct {\n    Lines int\n    Commits int\n}\n\nfunc NewBuild() Build {\n    return Build{Lines: 0, Commits: 0}\n}`,
-            'language:java': `public class Application {\n    public static int buildRelease(int lines) {\n        return lines + 24;\n    }\n}`,
-            'language:csharp': `public static class Program\n{\n    public static int BuildRelease(int lines)\n    {\n        return lines + 18;\n    }\n}`,
-            'language:kotlin': `object BuildEngine {\n    fun ship(lines: Int): Int {\n        return lines + 20\n    }\n}`,
-            'language:php': `<?php\nfunction ship_release(int $lines): array\n{\n    return ['lines' => $lines, 'status' => 'ready'];\n}`,
-            'framework:react': `import { useState } from 'react';\n\nexport default function App() {\n  const [lines, setLines] = useState(0);\n  return <main>{lines}</main>;\n}`,
-            'framework:django': `from django.http import JsonResponse\nfrom django.views import View\n\nclass BuildView(View):\n    def get(self, request):\n        return JsonResponse({'status': 'ready'})`,
-            'framework:vue': `<script setup>\nconst lines = ref(0);\n</script>\n\n<template>\n  <main>{{ lines }}</main>\n</template>`,
-            'framework:nextjs': `export default async function Page() {\n  const stats = await getBuildStats();\n  return <section>{stats.lines}</section>;\n}`,
-            'framework:fastapi': `from fastapi import FastAPI\n\napp = FastAPI()\n\n@app.get('/build')\ndef build_status():\n    return {'status': 'ready'}`,
-            'framework:spring': `@RestController\n@RequestMapping("/build")\npublic class CodeController {\n    @GetMapping\n    public Map<String, String> status() {\n        return Map.of("status", "ready");\n    }\n}`,
-            'framework:dotnet': `[ApiController]\n[Route("api/build")]\npublic class CodeController : ControllerBase\n{\n    [HttpGet]\n    public IActionResult Status() => Ok(new { status = "ready" });\n}`,
-            'framework:laravel': `<?php\n\nuse Illuminate\Support\Facades\Route;\n\nRoute::get('/build', function () {\n    return response()->json(['status' => 'ready']);\n});`
-        };
 
-        return snippets[file.id] || `// Generando código para ${file.name}...`;
-    },
-    
-    // === ANIMAR CAMBIO DE LENGUAJE/FRAMEWORK ===
     animateLanguageChange(languageName, frameworkName = null) {
-        const codePreview = document.getElementById('codeEditorContent');
-        const editorMock = document.querySelector('.editor-mock');
-        if (!codePreview) return;
-        
-        // Flash del editor
-        anime({
-            targets: editorMock,
-            backgroundColor: ['rgba(0, 212, 255, 0.15)', 'rgba(0, 212, 255, 0)', 'rgba(0, 212, 255, 0.1)'],
-            duration: 600,
-            easing: 'easeOutQuad'
-        });
-        
-        // Agitar el preview
-        anime({
-            targets: codePreview,
-            translateX: [-10, 10, -5, 5, 0],
-            duration: 300,
-            easing: 'easeOutQuad'
-        });
-        
-        // Pulse del editor
-        anime({
-            targets: '.editor-header',
-            boxShadow: [
-                { value: '0 0 0 0 rgba(0, 212, 255, 0.5)' },
-                { value: '0 0 20px 10px rgba(0, 212, 255, 0)' }
-            ],
-            duration: 600,
-            easing: 'easeOutQuad'
-        });
+        editorModule.animateLanguageChange(languageName, frameworkName);
     },
 
     showOfflineReport() {
@@ -533,6 +556,7 @@ const uiModule = {
     update() {
         this.updateStats();
         this.updateProgress();
+        this.updateProjectHealthUI();
         this.updatePassive();
         this.updateStatistics();
         this.updateMissionsUI();
@@ -553,8 +577,8 @@ const uiModule = {
                 <i class="upgrade-icon ${upgrade.icon}"></i>
                 <div class="upgrade-name">${upgrade.name}</div>
                 <div class="upgrade-desc">${upgrade.desc}</div>
-                <div class="upgrade-cost ${gameState.totalCode >= upgrade.cost ? 'affordable' : ''}">
-                    💾 ${upgrade.cost.toLocaleString()}
+                <div class="upgrade-cost ${gameState.canAffordCodeCost(upgrade.cost) ? 'affordable' : ''}">
+                    ${this.formatCodeCost(upgrade.cost)}
                 </div>
                 <div style="font-size: 0.75rem; color: var(--accent);">x${upgrade.owned}</div>
             `;
@@ -573,8 +597,8 @@ const uiModule = {
                 <i class="upgrade-icon ${framework.icon}"></i>
                 <div class="upgrade-name">${framework.name}</div>
                 <div class="upgrade-desc">${framework.desc}</div>
-                <div class="upgrade-cost ${gameState.totalCode >= framework.cost ? 'affordable' : ''}">
-                    💾 ${framework.cost.toLocaleString()}
+                <div class="upgrade-cost ${gameState.canAffordCodeCost(framework.cost) ? 'affordable' : ''}">
+                    ${this.formatCodeCost(framework.cost)}
                 </div>
                 <div style="font-size: 0.75rem; color: var(--accent);">x${framework.owned}</div>
             `;
@@ -595,8 +619,8 @@ const uiModule = {
                 <i class="language-icon ${lang.icon}"></i>
                 <div class="language-name">${lang.name}</div>
                 <div style="font-size: 0.8rem; color: var(--text-secondary);">+${lang.generation} líneas/seg</div>
-                <div class="language-cost ${gameState.totalCode >= lang.cost ? 'affordable' : ''}">
-                    💾 ${lang.cost.toLocaleString()}
+                <div class="language-cost ${gameState.canAffordCodeCost(lang.cost) ? 'affordable' : ''}">
+                    ${this.formatCodeCost(lang.cost)}
                 </div>
                 <div style="font-size: 0.75rem; color: var(--accent);">x${lang.owned}</div>
             `;
@@ -611,7 +635,7 @@ const uiModule = {
         if (!summaryContainer || !artifactContainer) return;
 
         summaryContainer.innerHTML = `
-            <div class="meta-card release-card">
+            <div class="meta-card shell-compact-card release-card">
                 <div class="meta-card-header">
                     <h3><i class="fas fa-rocket"></i> Release Train</h3>
                     <span class="meta-chip">Ship it</span>
@@ -628,10 +652,13 @@ const uiModule = {
                 </div>
                 <div class="meta-card-footer column">
                     <span id="labReleaseReward">Carga commits para publicar</span>
+                    <span id="labReleaseTrust" class="shell-tier-secondary">La confianza de release se calcula cuando tienes una entrega lista</span>
+                    <span id="labReleaseOutlook" class="shell-tier-secondary">Necesitas más commits para estimar la release</span>
+                    <span id="labReleaseLastOutcome" class="shell-tier-tertiary">Aún no has publicado una release en esta run</span>
                     <button class="meta-action-btn" id="releaseActionBtn" type="button">Publicar release</button>
                 </div>
             </div>
-            <div class="meta-card trend-card">
+            <div class="meta-card shell-compact-card trend-card">
                 <div class="meta-card-header">
                     <h3><i class="fas fa-fire"></i> Hype del Ecosistema</h3>
                     <span class="meta-chip">Trending</span>
@@ -654,11 +681,11 @@ const uiModule = {
         `;
 
         artifactContainer.innerHTML = Object.entries(gameState.artifacts).map(([key, artifact]) => `
-            <button class="artifact-card" data-artifact="${key}" type="button">
+            <button class="artifact-card shell-compact-card" data-artifact="${key}" type="button">
                 <i class="${artifact.icon}"></i>
                 <span class="artifact-name">${artifact.name}</span>
-                <span class="artifact-desc">${artifact.desc}</span>
-                <span class="artifact-cost">⭐ ${artifact.cost}</span>
+                <span class="artifact-desc shell-tier-secondary">${artifact.desc}</span>
+                <span class="artifact-cost">${this.formatPrestigeCost(artifact.cost)}</span>
                 <span class="artifact-status">Disponible</span>
             </button>
         `).join('');
@@ -703,16 +730,16 @@ const uiModule = {
             }
 
             return `
-                <div class="mission-card ${slot}">
+                <div class="mission-card shell-compact-card ${slot}">
                     <div class="mission-badge">${slot === 'short' ? 'Misión corta' : 'Misión larga'}</div>
                     <div class="mission-name">${mission.name}</div>
-                    <div class="mission-desc">${mission.desc}</div>
+                    <div class="mission-desc shell-tier-secondary">${mission.desc}</div>
                     <div class="mission-progress-track">
                         <div class="mission-progress-fill" id="${slot}MissionBar" style="width: 0%"></div>
                     </div>
                     <div class="mission-footer">
                         <span id="${slot}MissionProgress">0 / 0</span>
-                        <span>${rewardParts.join(' · ')}</span>
+                        <span class="shell-tier-secondary">${rewardParts.join(' · ')}</span>
                     </div>
                     <button class="mission-claim-btn" id="${slot}MissionClaim" type="button">En progreso</button>
                 </div>
@@ -731,7 +758,7 @@ const uiModule = {
         if (!summaryContainer || !specializationContainer || !teamContainer) return;
 
         summaryContainer.innerHTML = `
-            <div class="meta-card prestige-card">
+            <div class="meta-card shell-compact-card prestige-card">
                 <div class="meta-card-header">
                     <h3><i class="fas fa-star"></i> Prestige</h3>
                     <span class="meta-chip">Meta-progreso</span>
@@ -755,11 +782,11 @@ const uiModule = {
                     </div>
                 </div>
                 <div class="meta-card-footer">
-                    <span id="metaPrestigeReward">+0 rep</span>
+                    <span id="metaPrestigeReward" class="shell-tier-secondary">+0 rep</span>
                     <button class="meta-action-btn" id="prestigeActionBtn" type="button">Reiniciar con bonus</button>
                 </div>
             </div>
-            <div class="meta-card summary-card">
+            <div class="meta-card shell-compact-card summary-card">
                 <div class="meta-card-header">
                     <h3><i class="fas fa-route"></i> Build actual</h3>
                     <span class="meta-chip">Ruta</span>
@@ -773,24 +800,60 @@ const uiModule = {
                         <span class="meta-label">Equipo activo</span>
                         <strong id="metaTeamSize">0</strong>
                     </div>
+                    <div>
+                        <span class="meta-label">Estado del proyecto</span>
+                        <strong id="metaHealthState">Estable</strong>
+                    </div>
+                    <div>
+                        <span class="meta-label">Costo de mantenimiento</span>
+                        <strong id="metaMaintenanceCost">0 código</strong>
+                    </div>
+                    <div class="shell-tier-secondary">
+                        <span class="meta-label">Bias de release</span>
+                        <strong id="metaReleaseBias">+0 score</strong>
+                    </div>
+                    <div class="shell-tier-secondary">
+                        <span class="meta-label">Historial sano</span>
+                        <strong id="metaCleanReleases">0 limpias / 0 sanas</strong>
+                    </div>
+                    <div class="shell-tier-secondary">
+                        <span class="meta-label">Presión del equipo</span>
+                        <strong id="metaTeamPressure">Carga sostenible · x1.00</strong>
+                    </div>
+                    <div class="shell-tier-secondary">
+                        <span class="meta-label">Ownership operativo</span>
+                        <strong id="metaTeamOwnership">Ownership sólido · especialistas x1.00</strong>
+                    </div>
+                    <div class="shell-tier-tertiary">
+                        <span class="meta-label">Bias de responsabilidad</span>
+                        <strong id="metaResponsibilityBias">Ganancia x1.00 · pérdida x1.00</strong>
+                    </div>
+                    <div class="shell-tier-tertiary">
+                        <span class="meta-label">Piso meta</span>
+                        <strong id="metaResponsibilityBaseline">Piso 58 · confianza +0 rep</strong>
+                    </div>
+                </div>
+                <div class="meta-card-footer column compact-copy">
+                    <span id="metaHealthInsight" class="shell-tier-secondary">Tu build está equilibrada, pero conviene seguir mirando salud técnica, deuda y confianza de entrega.</span>
+                    <span id="metaSystemGlossary" class="meta-system-glossary shell-tier-tertiary">Calidad = salud del código · Deuda = fragilidad técnica · Responsabilidad = fiabilidad al prometer y sostener entregas.</span>
                 </div>
             </div>
         `;
 
         specializationContainer.innerHTML = Object.entries(CONFIG.SPECIALIZATIONS).map(([key, specialization]) => `
-            <button class="specialization-card" data-specialization="${key}" type="button">
+            <button class="specialization-card shell-compact-card" data-specialization="${key}" type="button">
                 <i class="${specialization.icon}"></i>
                 <span class="specialization-name">${specialization.name}</span>
-                <span class="specialization-desc">${specialization.desc}</span>
+                <span class="specialization-desc shell-tier-secondary">${specialization.desc}</span>
             </button>
         `).join('');
 
         teamContainer.innerHTML = Object.entries(gameState.team).map(([key, member]) => `
-            <button class="team-card" data-team="${key}" type="button">
+            <button class="team-card shell-compact-card" data-team="${key}" type="button">
                 <i class="${member.icon}"></i>
                 <span class="team-name">${member.name}</span>
-                <span class="team-desc">${member.desc}</span>
-                <span class="team-cost">💾 ${member.cost.toLocaleString()}</span>
+                <span class="team-desc shell-tier-secondary">${member.desc}</span>
+                <span class="team-cost">${this.formatCodeCost(member.cost)}</span>
                 <span class="team-owned">x${member.owned}</span>
             </button>
         `).join('');
@@ -832,6 +895,9 @@ const uiModule = {
     
     // === FLOATING TEXT (números que flotan) ===
     createFloatingText(amount) {
+        const profile = this.getVisualPerformanceProfile();
+        if (profile.key === 'reduced') return;
+
         const container = document.getElementById('floatingTexts');
         const text = document.createElement('div');
         text.className = 'floating-number';
@@ -839,11 +905,14 @@ const uiModule = {
         text.style.left = Math.random() * 100 + 'px';
         container.appendChild(text);
         
-        setTimeout(() => text.remove(), 1000);
+        setTimeout(() => text.remove(), profile.floatingTextDuration);
     },
     
     // === MEJORA 4: PARTÍCULAS DE CÓDIGO FLOTANTE (Generación pasiva visual) ===
     createPassiveCodeParticle(fromX, fromY, amount) {
+        const profile = this.getVisualPerformanceProfile();
+        if (profile.passiveParticleBurst <= 0) return;
+
         const particle = document.createElement('div');
         particle.className = 'code-particle';
         particle.textContent = `+${Math.floor(amount)}`;
@@ -864,11 +933,14 @@ const uiModule = {
         
         document.body.appendChild(particle);
         
-        setTimeout(() => particle.remove(), 1200);
+        setTimeout(() => particle.remove(), profile.key === 'compact' ? 900 : 1200);
     },
     
     // === Animar partículas pasivas cada 0.5s ===
     animatePassiveGeneration() {
+        const profile = this.getVisualPerformanceProfile();
+        if (profile.passiveParticleBurst <= 0) return;
+
         const generation = gameState.calculateGeneration();
         if (generation <= 0) return;
         
@@ -882,7 +954,7 @@ const uiModule = {
         const centerY = rect.top + rect.height / 2;
         
         // Crear partícula por cada generación (máximo 5 por segundo)
-        const count = Math.min(Math.ceil(generation / 2), 3);
+        const count = Math.min(Math.ceil(generation / 2), profile.passiveParticleBurst);
         for (let i = 0; i < count; i++) {
             this.createPassiveCodeParticle(
                 centerX + (Math.random() - 0.5) * 30,
@@ -902,15 +974,75 @@ const uiModule = {
     },
 
     switchMobileView(viewName) {
+        const isMobileProfile = document.body.dataset.screenProfile === 'mobile';
         document.querySelectorAll('.mobile-view-btn').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.mobile-view-panel').forEach(el => el.classList.remove('active'));
 
+        if (isMobileProfile) {
+            document.getElementById('clicker-view-panel')?.classList.add('active');
+            document.getElementById('management-view-panel')?.classList.toggle('active', viewName === 'management');
+            document.getElementById(viewName + '-view-tab')?.classList.add('active');
+            return;
+        }
+
+        document.querySelectorAll('.mobile-view-panel').forEach(el => el.classList.remove('active'));
         document.getElementById(viewName + '-view-tab')?.classList.add('active');
         document.getElementById(viewName + '-view-panel')?.classList.add('active');
+    },
+
+    getResponsiveHierarchyProfile(width = window.innerWidth) {
+        if (width <= 991.98) {
+            return {
+                key: 'mobile',
+                mobileDefaultView: 'clicker',
+                managementDefaultSurface: 'panel',
+                managementChip: 'Build móvil',
+                managementTitle: 'Gestión primero, editor como apoyo',
+                managementDescription: 'En móvil la prioridad es jugar y comprar rápido; el editor queda como contexto secundario dentro del workspace.',
+                projectCopy: 'Bucle principal visible: click, progreso, salud y refactor siempre a mano.'
+            };
+        }
+
+        if (width <= 1200) {
+            return {
+                key: 'tablet',
+                mobileDefaultView: 'clicker',
+                managementDefaultSurface: 'panel',
+                managementChip: 'Build tablet',
+                managementTitle: 'Gestión y lectura por encima del editor',
+                managementDescription: 'En tablet conviene priorizar panel, laboratorio y meta; el editor sigue disponible, pero no debería competir por ser la vista inicial.',
+                projectCopy: 'La columna de juego sigue marcando el ritmo, pero la gestión gana peso visual al crecer el espacio.'
+            };
+        }
+
+        return {
+            key: 'desktop',
+            mobileDefaultView: 'clicker',
+            managementDefaultSurface: 'editor',
+            managementChip: 'Workspace',
+            managementTitle: 'Editor como superficie principal',
+            managementDescription: 'En desktop conviene dejar el editor abierto mientras gestionas compras, laboratorio y meta en segundo plano.',
+            projectCopy: 'El bucle principal sigue anclado a la izquierda para mantener ritmo y lectura instantánea.'
+        };
+    },
+
+    applyResponsiveHierarchy(profile = this.getResponsiveHierarchyProfile()) {
+        const managementChip = document.getElementById('managementContextChip');
+        const managementTitle = document.getElementById('managementContextTitle');
+        const managementDescription = document.getElementById('managementContextDescription');
+        const projectCopy = document.getElementById('projectContextCopy');
+
+        if (managementChip) managementChip.textContent = profile.managementChip;
+        if (managementTitle) managementTitle.textContent = profile.managementTitle;
+        if (managementDescription) managementDescription.textContent = profile.managementDescription;
+        if (projectCopy) projectCopy.textContent = profile.projectCopy;
+
+        document.body.dataset.screenProfile = profile.key;
     },
     
     // === BOTÓN CLICK CON ANIMACIÓN ===
     animateClickButton() {
+        if (!this.getVisualPerformanceProfile().enableClickAnimation) return;
+
         const button = document.getElementById('clickBtn');
         anime({
             targets: button,
@@ -921,6 +1053,8 @@ const uiModule = {
     
     // === COMMIT ANIMATION ===
     animateCommit() {
+        if (!this.getVisualPerformanceProfile().enableCommitAnimation) return;
+
         // MEJORA 3: Efecto commit en cascada
         const button = document.getElementById('clickBtn');
         const bar = document.getElementById('codeBar').parentElement;

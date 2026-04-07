@@ -18,8 +18,13 @@ const gameEngine = {
             
             // Generar código pasivo
             const generation = gameState.calculateGeneration();
-            gameState.code += generation * deltaTime;
-            gameState.totalCode += generation * deltaTime;
+            const passiveEarned = generation * deltaTime;
+            if (passiveEarned > 0) {
+                gameState.earnCode(passiveEarned);
+            }
+
+            gameState.trackProjectHealthTime(deltaTime);
+            gameState.trackResponsibilityTime(deltaTime);
             
             // Chequear commit
             gameLogic.processCommits({ showFeedback: false });

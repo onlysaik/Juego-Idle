@@ -1,363 +1,176 @@
-# 🏗️ Arquitectura Modular de CodeIdle
+# Arquitectura de CodeIdle
 
-## Visión General
+## Resumen
 
-El código ahora está organizado como un **proyecto profesional escalable**:
+El juego está montado como una SPA estática con HTML, CSS y JavaScript modular cargado por orden de `<script>` en [index.html](index.html). No usa bundler ni framework de componentes; el flujo principal depende de:
 
-```
+1. `CONFIG` como fuente de balance y catálogos.
+2. `gameState` como estado persistente y capa de reglas.
+3. módulos de UI, audio, eventos, temas, logros y admin.
+4. `gameEngine` para loops de tiempo.
+5. `app.init()` para cablear todo.
+
+## Estructura real
+
+```text
 src/
-├── config.js              # Configuración centralizada
-├── state.js              # Gestión del estado
-├── game.js               # Game loop
-├── main.js               # Inicialización
+├── config.js
+├── state.js
+├── game.js
+├── main.js
 └── modules/
-    ├── audio.js          # Sistema de audio
-    ├── events.js         # Eventos aleatorios
-    ├── achievements.js   # Sistema de logros
-    ├── themes.js         # Manejo de temas
-    ├── ui.js            # Renderización
-    └── game-logic.js    # Lógica del juego
+    ├── achievements.js
+    ├── admin.js
+    ├── audio.js
+    ├── events.js
+    ├── game-logic.js
+    ├── themes.js
+    └── ui.js
 ```
 
----
+## Responsabilidades
 
-## 📦 Cada Módulo Tiene Una Responsabilidad
+### [src/config.js](src/config.js)
 
-### 1. **config.js** - La fuente de verdad
-```javascript
-// Todo lo que pueda cambiar está aquí
-CONFIG.INITIAL_CODE_PER_CLICK = 10
-CONFIG.CODE_PER_COMMIT = 1000
-CONFIG.LANGUAGES = { ... }
-CONFIG.UPGRADES = { ... }
-```
-**Por qué**: Si quieres aumentar el costo de un lenguaje, lo cambias aquí y listo.
+- Balance general del juego.
+- Catálogos de lenguajes, upgrades, frameworks, artefactos, especializaciones, equipo, misiones, logros y temas.
+- Constantes de loops, prestige, release, tendencias y offline.
 
----
+### [src/state.js](src/state.js)
 
-### 2. **state.js** - Gestión centralizada
-```javascript
-class GameState {
-    addCode(amount) { ... }           // Método
-    buyUpgrade(key) { ... }           // Método
-    calculateGeneration() { ... }     // Lógica de cálculo
-    save() { ... }                    // Persistencia
-}
-```
-**Por qué**: Un solo lugar para todos los datos del juego. Fácil de debuggear.
+- Estado central del juego.
+- Persistencia en `localStorage`.
+- Cálculos principales: click power, generación pasiva, costos, affordability y boosts.
+- Estado admin/creative y restauración de sesión.
 
----
+### [src/modules/game-logic.js](src/modules/game-logic.js)
 
-### 3. **modules/Audio.js** - Solo audio
-```javascript
-audioModule.play('click')     // Toca sonido
-audioModule.playBeep(400, 100) // Beep personalizado
-audioModule.toggle()          // On/off
-```
-**Por qué**: Audio es completamente independiente. Si quieres cambiar de Web Audio API a Howler.js, solo editas este.
+- Orquestación de acciones del jugador.
+- Click manual, commits, compras y acciones principales.
+- Coordina `gameState`, `uiModule`, `audioModule` y `achievementsModule`.
 
----
+### [src/modules/ui.js](src/modules/ui.js)
 
-### 4. **modules/Events.js** - Solo eventos
-```javascript
-eventsModule.registry = [ ... ]  // Lista de eventos
-eventsModule.trigger()           // Dispara uno
-eventsModule.register(newEvent)  // Agregar eventos dinámicamente
-```
-**Por qué**: Agregar nuevo evento es tan fácil como `.register()`. Cero dependencies.
+- Render de upgrades, lenguajes, lab, meta, misiones y estadísticas.
+- Vista del editor tipo IDE y sus tabs.
+- Notificaciones y animaciones del feedback principal.
+- Estados visuales especiales, como la mejora visual del `Monitor 4K`.
 
----
+### [src/modules/audio.js](src/modules/audio.js)
 
-### 5. **modules/Achievements.js** - Solo logros
-```javascript
-achievementsModule.checkAll()    // Chequear automáticamente
-achievementsModule.register(key, condition, callback) // Agregar logro
-```
-**Por qué**: Sistema completamente desacoplado. Los logros no afectan nada más.
+- Sonidos genéricos con Web Audio para beep y feedback.
+- Sonido del `Teclado Mecánico` basado en samples remotos con pool de instancias.
+- Postproceso simple para brillo/cuerpo mediante `bandpass` y `lowpass`.
+- Tolerancia a ausencia de `AudioContext`.
 
----
+### [src/modules/events.js](src/modules/events.js)
 
-### 6. **modules/Themes.js** - Solo temas
-```javascript
-themesModule.apply('cyberpunk')  // Aplicar tema
-themesModule.getAvailable()      // Listar temas
-```
-**Por qué**: Agregar nuevo tema: solo agregar en config.js y aquí.
+- Registro y ejecución de eventos aleatorios.
+- Efectos temporales con tokens para evitar corrupción de estado.
+- Diferenciación entre eventos livianos y decisiones modales.
 
----
+### [src/modules/achievements.js](src/modules/achievements.js)
 
-### 7. **modules/UI.js** - Solo renderización
-```javascript
-uiModule.update()               // Refrescar todo
-uiModule.createUpgradesUI()    // Renderizar upgradesuiModule.showNotification()    // Toast
-```
-**Por qué**: La lógica de cálculo está en state.js. Aquí solo se muestra.
+- Chequeo y desbloqueo de logros.
+- Integración con audio, notificaciones y confetti.
 
----
+### [src/modules/themes.js](src/modules/themes.js)
 
-### 8. **modules/Game-Logic.js** - Orquestación
-```javascript
-gameLogic.handleClick()     // Coordina: audio + state + ui + achievements
-gameLogic.buyUpgrade(key)   // Coordina: compra + feedback + logros
-```
-**Por qué**: Punto central para todas las acciones del jugador.
+- Cambio de tema y persistencia visual.
 
----
+### [src/modules/admin.js](src/modules/admin.js)
 
-### 9. **game.js** - Game loop
-```javascript
-gameEngine.startGameLoop()   // Cada 100ms: genera código pasivo
-gameEngine.startEventLoop()  // Cada 5s: chequea eventos
-```
-**Por qué**: Tiempo separado de lógica.
+- Consola oculta, `godmode`, creative mode y comandos de debug.
+- Hotkeys de administración.
+- Badge visual en header y sincronización de estado admin.
 
----
+### [src/game.js](src/game.js)
 
-### 10. **main.js** - Inicializador
-```javascript
-app.init()  // Carga todo en orden correcto
-```
-**Por qué**: Un lugar que ve todo.
+- Game loop principal.
+- Tick de generación pasiva.
+- Loop de eventos aleatorios y demás procesos temporales.
 
----
+### [src/main.js](src/main.js)
 
-## 🎯 Cómo Agregar Nuevas Features
+- Punto de entrada.
+- Inicializa módulos, UI, partículas y listeners.
+- Maneja el toggle del panel derecho `Panel/Editor` y hooks globales de teclado.
 
-### Ejemplo 1: Agregar un nuevo upgrade
+## Flujos principales
 
-**Paso 1**: Edita `config.js`:
-```javascript
-UPGRADES: {
-    // ... existentes
-    newUpgrade: {
-        cost: 200,
-        multiplier: 1.2,
-        name: 'Super Upgrade',
-        icon: 'fas fa-star',
-        desc: '+20% velocidad'
-    }
-}
+### Click manual
+
+```text
+input usuario
+→ gameLogic.handleClick()
+→ gameState actualiza código, streak y commits
+→ audioModule reproduce feedback
+→ achievementsModule valida progreso
+→ uiModule.update()
+→ gameState.save(true)
 ```
 
-**Paso 2**: ¡Listo! La UI se crea automáticamente en `ui.js`.
+### Compra de upgrade
 
----
-
-### Ejemplo 2: Agregar un nuevo evento
-
-**Paso 1**: Abre `src/modules/events.js`:
-```javascript
-eventsModule.register({
-    id: 'newEvent',
-    name: '🎊 Mi Evento',
-    desc: '+100 código',
-    weight: 2,
-    execute() {
-        gameState.addCode(100);
-        uiModule.showNotification('¡Mi evento!', 'success');
-    }
-});
+```text
+card click
+→ gameLogic.buyUpgrade(key)
+→ gameState.buyUpgrade(key)
+→ audio y notificación
+→ rerender parcial de UI
+→ check de logros
+→ save
 ```
 
-**¡Listo!** Se triggerea automáticamente.
+### Evento o decisión
 
----
-
-### Ejemplo 3: Agregar un nuevo logro
-
-**Paso 1**: Edita `config.js`:
-```javascript
-ACHIEVEMENTS: {
-    // ... existentes
-    newAchievement: {
-        name: 'Mi Logro',
-        desc: 'Descripción',
-        icon: 'fas fa-trophy'
-    }
-}
+```text
+gameEngine o event loop
+→ eventsModule elige entrada del registry
+→ execute()
+→ efecto inmediato o temporal
+→ uiModule.update()
+→ save
 ```
 
-**Paso 2**: Abre `src/modules/achievements.js`:
-```javascript
-achievementsModule.register(
-    'newAchievement',
-    () => gameState.totalCode >= 50000,  // Condición
-    () => uiModule.showNotification(...)  // Callback
-);
-```
+## UI y layout
 
-**¡Listo!**
+- [index.html](index.html) concentra el shell completo del juego.
+- [styles.css](styles.css) contiene diseño, responsive, temas, animaciones, alertas, modal de decisiones, consola admin, editor y efectos especiales.
+- El área principal se divide en:
+  - panel izquierdo de click y progreso
+  - panel derecho con toggle entre management y editor
 
----
+## Orden de carga
 
-### Ejemplo 4: Agregar un nuevo tema
+El orden actual importa y está definido en [index.html](index.html):
 
-**Paso 1**: Edita `config.js`:
-```javascript
-THEMES: {
-    dark: { label: 'Dark' },
-    miTema: { label: 'Mi Tema' }
-}
-```
+1. `src/config.js`
+2. `src/state.js`
+3. módulos en `src/modules/*.js`
+4. `src/game.js`
+5. `src/main.js`
 
-**Paso 2**: Edita `styles.css` y agrega:
-```css
-body.theme-miTema {
-    --primary: #ff0000;
-    --secondary: #00ff00;
-    /* ... */
-}
-```
+Si cambias este orden, rompes bindings globales entre módulos.
 
-**¡Listo!** El selector se llena automáticamente.
+## Dónde tocar cada cosa
 
----
+- Balance y contenido nuevo: [src/config.js](src/config.js)
+- Reglas y persistencia: [src/state.js](src/state.js)
+- Acciones del jugador: [src/modules/game-logic.js](src/modules/game-logic.js)
+- Render y efectos visuales: [src/modules/ui.js](src/modules/ui.js), [styles.css](styles.css)
+- Audio: [src/modules/audio.js](src/modules/audio.js)
+- Eventos y decisiones: [src/modules/events.js](src/modules/events.js)
+- Admin y debug: [src/modules/admin.js](src/modules/admin.js)
 
-## 🔄 Flujo de Datos
+## Criterio de mantenimiento
 
-```
-Usuario Click
-    ↓
-gameLogic.handleClick()
-    ↓
-gameState.addCode()        [Actualiza estado]
-    ↓
-audioModule.play()          [Reproduce sonido]
-    ↓
-uiModule.update()           [Renderiza UI]
-    ↓
-achievementsModule.checkAll()  [Chequea logros]
-    ↓
-gameState.save()            [Persiste]
-```
-
-**Ventaja**: Cada módulo es testeable independientemente.
-
----
-
-## 📊 Estadísticas de la Arquitectura
-
-| Métrica | Valor |
-|---------|-------|
-| Archivos | 10 |
-| Módulos | 7 (sin contar config/state/game/main) |
-| Líneas por archivo | ~100-200 |
-| Responsabilidades por módulo | 1-2 |
-| Duplicación de código | ~0% |
-
----
-
-## ✨ Beneficios
-
-### Antes (1 archivo):
-- ❌ 1000+ líneas en un archivo
-- ❌ Difícil de navegar
-- ❌ Imposible testear módulos
-- ❌ Agregar feature = caos
-
-### Ahora (10 archivos):
-- ✅ ~100-200 líneas por archivo
-- ✅ Encontrar código es trivial
-- ✅ Cada módulo es testeable
-- ✅ Agregar feature es predecible
-
----
-
-## 🚀 Cómo Agregar una Feature Compleja
-
-### Feature: "Resins" (Moneda secundaria)
-
-**1. config.js**: Agregar constantes
-```javascript
-CONFIG.RESINS_PER_COMMIT = 10;
-CONFIG.PRESTIGE_COST = 1000000;
-```
-
-**2. state.js**: Agregar propiedades y métodos
-```javascript
-this.resins = 0;
-addResins(amount) { this.resins += amount; }
-prestige() { /* reset pero mantén bonuses */ }
-```
-
-**3. modules/ui.js**: Mostrar resins
-```javascript
-updateStats() { 
-    document.getElementById('resins').textContent = gameState.resins; 
-}
-```
-
-**4. modules/game-logic.js**: Lógica de compra
-```javascript
-buyPrestige() {
-    if (gameState.totalCode >= CONFIG.PRESTIGE_COST) {
-        gameState.prestige();
-    }
-}
-```
-
-**5. main.js**: Agregar botón
-```javascript
-// En setupEventListeners()
-document.getElementById('prestigeBtn')?.addEventListener('click', () => {
-    gameLogic.buyPrestige();
-});
-```
-
----
-
-## 📝 Convenciones
-
-Cada módulo sigue este patrón:
-
-```javascript
-/**
- * MODULES/NAME.JS - Descripción
- * Responsabilidad: Una sola cosa
- */
-
-const nameModule = {
-    // Datos privados si es necesario
-    state: { ... },
-    
-    // Métodos públicos
-    method1() { ... },
-    method2() { ... },
-    
-    // Para extensión
-    register(item) { ... }
-};
-```
-
----
-
-## 🎓 Aprendizajes
-
-Esta arquitectura usa patrones profesionales:
-
-1. **Separation of Concerns**: Cada módulo hace una cosa
-2. **Single Responsibility**: Cambios pequeños cuando cambian requerimientos
-3. **Open/Closed**: Abierto a extensión (`.register()`), cerrado a modificación
-4. **Module Pattern**: Privacidad + funcionalidad pública
-
----
-
-## 🔮 Listo para Crecer
-
-Con esta estructura puedes agregar:
-
-- ✅ Nuevo sistema de prestige
-- ✅ Leaderboard
-- ✅ Minijuegos
-- ✅ Retos diarios
-- ✅ Multijugador
-- ✅ Persistencia a servidor
-- ✅ Estadísticas avanzadas
-
-**Sin tocar el código existente.**
-
----
-
-**Versión**: 2.1.0 (Refactored)  
-**Patrón**: Modular Architecture  
-**Mantenibilidad**: ⭐⭐⭐⭐⭐
+- No agregar balance hardcodeado en `ui.js` o `game-logic.js` si puede vivir en `config.js`.
+- Usar `gameLogic` para acciones de usuario; no mutar `gameState` desde listeners arbitrarios.
+- Mantener editor, alertas y mejoras visuales como estados derivados del juego.
+- Cualquier feature nueva debería ubicarse primero como:
+  - dato de configuración,
+  - regla de estado,
+  - orquestación,
+  - render,
+  - o loop temporal.
