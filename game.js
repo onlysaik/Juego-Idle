@@ -167,6 +167,7 @@ function setupEventListeners() {
     document.getElementById('languages-tab').addEventListener('click', () => switchTab('languages'));
     document.getElementById('achievements-tab').addEventListener('click', () => switchTab('achievements'));
     document.getElementById('stats-tab').addEventListener('click', () => switchTab('stats'));
+    document.getElementById('passive-tab').addEventListener('click', () => switchTab('passive'));
     document.getElementById('soundToggle').addEventListener('click', toggleSound);
     document.getElementById('themeSelector').addEventListener('change', (e) => { gameState.theme = e.target.value; loadTheme(); saveGame(); });
 }
@@ -323,18 +324,21 @@ function createAchievementsUI() {
 
 function createPassiveUI() {
     const container = document.getElementById('passiveContainer');
+    const ownedLanguages = Object.entries(gameState.languages).filter(([key, language]) => language.owned > 0);
+    
     container.innerHTML = '';
-    let hasPassive = false;
-    Object.entries(gameState.languages).forEach(([key, language]) => {
-        if (language.owned > 0) {
-            hasPassive = true;
-            const item = document.createElement('div');
-            item.className = 'passive-item';
-            item.innerHTML = `<i class="passive-icon ${language.icon}"></i><div class="passive-info"><h4>${language.name}</h4><p>+${(language.generation * language.owned).toLocaleString()} líneas/seg</p></div><div style="margin-left: auto; color: var(--accent); font-weight: 700;">x${language.owned}</div>`;
-            container.appendChild(item);
-        }
+    
+    if (ownedLanguages.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">Compra un lenguaje para generar código automáticamente</p>';
+        return;
+    }
+    
+    ownedLanguages.forEach(([key, language]) => {
+        const item = document.createElement('div');
+        item.className = 'passive-item';
+        item.innerHTML = `<i class="passive-icon ${language.icon}"></i><div class="passive-info"><h4>${language.name}</h4><p>+${(language.generation * language.owned).toLocaleString()} líneas/seg</p></div><div style="margin-left: auto; color: var(--accent); font-weight: 700;">x${language.owned}</div>`;
+        container.appendChild(item);
     });
-    if (!hasPassive) container.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">Compra un lenguaje para generar código automáticamente</p>';
 }
 
 function updateUI() {
@@ -345,7 +349,6 @@ function updateUI() {
     document.getElementById('codeDisplay').textContent = Math.floor(gameState.code).toLocaleString();
     document.getElementById('codeBar').style.width = ((gameState.code / 1000) * 100) + '%';
     document.getElementById('cpv').textContent = Math.floor(gameState.codePerClick);
-    createPassiveUI();
     document.getElementById('totalClicks').textContent = gameState.clicks.toLocaleString();
     document.getElementById('currentSpeed').textContent = calculateGenerationWithSynergies().toFixed(1) + ' líneas/seg';
     document.getElementById('totalCommits').textContent = gameState.commits;
@@ -381,6 +384,11 @@ function switchTab(tab) {
     document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('show', 'active'));
     document.getElementById(tab + '-tab').classList.add('active');
     document.getElementById(tab + '-content').classList.add('show', 'active');
+    
+    // Actualizar la pestaña pasiva solo cuando entra
+    if (tab === 'passive') {
+        createPassiveUI();
+    }
 }
 
 function showNotification(message, type = 'info') {

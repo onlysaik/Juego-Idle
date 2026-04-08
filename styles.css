@@ -2637,7 +2637,6 @@ body[data-shell-density="tight"] .editor-tab {
 
 .upgrade-card:hover,
 .language-card:hover {
-    transform: translateY(-5px);
     border-color: var(--primary);
     background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(255, 0, 110, 0.1));
     box-shadow: 0 8px 25px rgba(0, 212, 255, 0.15);
@@ -2671,6 +2670,48 @@ body[data-shell-density="tight"] .editor-tab {
 .upgrade-cost.affordable,
 .language-cost.affordable {
     color: var(--accent);
+}
+
+.upgrade-cost.maxed {
+    color: #9aa3b7;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.upgrade-level {
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-family: 'Fira Code', monospace;
+}
+
+.upgrade-level.maxed {
+    color: #ffd166;
+}
+
+.upgrade-limit-badge {
+    align-self: center;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 209, 102, 0.38);
+    background: rgba(255, 209, 102, 0.12);
+    color: #ffd166;
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.upgrade-card.maxed {
+    border-color: rgba(255, 209, 102, 0.45);
+    background: linear-gradient(135deg, rgba(255, 209, 102, 0.12), rgba(18, 26, 41, 0.55));
+    box-shadow: inset 0 0 0 1px rgba(255, 209, 102, 0.22);
+    cursor: default;
+}
+
+.upgrade-card.maxed:hover {
+    transform: none;
+    border-color: rgba(255, 209, 102, 0.45);
+    box-shadow: inset 0 0 0 1px rgba(255, 209, 102, 0.22);
 }
 
 /* Stats Cards */
@@ -2725,7 +2766,7 @@ body[data-shell-density="tight"] .editor-tab {
     display: flex;
     align-items: center;
     gap: 1rem;
-    transition: all 0.3s ease;
+    transition: box-shadow 0.2s ease;
     position: relative;
 }
 
@@ -2738,8 +2779,7 @@ body[data-shell-density="tight"] .editor-tab {
 }
 
 .passive-item:hover {
-    border-color: var(--primary);
-    background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(255, 0, 110, 0.15));
+    box-shadow: 0 8px 25px rgba(0, 212, 255, 0.2);
 }
 
 .code-particle {

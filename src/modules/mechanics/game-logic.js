@@ -73,6 +73,11 @@ const gameLogic = {
             uiModule.update();
             gameState.save(true);
         } else {
+            const upgrade = gameState.upgrades[key];
+            if (upgrade?.owned >= CONFIG.UPGRADE_MAX_OWNED) {
+                uiModule.showNotification(`Límite alcanzado para ${upgrade.name}`, 'info');
+                return;
+            }
             uiModule.showNotification('Código insuficiente', 'warning');
         }
     },

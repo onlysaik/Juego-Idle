@@ -554,18 +554,26 @@ const uiModule = {
         
         // Upgrades
         Object.entries(gameState.upgrades).forEach(([key, upgrade]) => {
+            const isMaxed = upgrade.owned >= CONFIG.UPGRADE_MAX_OWNED;
             const card = document.createElement('div');
-            card.className = `upgrade-card ${upgrade.owned > 0 ? 'purchased' : ''}`;
+            card.className = `upgrade-card ${upgrade.owned > 0 ? 'purchased' : ''} ${isMaxed ? 'maxed' : ''}`;
+            card.setAttribute('role', 'button');
+            card.setAttribute('aria-disabled', String(isMaxed));
             card.innerHTML = `
                 <i class="upgrade-icon ${upgrade.icon}"></i>
                 <div class="upgrade-name">${upgrade.name}</div>
                 <div class="upgrade-desc">${upgrade.desc}</div>
-                <div class="upgrade-cost ${gameState.canAffordCodeCost(upgrade.cost) ? 'affordable' : ''}">
-                    ${this.formatCodeCost(upgrade.cost)}
+                <div class="upgrade-cost ${isMaxed ? 'maxed' : ''} ${gameState.canAffordCodeCost(upgrade.cost) && !isMaxed ? 'affordable' : ''}">
+                    ${isMaxed ? 'MAX NIVEL' : this.formatCodeCost(upgrade.cost)}
                 </div>
-                <div style="font-size: 0.75rem; color: var(--accent);">x${upgrade.owned}</div>
+                <div class="upgrade-level ${isMaxed ? 'maxed' : ''}">x${upgrade.owned}/${CONFIG.UPGRADE_MAX_OWNED}</div>
+                ${isMaxed ? '<div class="upgrade-limit-badge">Límite alcanzado</div>' : ''}
             `;
-            card.addEventListener('click', () => gameLogic.buyUpgrade(key));
+
+            if (!isMaxed) {
+                card.addEventListener('click', () => gameLogic.buyUpgrade(key));
+            }
+
             container.appendChild(card);
         });
         
