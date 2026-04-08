@@ -5,6 +5,9 @@
  */
 
 const uiModule = {
+    maxVisibleNotifications: 4,
+    activeNotifications: {},
+
     isCreativeModeActive() {
         return gameState.isCreativeModeEnabled();
     },
@@ -117,11 +120,6 @@ const uiModule = {
             commitProgressMeta.textContent = `Commit ${progressValue} / ${goalValue}`;
         }
         document.getElementById('cpv').textContent = Math.floor(gameState.calculateClickPower());
-        const clickerArea = document.querySelector('.clicker-area');
-        const hasMonitorUpgrade = (gameState.upgrades.monitor?.owned || 0) > 0;
-
-        clickerArea?.classList.toggle('monitor-4k-active', hasMonitorUpgrade);
-        monitor4kModule?.sync(hasMonitorUpgrade);
         
         // MEJORA 1: Aura de progresión - cambiar clase si power es alto
         const button = document.getElementById('clickBtn');
@@ -528,26 +526,11 @@ const uiModule = {
         const minutes = Math.floor(seconds / 60);
         const label = minutes > 0 ? `${minutes} min` : `${seconds}s`;
 
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: 'Resumen Offline',
-                text: `Mientras estabas fuera, tu stack generó ${codeEarned.toLocaleString()} líneas en ${label}.`,
-                icon: 'success',
-                background: '#1a1f3a',
-                color: '#ffffff',
-                confirmButtonText: 'Seguir programando',
-                buttonsStyling: false,
-                customClass: {
-                    popup: 'codeidle-alert-popup',
-                    title: 'codeidle-alert-title',
-                    htmlContainer: 'codeidle-alert-html',
-                    actions: 'codeidle-alert-actions',
-                    confirmButton: 'codeidle-alert-confirm'
-                }
-            });
-        } else {
-            this.showNotification(`Offline: +${codeEarned.toLocaleString()} código`, 'success');
-        }
+        this.showNotification(
+            `Resumen offline: +${codeEarned.toLocaleString()} líneas en ${label}`,
+            'success',
+            { duration: 5500, cssClass: 'notification-offline' }
+        );
 
         gameState.clearOfflineReport();
     },
@@ -870,27 +853,92 @@ const uiModule = {
     },
     
     // === NOTIFICACIONES ===
-    showNotification(message, type = 'info') {
+    dismissNotification(notification) {
+        if (!notification) return;
+
+        const key = notification.dataset.notificationKey;
+        if (key && this.activeNotifications[key] === notification) {
+            delete this.activeNotifications[key];
+        }
+
+        if (notification.__dismissTimer) {
+            clearTimeout(notification.__dismissTimer);
+            notification.__dismissTimer = null;
+        }
+
+        anime({
+            targets: notification,
+            opacity: 0,
+            translateX: 100,
+            duration: 220,
+            easing: 'easeOutQuad',
+            complete: () => notification.remove()
+        });
+    },
+
+    getNotificationKey(message, type, options = {}) {
+        if (options.dedupe === false) return null;
+        if (options.dedupeKey) return options.dedupeKey;
+        return `${type}:${message}`;
+    },
+
+    scheduleNotificationDismiss(notification, duration) {
+        if (notification.__dismissTimer) {
+            clearTimeout(notification.__dismissTimer);
+        }
+
+        notification.__dismissTimer = setTimeout(() => {
+            this.dismissNotification(notification);
+        }, duration);
+    },
+
+    bumpNotification(notification, duration) {
+        notification.__count = (notification.__count || 1) + 1;
+        const counter = notification.querySelector('.notification-count');
+        if (counter) {
+            counter.textContent = `x${notification.__count}`;
+            counter.hidden = false;
+        }
+
+        notification.classList.remove('notification-bump');
+        void notification.offsetWidth;
+        notification.classList.add('notification-bump');
+        this.scheduleNotificationDismiss(notification, duration);
+    },
+
+    showNotification(message, type = 'info', options = {}) {
+        const { duration = 3000, cssClass = '' } = options;
         const container = document.getElementById('notificationsContainer');
+        if (!container) return;
+
+        const key = this.getNotificationKey(message, type, options);
+        if (key && this.activeNotifications[key]?.isConnected) {
+            this.bumpNotification(this.activeNotifications[key], duration);
+            return;
+        }
+
+        const visibleNotifications = container.querySelectorAll('.notification');
+        if (visibleNotifications.length >= this.maxVisibleNotifications) {
+            this.dismissNotification(visibleNotifications[0]);
+        }
+
         const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
+        notification.className = `notification ${type} ${cssClass}`.trim();
         
         let icon = 'fas fa-info-circle';
         if (type === 'success') icon = 'fas fa-check-circle';
         if (type === 'warning') icon = 'fas fa-exclamation-circle';
-        
-        notification.innerHTML = `<i class="notification-icon ${icon} ${type}"></i><span>${message}</span>`;
+
+        if (key) {
+            notification.dataset.notificationKey = key;
+            this.activeNotifications[key] = notification;
+        }
+
+        notification.__count = 1;
+        notification.innerHTML = `<i class="notification-icon ${icon} ${type}"></i><span class="notification-message">${message}</span><span class="notification-count" hidden>x1</span>`;
         container.appendChild(notification);
-        
-        setTimeout(() => {
-            anime({
-                targets: notification,
-                opacity: 0,
-                translateX: 100,
-                duration: 300,
-                complete: () => notification.remove()
-            });
-        }, 3000);
+
+        this.scheduleNotificationDismiss(notification, duration);
     },
     
     // === FLOATING TEXT (números que flotan) ===

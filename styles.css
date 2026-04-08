@@ -621,35 +621,11 @@ body[data-shell-density="compact"] .clicker-area::after {
     opacity: 0.22;
 }
 
-body[data-shell-density="compact"] .clicker-area.monitor-4k-active,
-body[data-shell-density="compact"] .monitor-4k-display::before,
 body[data-shell-density="compact"] .click-button,
 body[data-shell-density="compact"] .click-button.power-high,
 body[data-shell-density="compact"] .progress.near-commit {
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
-}
-
-body[data-shell-density="compact"] .clicker-area.monitor-4k-active {
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.03),
-        inset 0 0 48px rgba(0, 212, 255, 0.05),
-        0 10px 24px rgba(2, 8, 20, 0.22);
-}
-
-body[data-shell-density="compact"] .clicker-area.monitor-4k-active::before,
-body[data-shell-density="compact"] .clicker-area.monitor-4k-active::after {
-    opacity: 0.34;
-}
-
-body[data-shell-density="compact"] .monitor-4k-status {
-    backdrop-filter: blur(4px);
-    box-shadow: none;
-}
-
-body[data-shell-density="compact"] .monitor-4k-status-right,
-body[data-shell-density="compact"] .monitor-4k-status-bottom {
-    display: none;
 }
 
 body[data-shell-density="compact"] .mission-badge,
@@ -757,8 +733,7 @@ body[data-shell-density="tight"] .management-panel-shell,
 body[data-shell-density="tight"] .event-alert-card,
 body[data-shell-density="tight"] .decision-alert-popup,
 body[data-shell-density="tight"] .admin-console,
-body[data-shell-density="tight"] .admin-console-panel,
-body[data-shell-density="tight"] .monitor-4k-status {
+body[data-shell-density="tight"] .admin-console-panel {
     backdrop-filter: none !important;
 }
 
@@ -774,18 +749,13 @@ body[data-shell-density="tight"] .click-info {
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18) !important;
 }
 
-body[data-shell-density="tight"] .clicker-area,
-body[data-shell-density="tight"] .clicker-area.monitor-4k-active {
+body[data-shell-density="tight"] .clicker-area {
     background: linear-gradient(180deg, rgba(8, 15, 28, 0.96), rgba(11, 20, 37, 0.94));
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 body[data-shell-density="tight"] .clicker-area::before,
 body[data-shell-density="tight"] .clicker-area::after,
-body[data-shell-density="tight"] .monitor-4k-display::before,
-body[data-shell-density="tight"] .monitor-4k-display::after,
-body[data-shell-density="tight"] .monitor-4k-status-right,
-body[data-shell-density="tight"] .monitor-4k-status-bottom,
 body[data-shell-density="tight"] .project-context-chip,
 body[data-shell-density="tight"] .management-context-chip,
 body[data-shell-density="tight"] .mission-badge,
@@ -794,16 +764,6 @@ body[data-shell-density="tight"] .event-alert-tag,
 body[data-shell-density="tight"] .decision-modal-badge,
 body[data-shell-density="tight"] .admin-console-tag {
     display: none;
-}
-
-body[data-shell-density="tight"] .clicker-area.monitor-4k-active .clicker-centerpiece {
-    filter: none;
-}
-
-body[data-shell-density="tight"] .clicker-area.monitor-4k-active .click-info,
-body[data-shell-density="tight"] .clicker-area.monitor-4k-active .click-button {
-    background: rgba(8, 18, 33, 0.92);
-    box-shadow: 0 0 0 1px rgba(118, 222, 255, 0.18), inset 0 0 14px rgba(106, 203, 255, 0.06);
 }
 
 body[data-shell-density="tight"] .click-button,
@@ -1281,20 +1241,6 @@ body[data-screen-profile="tablet"] .management-context-strip {
     isolation: isolate;
 }
 
-.clicker-area.monitor-4k-active {
-    border-color: rgba(132, 228, 255, 0.34);
-    background:
-        radial-gradient(circle at 50% 45%, rgba(76, 228, 255, 0.1), transparent 34%),
-        linear-gradient(180deg, rgba(4, 10, 20, 0.98), rgba(11, 20, 37, 0.97) 48%, rgba(16, 29, 54, 0.95));
-    background-size: 100% 100%, 100% 100%;
-    animation: monitor4kSurface 12s ease-in-out infinite;
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.05),
-        inset 0 0 120px rgba(0, 212, 255, 0.08),
-        inset 0 -40px 80px rgba(4, 8, 20, 0.42),
-        0 18px 50px rgba(2, 8, 20, 0.32);
-}
-
 .clicker-area::before,
 .clicker-area::after {
     content: "";
@@ -1319,155 +1265,6 @@ body[data-screen-profile="tablet"] .management-context-strip {
     right: -80px;
     bottom: -100px;
     background: rgba(255, 0, 110, 0.14);
-}
-
-.clicker-area.monitor-4k-active::before {
-    width: 260px;
-    height: 260px;
-    top: -120px;
-    left: -80px;
-    background: rgba(76, 228, 255, 0.26);
-    opacity: 0.75;
-    animation: monitor4kHudPulse 5.4s ease-in-out infinite;
-}
-
-.clicker-area.monitor-4k-active::after {
-    width: 320px;
-    height: 320px;
-    right: -140px;
-    bottom: -150px;
-    background: rgba(56, 127, 255, 0.18);
-    opacity: 0.82;
-    animation: monitor4kHudPulse 7.2s ease-in-out infinite reverse;
-}
-
-.monitor-4k-display {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    opacity: 0;
-    overflow: clip;
-    contain: layout paint style;
-    will-change: opacity;
-    transition: opacity 0.45s ease;
-}
-
-.clicker-area.monitor-4k-active .monitor-4k-display {
-    opacity: 1;
-}
-
-.monitor-4k-display::before,
-.monitor-4k-display::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 22px;
-}
-
-.monitor-4k-display::before {
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 18%, transparent 76%, rgba(0, 212, 255, 0.05)),
-        linear-gradient(115deg, transparent 18%, rgba(135, 228, 255, 0.16) 34%, transparent 48%, transparent 58%, rgba(87, 160, 255, 0.12) 72%, transparent 88%);
-    mix-blend-mode: screen;
-    opacity: 0.55;
-    animation: monitor4kSweep 6.4s ease-in-out infinite;
-}
-
-.monitor-4k-display::after {
-    background:
-        repeating-linear-gradient(
-            180deg,
-            rgba(255, 255, 255, 0.045) 0,
-            rgba(255, 255, 255, 0.045) 1px,
-            transparent 1px,
-            transparent 5px
-        );
-    opacity: 0.12;
-}
-
-.monitor-4k-canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-    border-radius: 22px;
-    opacity: 0.94;
-}
-
-.monitor-4k-hud {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-}
-
-.monitor-4k-status {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    padding: 0.55rem 0.75rem;
-    border: 1px solid rgba(133, 228, 255, 0.16);
-    border-radius: 14px;
-    background: rgba(4, 12, 24, 0.42);
-    backdrop-filter: blur(6px);
-    color: rgba(190, 241, 255, 0.88);
-    box-shadow: inset 0 0 24px rgba(88, 174, 255, 0.08);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-}
-
-.monitor-4k-status span {
-    font-size: 0.58rem;
-    opacity: 0.7;
-}
-
-.monitor-4k-status strong {
-    font-size: 0.68rem;
-    font-weight: 700;
-}
-
-.monitor-4k-status-left {
-    top: 1rem;
-    left: 1rem;
-}
-
-.monitor-4k-status-right {
-    top: 1rem;
-    right: 1rem;
-    text-align: right;
-}
-
-.monitor-4k-status-bottom {
-    left: 1rem;
-    bottom: 1rem;
-}
-
-@media (max-width: 1200px) {
-    .monitor-4k-status {
-        padding: 0.45rem 0.6rem;
-        border-radius: 12px;
-        letter-spacing: 0.08em;
-    }
-
-    .monitor-4k-status span {
-        font-size: 0.52rem;
-    }
-
-    .monitor-4k-status strong {
-        font-size: 0.62rem;
-    }
-}
-
-@media (max-width: 768px) {
-    .monitor-4k-status-right,
-    .monitor-4k-status-bottom {
-        display: none;
-    }
-
-    .monitor-4k-status-left {
-        top: 0.75rem;
-        left: 0.75rem;
-    }
 }
 
 .clicker-centerpiece {
@@ -1534,10 +1331,6 @@ body[data-screen-profile="tablet"] .management-context-strip {
     color: var(--primary);
 }
 
-.clicker-area.monitor-4k-active .clicker-centerpiece {
-    filter: drop-shadow(0 0 30px rgba(76, 228, 255, 0.12));
-}
-
 .project-health-head-actions {
     display: flex;
     align-items: flex-start;
@@ -1561,25 +1354,6 @@ body[data-screen-profile="tablet"] .management-context-strip {
     color: var(--text-primary);
     border-color: rgba(0, 212, 255, 0.2);
     background: rgba(0, 212, 255, 0.08);
-}
-
-.clicker-area.monitor-4k-active .click-info {
-    border-color: rgba(128, 224, 255, 0.26);
-    background: rgba(4, 14, 28, 0.68);
-    box-shadow:
-        0 12px 30px rgba(0, 0, 0, 0.22),
-        inset 0 0 18px rgba(90, 168, 255, 0.08);
-}
-
-.clicker-area.monitor-4k-active .click-button {
-    border-color: rgba(118, 222, 255, 0.9);
-    background:
-        radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.16), transparent 26%),
-        linear-gradient(145deg, rgba(10, 28, 48, 0.94), rgba(19, 47, 83, 0.92));
-    box-shadow:
-        0 0 34px rgba(0, 212, 255, 0.24),
-        0 0 90px rgba(56, 127, 255, 0.14),
-        inset 0 0 30px rgba(106, 203, 255, 0.12);
 }
 
 .click-info {
@@ -1950,42 +1724,6 @@ body[data-project-health-panel="open"] .clicker-centerpiece > .project-health-ca
     }
     50% {
         box-shadow: inset 0 0 25px rgba(255, 0, 110, 0.6);
-    }
-}
-
-@keyframes monitor4kSurface {
-    0% {
-        background-position: 50% 50%, 0% 0%;
-    }
-    50% {
-        background-position: 52% 48%, 0% 100%;
-    }
-    100% {
-        background-position: 50% 50%, 0% 0%;
-    }
-}
-
-@keyframes monitor4kSweep {
-    0%,
-    100% {
-        transform: translateX(-8%) translateY(0);
-        opacity: 0.32;
-    }
-    50% {
-        transform: translateX(8%) translateY(-1.5%);
-        opacity: 0.66;
-    }
-}
-
-@keyframes monitor4kHudPulse {
-    0%,
-    100% {
-        transform: scale(1);
-        opacity: 0.72;
-    }
-    50% {
-        transform: scale(1.08);
-        opacity: 0.95;
     }
 }
 
@@ -3147,6 +2885,7 @@ body.admin-creative .artifact-cost {
     gap: 1rem;
     max-width: 400px;
     max-height: calc(var(--app-live-viewport-height) - var(--app-safe-top) - var(--app-safe-bottom) - 2rem);
+    overflow: hidden;
 }
 
 .notification {
@@ -3159,6 +2898,38 @@ body.admin-creative .artifact-cost {
     display: flex;
     gap: 1rem;
     align-items: center;
+}
+
+.notification-message {
+    flex: 1;
+}
+
+.notification-count {
+    min-width: 2.1rem;
+    padding: 0.2rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--text-primary);
+    background: rgba(0, 212, 255, 0.2);
+    border: 1px solid rgba(0, 212, 255, 0.38);
+}
+
+.notification-bump {
+    animation: slideIn 0.2s ease, notificationPulse 0.22s ease;
+}
+
+@keyframes notificationPulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.015);
+    }
+    100% {
+        transform: scale(1);
+    }
 }
 
 @keyframes slideIn {
@@ -3178,6 +2949,11 @@ body.admin-creative .artifact-cost {
 
 .notification.warning {
     border-color: var(--danger);
+}
+
+.notification.notification-offline {
+    border-color: rgba(0, 212, 255, 0.65);
+    box-shadow: 0 10px 35px rgba(0, 212, 255, 0.24);
 }
 
 .notification-icon {
@@ -4422,36 +4198,10 @@ body[data-screen-profile="desktop"] .click-button span {
     letter-spacing: 0.16em;
 }
 
-body[data-screen-profile="desktop"] .monitor-4k-status-right,
-body[data-screen-profile="desktop"] .monitor-4k-status-bottom {
-    display: none;
-}
-
-body[data-screen-profile="desktop"] .monitor-4k-status-left {
-    top: 1.1rem;
-    left: 1.1rem;
-    opacity: 0.58;
-}
-
 body[data-screen-profile="desktop"] .clicker-area::before,
-body[data-screen-profile="desktop"] .clicker-area::after,
-body[data-screen-profile="desktop"] .clicker-area.monitor-4k-active::before,
-body[data-screen-profile="desktop"] .clicker-area.monitor-4k-active::after {
+body[data-screen-profile="desktop"] .clicker-area::after {
     filter: blur(10px);
     opacity: 0.18;
-}
-
-body[data-screen-profile="desktop"] .monitor-4k-display::before,
-body[data-screen-profile="desktop"] .monitor-4k-display::after {
-    opacity: 0.08;
-}
-
-body[data-screen-profile="desktop"] .clicker-area.monitor-4k-active {
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.04),
-        inset 0 0 72px rgba(0, 212, 255, 0.05),
-        inset 0 -24px 48px rgba(4, 8, 20, 0.24),
-        0 12px 28px rgba(2, 8, 20, 0.22);
 }
 
 body[data-screen-profile="desktop"] .project-health-collapse-btn {
@@ -4776,7 +4526,6 @@ body[data-visual-performance="reduced"] #particles-container {
 
 body[data-visual-performance="compact"] .header-bar,
 body[data-visual-performance="compact"] .project-health-card,
-body[data-visual-performance="compact"] .monitor-4k-status,
 body[data-visual-performance="compact"] .event-alert-card,
 body[data-visual-performance="compact"] .decision-alert-popup,
 body[data-visual-performance="compact"] .admin-console,
@@ -4790,31 +4539,10 @@ body[data-visual-performance="compact"] .clicker-area::after {
     opacity: 0.26;
 }
 
-body[data-visual-performance="compact"] .clicker-area.monitor-4k-active,
-body[data-visual-performance="compact"] .clicker-area.monitor-4k-active::before,
-body[data-visual-performance="compact"] .clicker-area.monitor-4k-active::after,
-body[data-visual-performance="compact"] .monitor-4k-display::before,
 body[data-visual-performance="compact"] .click-button,
 body[data-visual-performance="compact"] .click-button.power-high,
 body[data-visual-performance="compact"] .event-alert-card {
     animation: none;
-}
-
-body[data-visual-performance="compact"] .clicker-area.monitor-4k-active {
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.04),
-        inset 0 0 60px rgba(0, 212, 255, 0.05),
-        0 10px 24px rgba(2, 8, 20, 0.24);
-}
-
-body[data-visual-performance="compact"] .clicker-area.monitor-4k-active .clicker-centerpiece {
-    filter: none;
-}
-
-body[data-visual-performance="compact"] .clicker-area.monitor-4k-active .click-button {
-    box-shadow:
-        0 0 18px rgba(0, 212, 255, 0.16),
-        inset 0 0 18px rgba(106, 203, 255, 0.08);
 }
 
 body[data-visual-performance="compact"] .project-health-card,
@@ -4826,7 +4554,6 @@ body[data-visual-performance="compact"] .admin-console-panel {
 
 body[data-visual-performance="reduced"] .header-bar,
 body[data-visual-performance="reduced"] .project-health-card,
-body[data-visual-performance="reduced"] .monitor-4k-status,
 body[data-visual-performance="reduced"] .event-alert-card,
 body[data-visual-performance="reduced"] .decision-alert-popup,
 body[data-visual-performance="reduced"] .admin-console,
@@ -4835,12 +4562,10 @@ body[data-visual-performance="reduced"] .admin-console-panel {
 }
 
 body[data-visual-performance="reduced"] .clicker-area::before,
-body[data-visual-performance="reduced"] .clicker-area::after,
-body[data-visual-performance="reduced"] .monitor-4k-display::before {
+body[data-visual-performance="reduced"] .clicker-area::after {
     display: none;
 }
 
-body[data-visual-performance="reduced"] .clicker-area.monitor-4k-active,
 body[data-visual-performance="reduced"] .click-button,
 body[data-visual-performance="reduced"] .click-button.power-high,
 body[data-visual-performance="reduced"] .event-alert-card,
@@ -4850,7 +4575,6 @@ body[data-visual-performance="reduced"] .code-particle {
 }
 
 body[data-visual-performance="reduced"] .click-button,
-body[data-visual-performance="reduced"] .clicker-area.monitor-4k-active .click-button,
 body[data-visual-performance="reduced"] .project-health-card,
 body[data-visual-performance="reduced"] .event-alert-card,
 body[data-visual-performance="reduced"] .decision-alert-popup,
@@ -4859,7 +4583,6 @@ body[data-visual-performance="reduced"] .admin-console-panel {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .monitor-4k-display,
     .click-button,
     .project-health-action-btn,
     .event-alert-card,

@@ -26,7 +26,6 @@ const app = {
         uiModule.createMissionsUI();
         uiModule.createLabUI();
         uiModule.createMetaUI();
-        monitor4kModule.init();
         editorModule.init();
         this.applyVisualPerformanceProfile();
         this.applyShellDensityProfile();
@@ -51,7 +50,6 @@ const app = {
         const profile = uiModule.getVisualPerformanceProfile(window.innerWidth);
         this.visualPerformanceProfile = profile;
         document.body.dataset.visualPerformance = profile.key;
-        monitor4kModule.setPerformanceProfile?.(profile.monitorQuality);
         return profile;
     },
 
