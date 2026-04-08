@@ -170,68 +170,6 @@
                                         </button>
                                         <div class="floating-text" id="floatingTexts"></div>
                                     </div>
-                                    <div class="project-health-card" id="projectHealthCard" data-state="stable" hidden>
-                                        <div class="project-context-strip" id="projectContextStrip">
-                                            <span class="project-context-chip">Bucle activo</span>
-                                            <span class="project-context-copy shell-tier-secondary" id="projectContextCopy">Click, progreso y salud del proyecto siempre visibles.</span>
-                                        </div>
-                                        <div class="project-health-head">
-                                            <div>
-                                                <span class="project-health-kicker">Salud del proyecto</span>
-                                                <strong id="projectHealthState">Estable</strong>
-                                            </div>
-                                            <div class="project-health-head-actions">
-                                                <span class="project-health-badge" id="projectHealthBadge">Buen ritmo</span>
-                                                <button class="project-health-collapse-btn" id="projectHealthCollapseBtn" type="button" aria-expanded="false" aria-label="Cerrar salud del proyecto">
-                                                    <i class="fas fa-chevron-up" aria-hidden="true"></i>
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div class="project-health-meters">
-                                            <div class="project-health-meter quality">
-                                                <div class="project-health-meter-label">
-                                                    <span>Calidad</span>
-                                                    <strong id="projectHealthQualityValue">72</strong>
-                                                </div>
-                                                <div class="project-health-track">
-                                                    <div class="project-health-fill quality" id="projectHealthQualityBar" style="width: 72%"></div>
-                                                </div>
-                                            </div>
-                                            <div class="project-health-meter debt">
-                                                <div class="project-health-meter-label">
-                                                    <span>Deuda</span>
-                                                    <strong id="projectHealthDebtValue">8</strong>
-                                                </div>
-                                                <div class="project-health-track">
-                                                    <div class="project-health-fill debt" id="projectHealthDebtBar" style="width: 8%"></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <p class="project-health-copy shell-tier-secondary" id="projectHealthCopy">El stack se mantiene sano y responde bien al crecimiento.</p>
-                                        <div class="project-responsibility-panel">
-                                            <div class="project-responsibility-head">
-                                                <div>
-                                                    <span class="project-health-kicker">Responsabilidad</span>
-                                                    <strong id="projectResponsibilityState">Responsable</strong>
-                                                </div>
-                                                <span class="project-health-badge" id="projectResponsibilityBadge">Buena señal</span>
-                                            </div>
-                                            <div class="project-health-meter responsibility">
-                                                <div class="project-health-meter-label">
-                                                    <span>Ownership</span>
-                                                    <strong id="projectResponsibilityValue">58</strong>
-                                                </div>
-                                                <div class="project-health-track">
-                                                    <div class="project-health-fill responsibility" id="projectResponsibilityBar" style="width: 58%"></div>
-                                                </div>
-                                            </div>
-                                            <p class="project-health-copy project-responsibility-copy shell-tier-tertiary" id="projectResponsibilityCopy">Gestionas bien expectativas y sostienes decisiones con criterio.</p>
-                                        </div>
-                                        <div class="project-health-actions">
-                                            <button class="project-health-action-btn" id="projectHealthMaintenanceBtn" type="button">Refactorizar · 0 código</button>
-                                            <span class="project-health-status shell-tier-tertiary" id="projectHealthMaintenanceStatus">Recupera calidad y reduce deuda a cambio de frenar el ritmo temporalmente</span>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -297,6 +235,11 @@
                                     <li class="nav-item" role="presentation">
                                         <button class="nav-link" id="stats-tab" type="button" role="tab">
                                             <i class="fas fa-chart-bar"></i> Estadísticas
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link" id="health-tab" type="button" role="tab">
+                                            <i class="fas fa-heart-pulse"></i> Salud
                                         </button>
                                     </li>
                                     <li class="nav-item" role="presentation">
@@ -368,6 +311,76 @@
                                     <p id="maxStreak">0</p>
                                 </div>
                                 <canvas id="statsChart" class="stats-chart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="health-content" role="tabpanel">
+                            <div class="health-tab-layout">
+                                <div class="project-health-card" id="projectHealthCard" data-state="stable">
+                                    <div class="project-context-strip" id="projectContextStrip">
+                                        <span class="project-context-chip">Bucle activo</span>
+                                        <span class="project-context-copy shell-tier-secondary" id="projectContextCopy">Click, progreso y salud del proyecto siempre visibles.</span>
+                                    </div>
+                                    <div class="project-health-head">
+                                        <div>
+                                            <span class="project-health-kicker">Salud del proyecto</span>
+                                            <strong id="projectHealthState">Estable</strong>
+                                        </div>
+                                        <div class="project-health-head-actions">
+                                            <span class="project-health-badge" id="projectHealthBadge">Buen ritmo</span>
+                                            <button class="project-health-collapse-btn" id="projectHealthCollapseBtn" type="button" aria-expanded="false" aria-label="Cerrar salud del proyecto">
+                                                <i class="fas fa-chevron-up" aria-hidden="true"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="project-health-snapshot">
+                                        <article class="project-health-kpi quality">
+                                            <div class="project-health-kpi-head">
+                                                <span>Calidad</span>
+                                                <strong id="projectHealthQualityValue">72</strong>
+                                            </div>
+                                            <div class="project-health-track">
+                                                <div class="project-health-fill quality" id="projectHealthQualityBar" style="width: 72%"></div>
+                                            </div>
+                                            <p class="project-health-kpi-note shell-tier-tertiary">Base técnica y mantenibilidad.</p>
+                                        </article>
+                                        <article class="project-health-kpi debt">
+                                            <div class="project-health-kpi-head">
+                                                <span>Deuda</span>
+                                                <strong id="projectHealthDebtValue">8</strong>
+                                            </div>
+                                            <div class="project-health-track">
+                                                <div class="project-health-fill debt" id="projectHealthDebtBar" style="width: 8%"></div>
+                                            </div>
+                                            <p class="project-health-kpi-note shell-tier-tertiary">Costo futuro por atajos técnicos.</p>
+                                        </article>
+                                        <article class="project-health-kpi responsibility">
+                                            <div class="project-health-kpi-head">
+                                                <span>Ownership</span>
+                                                <strong id="projectResponsibilityValue">58</strong>
+                                            </div>
+                                            <div class="project-health-track">
+                                                <div class="project-health-fill responsibility" id="projectResponsibilityBar" style="width: 58%"></div>
+                                            </div>
+                                            <p class="project-health-kpi-note shell-tier-tertiary">Claridad de decisiones y seguimiento.</p>
+                                        </article>
+                                    </div>
+                                    <p class="project-health-copy shell-tier-secondary" id="projectHealthCopy">El stack se mantiene sano y responde bien al crecimiento.</p>
+                                    <div class="project-responsibility-panel">
+                                        <div class="project-responsibility-head">
+                                            <div>
+                                                <span class="project-health-kicker">Responsabilidad</span>
+                                                <strong id="projectResponsibilityState">Responsable</strong>
+                                            </div>
+                                            <span class="project-health-badge" id="projectResponsibilityBadge">Buena señal</span>
+                                        </div>
+                                        <p class="project-health-copy project-responsibility-copy shell-tier-tertiary" id="projectResponsibilityCopy">Gestionas bien expectativas y sostienes decisiones con criterio.</p>
+                                    </div>
+                                    <div class="project-health-actions">
+                                        <button class="project-health-action-btn" id="projectHealthMaintenanceBtn" type="button">Refactorizar · 0 código</button>
+                                        <span class="project-health-status shell-tier-tertiary" id="projectHealthMaintenanceStatus">Recupera calidad y reduce deuda a cambio de frenar el ritmo temporalmente</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

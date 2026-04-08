@@ -180,6 +180,26 @@ const app = {
             const projectHealthCard = document.getElementById('projectHealthCard');
             if (!projectHealthCard) return;
 
+            const isHealthTabCard = Boolean(projectHealthCard.closest('#health-content'));
+
+            if (isHealthTabCard) {
+                document.body.dataset.managementSurface = currentManagementSurface;
+                document.body.dataset.projectHealthPanel = 'tab';
+                projectHealthCard.hidden = false;
+
+                if (projectHealthPeekBtn) {
+                    projectHealthPeekBtn.setAttribute('aria-expanded', 'false');
+                }
+
+                if (projectHealthCollapseBtn) {
+                    projectHealthCollapseBtn.hidden = true;
+                    projectHealthCollapseBtn.setAttribute('aria-expanded', 'false');
+                    projectHealthCollapseBtn.setAttribute('aria-label', 'Salud del proyecto en pestana dedicada');
+                }
+
+                return;
+            }
+
             if (forceOpen) {
                 projectHealthPanelOpen = true;
             }
@@ -290,11 +310,17 @@ const app = {
         });
 
         projectHealthPeekBtn?.addEventListener('click', () => {
-            projectHealthPanelOpen = !projectHealthPanelOpen;
+            switchManagementSurface('panel');
+            if (window.innerWidth <= 991.98) {
+                switchMobileView('management');
+            }
+            uiModule.switchTab('health');
+            projectHealthPanelOpen = false;
             syncProjectHealthCard();
         });
 
         projectHealthCollapseBtn?.addEventListener('click', () => {
+            uiModule.switchTab('upgrades');
             projectHealthPanelOpen = false;
             syncProjectHealthCard({ forceClosed: true });
         });
@@ -347,6 +373,7 @@ const app = {
         document.getElementById('languages-tab')?.addEventListener('click', () => uiModule.switchTab('languages'));
         document.getElementById('achievements-tab')?.addEventListener('click', () => uiModule.switchTab('achievements'));
         document.getElementById('stats-tab')?.addEventListener('click', () => uiModule.switchTab('stats'));
+        document.getElementById('health-tab')?.addEventListener('click', () => uiModule.switchTab('health'));
         document.getElementById('passive-tab')?.addEventListener('click', () => uiModule.switchTab('passive'));
         document.getElementById('missions-tab')?.addEventListener('click', () => uiModule.switchTab('missions'));
         document.getElementById('lab-tab')?.addEventListener('click', () => uiModule.switchTab('lab'));

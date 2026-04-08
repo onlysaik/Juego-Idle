@@ -1374,7 +1374,7 @@ body[data-screen-profile="tablet"] .management-context-strip {
 }
 
 .project-health-card {
-    width: min(100%, 340px);
+    width: min(100%, 360px);
     padding: 0.95rem 1rem;
     border-radius: 18px;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1385,18 +1385,85 @@ body[data-screen-profile="tablet"] .management-context-strip {
     gap: 0.8rem;
     backdrop-filter: blur(10px);
     min-width: 0;
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    z-index: 5;
-    max-height: calc(100% - 2rem);
+    position: relative;
+    margin-top: 0;
+    z-index: 1;
+    max-height: none;
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(-10px) scale(0.98);
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    transition: border-color 0.2s ease;
+}
+
+.health-tab-layout {
+    display: grid;
+    justify-items: center;
+}
+
+.health-tab-layout .project-health-card {
+    width: min(100%, 520px);
+    max-height: min(66svh, 640px);
+}
+
+.health-tab-layout .project-health-collapse-btn {
+    display: none;
+}
+
+.project-health-snapshot {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+}
+
+.project-health-kpi {
+    display: grid;
+    gap: 0.42rem;
+    padding: 0.58rem 0.62rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.project-health-kpi.responsibility {
+    grid-column: 1 / -1;
+}
+
+.project-health-kpi.quality {
+    border-color: rgba(0, 255, 136, 0.18);
+}
+
+.project-health-kpi.debt {
+    border-color: rgba(255, 179, 71, 0.2);
+}
+
+.project-health-kpi-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.4rem;
+}
+
+.project-health-kpi-head span {
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.project-health-kpi-head strong {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.92rem;
+    color: var(--text-primary);
+}
+
+.project-health-kpi-note {
+    margin: 0;
+    font-size: 0.67rem;
+    line-height: 1.35;
+    color: var(--text-secondary);
 }
 
 body[data-project-health-panel="open"] .clicker-centerpiece > .project-health-card {
@@ -1546,7 +1613,7 @@ body[data-project-health-panel="open"] .clicker-centerpiece > .project-health-ca
 .project-responsibility-panel {
     display: grid;
     gap: 0.55rem;
-    padding-top: 0.1rem;
+    padding-top: 0.45rem;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -1564,7 +1631,17 @@ body[data-project-health-panel="open"] .clicker-centerpiece > .project-health-ca
 }
 
 .project-responsibility-copy {
-    margin-top: -0.1rem;
+    margin-top: 0;
+}
+
+@media (max-width: 420px) {
+    .project-health-snapshot {
+        grid-template-columns: 1fr;
+    }
+
+    .project-health-kpi.responsibility {
+        grid-column: auto;
+    }
 }
 
 .meta-system-glossary {
@@ -4120,9 +4197,11 @@ body[data-screen-profile="desktop"] .clicker-area {
 }
 
 body[data-screen-profile="desktop"] .clicker-centerpiece {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
     align-items: stretch;
     justify-content: center;
+    gap: clamp(0.75rem, 1.6vw, 1.1rem);
     width: min(100%, 760px);
     height: 100%;
 }
@@ -4159,11 +4238,12 @@ body[data-screen-profile="desktop"] .click-stage > .click-info {
 }
 
 body[data-screen-profile="desktop"] .clicker-centerpiece > .project-health-card {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
+    position: relative;
+    top: auto;
+    right: auto;
+    margin-top: 0;
     width: min(100%, 320px);
-    max-height: calc(100% - 2rem);
+    max-height: 100%;
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
@@ -4233,7 +4313,7 @@ body[data-screen-profile="desktop"] .project-health-status {
 }
 
 body[data-screen-profile="desktop"][data-management-surface="editor"] .clicker-centerpiece > .project-health-card {
-    width: min(100%, 292px);
+    width: min(100%, 280px);
     gap: 0.5rem;
     padding: 0.72rem 0.78rem;
 }
@@ -4259,6 +4339,20 @@ body[data-screen-profile="desktop"][data-management-surface="editor"] .clicker-c
     min-height: 42px;
     padding: 0.65rem 0.8rem;
     font-size: 0.9rem;
+}
+
+@media (max-width: 1360px) {
+    body[data-screen-profile="desktop"] .clicker-centerpiece {
+        grid-template-columns: minmax(0, 1fr);
+        width: min(100%, 560px);
+    }
+
+    body[data-screen-profile="desktop"] .clicker-centerpiece > .project-health-card {
+        width: min(100%, 360px);
+        justify-self: center;
+        max-height: min(52svh, 460px);
+        margin-top: 0.45rem;
+    }
 }
 
 body[data-screen-profile="desktop"] .play-shell-main {
