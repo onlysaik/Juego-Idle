@@ -30,6 +30,24 @@ body {
     --app-safe-left: env(safe-area-inset-left, 0px);
 }
 
+/* =========================================================
+   CSS MAP (quick navigation)
+   [SEC-01] Base & Tokens
+   [SEC-02] App Layout & Shell
+   [SEC-03] Header & Top Controls
+   [SEC-04] Main Panels (Clicker / Management)
+   [SEC-05] Clicker Core UI
+   [SEC-06] Project Health UI
+   [SEC-07] Progress / Tabs / Content
+   [SEC-08] Cards, Grids and Gameplay Panels
+   [SEC-09] Overlays (Admin / Alerts / Toasts)
+   [SEC-10] Responsive Rules
+   [SEC-11] Desktop Scroll Strategy
+   [SEC-12] Visual Performance Modes
+   [SEC-13] Theme Overrides
+   Tip: use search with "[SEC-" to jump between blocks.
+   ========================================================= */
+
 body {
     font-family: 'Poppins', sans-serif;
     background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1932 100%);
@@ -50,6 +68,7 @@ body {
     z-index: -1;
 }
 
+/* ===================== [SEC-02] App Layout & Shell ===================== */
 /* Main Layout */
 .main-container {
     min-height: var(--app-shell-height);
@@ -73,6 +92,7 @@ body {
     min-height: 0;
 }
 
+/* =================== [SEC-03] Header & Top Controls ==================== */
 /* Header */
 .header-bar {
     flex-shrink: 0;
@@ -319,6 +339,7 @@ body {
     }
 }
 
+/* =========== [SEC-04] Main Panels (Clicker / Management) ============== */
 /* Game Container */
 .game-container {
     flex: 1;
@@ -1215,6 +1236,7 @@ body[data-screen-profile="tablet"] .management-context-strip {
     color: #4ec9b0;
 }
 
+/* ===================== [SEC-05] Clicker Core UI ======================== */
 /* Clicker Section */
 .clicker-section {
     display: flex;
@@ -1286,11 +1308,13 @@ body[data-screen-profile="tablet"] .management-context-strip {
     align-items: center;
     justify-content: center;
     gap: 1rem;
-    width: min(100%, 420px);
+    width: 100%;
+    max-width: 420px;
     min-height: 0;
     position: relative;
 }
 
+/* ===================== [SEC-06] Project Health UI ====================== */
 .project-health-peek-btn {
     display: inline-flex;
     align-items: center;
@@ -1843,6 +1867,7 @@ body[data-project-health-panel="open"] .clicker-centerpiece > .project-health-ca
     }
 }
 
+/* ================== [SEC-07] Progress / Tabs / Content ================= */
 /* Progress Bar */
 .progress-section {
     background: var(--card-bg);
@@ -3428,6 +3453,7 @@ body.admin-creative .artifact-cost {
     background: var(--secondary);
 }
 
+/* ======================== [SEC-10] Responsive Rules ===================== */
 /* Responsive */
 @media (max-width: 1200px) {
     .game-container > .row {
@@ -4211,6 +4237,7 @@ body.admin-creative .artifact-cost {
     }
 
 
+/* ===================== [SEC-11] Desktop Scroll Strategy ================= */
 /* Shell Scroll Strategy */
 body[data-screen-profile="desktop"] .game-container,
 body[data-screen-profile="desktop"] .app-shell-main,
@@ -4232,7 +4259,7 @@ body[data-screen-profile="desktop"] .play-shell-main {
 }
 
 body[data-screen-profile="desktop"] .clicker-area {
-    place-items: stretch;
+    place-items: stretch center;
     padding: clamp(1rem, 1.8vw, 1.4rem);
 }
 
@@ -4246,9 +4273,19 @@ body[data-screen-profile="desktop"] .clicker-centerpiece {
     height: 100%;
 }
 
+body[data-screen-profile="desktop"]:not([data-project-health-panel="open"]) .clicker-centerpiece {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: min(100%, 560px);
+}
+
 body[data-screen-profile="desktop"] .click-stage {
     align-self: stretch;
+    align-items: center;
     width: 100%;
+    margin-inline: auto;
     gap: 1.1rem;
     padding: clamp(1rem, 1.6vw, 1.35rem);
     border-radius: 24px;
@@ -4271,7 +4308,7 @@ body[data-screen-profile="desktop"] .click-stage::before {
 }
 
 body[data-screen-profile="desktop"] .click-stage > .click-info {
-    align-self: start;
+    align-self: center;
     width: min(100%, 280px);
     margin-top: 0.2rem;
     background: rgba(5, 18, 31, 0.7);
@@ -4294,7 +4331,12 @@ body[data-screen-profile="desktop"] .clicker-centerpiece > .project-health-card 
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
+body[data-screen-profile="desktop"]:not([data-project-health-panel="open"]) .clicker-centerpiece > .project-health-card {
+    display: none;
+}
+
 body[data-screen-profile="desktop"][data-project-health-panel="open"] .clicker-centerpiece > .project-health-card {
+    display: flex;
     opacity: 1;
     pointer-events: auto;
     transform: translateY(0) scale(1);
@@ -4310,7 +4352,7 @@ body[data-screen-profile="desktop"] .click-stage > .click-button {
 }
 
 body[data-screen-profile="desktop"] .click-stage > .floating-text {
-    align-self: end;
+    align-self: center;
 }
 
 body[data-screen-profile="desktop"] .click-button span {
@@ -4516,6 +4558,7 @@ body[data-screen-profile="mobile"] .editor-body {
     }
 }
 
+/* =========== [SEC-08] Cards, Grids and Gameplay Panels ================= */
 /* Achievement Card */
 .achievement-card {
     background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(255, 0, 110, 0.05));
@@ -4579,6 +4622,7 @@ body[data-screen-profile="mobile"] .editor-body {
     font-weight: 600;
 }
 
+/* ============== [SEC-09] Overlays (Admin / Alerts / Toasts) ============ */
 /* Event Alert */
 .event-alert {
     position: fixed;
@@ -4646,6 +4690,7 @@ body[data-screen-profile="mobile"] .editor-body {
     }
 }
 
+/* =================== [SEC-12] Visual Performance Modes ================== */
 body[data-visual-performance="balanced"] #particles-container {
     opacity: 0.7;
 }
@@ -4727,6 +4772,7 @@ body[data-visual-performance="reduced"] .admin-console-panel {
     }
 }
 
+/* ======================= [SEC-13] Theme Overrides ======================= */
 /* Tema Themes */
 body.theme-cyberpunk {
     --primary: #ff006e;
