@@ -178,7 +178,10 @@ const gameLogic = {
             return;
         }
 
-        uiModule.showNotification(`🎯 ${mission.name} completada`, 'success');
+        const rewardCode = mission.rewardCode || 0;
+        const rewardRep = mission.rewardRep || 0;
+        const repText = rewardRep > 0 ? ` · +${rewardRep} rep` : '';
+        uiModule.showNotification(`🎯 ${mission.name} completada · +${rewardCode.toLocaleString()} código${repText}`, 'success');
         uiModule.createMissionsUI();
         uiModule.update();
         achievementsModule.checkAll();

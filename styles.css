@@ -2204,7 +2204,6 @@ body[data-shell-density="compact"] .floating-text {
 body[data-shell-density="tight"] .project-context-strip,
 body[data-shell-density="tight"] .project-health-copy,
 body[data-shell-density="tight"] .project-health-status,
-body[data-shell-density="tight"] .mission-desc,
 body[data-shell-density="tight"] .artifact-desc,
 body[data-shell-density="tight"] .specialization-desc,
 body[data-shell-density="tight"] .team-desc,
@@ -2218,6 +2217,22 @@ body[data-shell-density="tight"] .shell-compact-card .shell-tier-tertiary {
 
 body[data-shell-density="tight"] .project-health-card {
     border-radius: 14px;
+}
+
+body[data-shell-density="tight"] .mission-desc {
+    display: block;
+    font-size: 0.74rem;
+    line-height: 1.35;
+    color: var(--text-secondary);
+}
+
+body[data-shell-density="tight"] .mission-card .mission-desc.shell-tier-secondary {
+    display: block;
+}
+
+body[data-shell-density="tight"] .mission-card .mission-footer .shell-tier-secondary {
+    display: inline;
+    color: var(--text-secondary);
 }
 
 body[data-shell-density="tight"] .project-health-head,
