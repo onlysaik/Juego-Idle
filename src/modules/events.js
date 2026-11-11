@@ -181,7 +181,7 @@ const eventsModule = {
         {
             id: 'documentation',
             name: '📚 Documentación',
-            desc: '+500 código bonus',
+            desc: 'Bonus de código equivalente a 30 s de producción',
             weight: 3,
             healthBias: {
                 qualityBias: 0.8,
@@ -192,8 +192,9 @@ const eventsModule = {
                 }
             },
             execute() {
-                gameState.addCode(500);
-                uiModule.showNotification('+500 código bonus completado!', 'success');
+                const reward = gameState.getGenerationReward(CONFIG.EVENT_REWARDS.documentation);
+                gameState.addCode(reward);
+                uiModule.showNotification(`+${reward.toLocaleString()} código bonus por documentar`, 'success');
                 eventsModule.applyProjectHealthEffect({ quality: 6, debt: -4 }, 'La documentación ordenó el proyecto', 'success');
                 audioModule.play('event');
             }
@@ -277,12 +278,15 @@ const eventsModule = {
                 audioModule.play('event');
 
                 if (typeof Swal === 'undefined') {
-                    gameState.addCode(1500);
+                    const fallbackReward = gameState.getGenerationReward(CONFIG.EVENT_REWARDS.clientDeadlineFallback);
+                    gameState.addCode(fallbackReward);
                     eventsModule.applyProjectHealthEffect({ quality: -3, debt: 5 }, 'Resolviste rápido, pero quedó deuda técnica', 'warning');
                     eventsModule.applyResponsibilityEffect(-4, 'Prometiste más de lo sostenible: Responsabilidad -4', 'warning');
-                    uiModule.showNotification('Decisión resuelta: +1500 código', 'success');
+                    uiModule.showNotification(`Decisión resuelta: +${fallbackReward.toLocaleString()} código`, 'success');
                     return;
                 }
+
+                const aggressiveReward = gameState.getGenerationReward(CONFIG.EVENT_REWARDS.clientDeadlineAggressive);
 
                 Swal.fire({
                     title: 'Decisión',
@@ -298,7 +302,7 @@ const eventsModule = {
                                     <span class="decision-option-label">Opcion agresiva</span>
                                     <strong>Aceptar deuda tecnica</strong>
                                     <p>Entregas rapido y ganas codigo ahora, pero el proyecto queda mas fragil durante un tiempo.</p>
-                                    <p class="decision-option-impact">Impacto: Calidad -7 · Deuda +12 · Responsabilidad -6 · bonus corto de velocidad</p>
+                                    <p class="decision-option-impact">Impacto: +${aggressiveReward.toLocaleString()} código · Calidad -7 · Deuda +12 · Responsabilidad -6 · bonus corto de velocidad</p>
                                 </article>
                                 <article class="decision-option decision-option-balance">
                                     <span class="decision-option-label">Opcion limpia</span>
@@ -339,7 +343,7 @@ const eventsModule = {
                     }
                 }).then(result => {
                     if (result.isConfirmed) {
-                        gameState.addCode(4000);
+                        gameState.addCode(aggressiveReward);
                         eventsModule.applyProjectHealthEffect({ quality: -7, debt: 12 }, 'Entregaste con atajos: Calidad -7 · Deuda +12', 'warning');
                         eventsModule.applyResponsibilityEffect(-6, 'Promesa inflada para cerrar rápido: Responsabilidad -6', 'warning');
                         eventsModule.applyTimedEffect(
@@ -431,10 +435,11 @@ const eventsModule = {
                 }
             },
             execute() {
+                const reward = gameState.getGenerationReward(CONFIG.EVENT_REWARDS.trustedLaunch);
                 gameState.addPrestigePoints(1);
                 gameState.releaseCharge += 2;
-                gameState.addCode(1200);
-                eventsModule.applyProjectHealthEffect({ quality: 4, debt: -3 }, 'Un cliente premium confió en tu stack: +1200 código, +2 carga, +1 rep', 'success');
+                gameState.addCode(reward);
+                eventsModule.applyProjectHealthEffect({ quality: 4, debt: -3 }, `Un cliente premium confió en tu stack: +${reward.toLocaleString()} código, +2 carga, +1 rep`, 'success');
                 eventsModule.applyResponsibilityEffect(4, 'La confianza ganada reforzó tu imagen de ownership: Responsabilidad +4', 'success');
             }
         }

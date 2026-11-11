@@ -75,6 +75,9 @@ class GameState {
         
         // Hijos - Inicializar desde CONFIG
         this.initializeCollections();
+        // Partida nueva y cada prestige pasan por aquí. Al cargar una partida,
+        // applySaveData() pisa estas unidades con las guardadas.
+        this.applyStartingLanguages();
         this.refreshAllMissions(true);
         this.refreshTrend(true);
         
@@ -145,6 +148,19 @@ class GameState {
         });
     }
     
+    applyStartingLanguages() {
+        Object.entries(CONFIG.STARTING_LANGUAGES || {}).forEach(([key, count]) => {
+            const language = this.languages[key];
+            const definition = CONFIG.LANGUAGES[key];
+            const amount = Math.max(0, Math.floor(Number(count) || 0));
+            if (!language || !definition || amount === 0) return;
+
+            language.owned += amount;
+            language.cost = this.calculateScaledCost(definition.cost, CONFIG.LANGUAGE_COST_SCALING, language.owned);
+            this.passiveGeneration += definition.generation * amount;
+        });
+    }
+
     // === MÉTODOS DE PROGRESO ===
     addCode(amount) {
         const safeAmount = Math.max(0, Number(amount) || 0);
@@ -937,7 +953,8 @@ class GameState {
     }
 
     getMissionRerollCost(slot) {
-        return CONFIG.MISSION_REROLL_COST[slot] ?? 0;
+        const rule = CONFIG.MISSION_REROLL_COST[slot];
+        return rule ? this.getGenerationReward(rule) : 0;
     }
 
     rerollMission(slot) {
@@ -993,10 +1010,11 @@ class GameState {
         const progress = this.getMissionProgress(slot);
         if (!mission || !progress.complete) return null;
 
-        this.addCode(mission.rewardCode || 0);
+        const rewardCode = this.getMissionRewardCode(mission);
+        this.addCode(rewardCode);
         this.addPrestigePoints(mission.rewardRep || 0);
 
-        const claimed = { ...mission };
+        const claimed = { ...mission, rewardCode };
         this.refreshMission(slot, true);
         return claimed;
     }
@@ -1007,13 +1025,14 @@ class GameState {
 
     // Suma una propiedad del equipo ponderada por responsabilidad.
     // El perfil se calcula una sola vez por suma (antes se recalculaba por miembro).
-    sumTeamStat(stat) {
+    sumTeamStat(stat, { applyMilestones = false } = {}) {
         const members = Object.entries(this.team).filter(([, member]) => member.owned > 0 && member[stat]);
         if (members.length === 0) return 0;
 
         const profile = this.getTeamResponsibilityProfile();
         return members.reduce((sum, [key, member]) => {
-            return sum + (member[stat] * member.owned * this.getTeamMemberResponsibilityMultiplier(key, profile));
+            const milestoneMultiplier = applyMilestones ? this.getMilestoneMultiplier(member.owned) : 1;
+            return sum + (member[stat] * member.owned * milestoneMultiplier * this.getTeamMemberResponsibilityMultiplier(key, profile));
         }, 0);
     }
 
@@ -1027,8 +1046,61 @@ class GameState {
 
     getBasePassiveGeneration() {
         return Object.values(this.languages).reduce((sum, language) => {
-            return sum + (language.generation * language.owned);
+            return sum + (language.generation * language.owned * this.getMilestoneMultiplier(language.owned));
         }, 0);
+    }
+
+    // === HITOS POR UNIDAD ===
+    // Derivados de `owned`: no se guardan, así que las partidas viejas
+    // reciben automáticamente los hitos que ya cumplían.
+    getMilestoneLevel(owned) {
+        return CONFIG.MILESTONES.THRESHOLDS.filter(threshold => owned >= threshold).length;
+    }
+
+    getMilestoneMultiplier(owned) {
+        return Math.pow(CONFIG.MILESTONES.MULTIPLIER, this.getMilestoneLevel(owned));
+    }
+
+    getMilestoneProgress(owned) {
+        const thresholds = CONFIG.MILESTONES.THRESHOLDS;
+        const level = this.getMilestoneLevel(owned);
+        const multiplier = this.getMilestoneMultiplier(owned);
+        const next = thresholds[level] ?? null;
+        const previous = level > 0 ? thresholds[level - 1] : 0;
+
+        return {
+            level,
+            multiplier,
+            next,
+            previous,
+            complete: next === null,
+            nextMultiplier: next === null ? multiplier : multiplier * CONFIG.MILESTONES.MULTIPLIER,
+            percent: next === null ? 100 : Math.max(0, Math.min(100, ((owned - previous) / (next - previous)) * 100))
+        };
+    }
+
+    // === RECOMPENSAS ESCALADAS ===
+    // Producción por segundo usada como base de recompensas: sin efectos
+    // temporales ni mantenimiento, para que no se pueda inflar con un hackathon activo.
+    getRewardGenerationBase() {
+        return this.calculateGeneration({ includeTimedEffects: false, includeMaintenance: false });
+    }
+
+    getGenerationReward({ seconds = 0, min = 0 } = {}) {
+        return Math.floor(Math.max(min, this.getRewardGenerationBase() * seconds));
+    }
+
+    getMissionRewardSeconds(mission) {
+        if (!mission) return 0;
+        return mission.rewardSeconds ?? ((mission.rewardCode || 0) / CONFIG.MISSION_REWARD.CODE_PER_SECOND);
+    }
+
+    getMissionRewardCode(mission) {
+        if (!mission) return 0;
+        return this.getGenerationReward({
+            seconds: this.getMissionRewardSeconds(mission),
+            min: mission.rewardCode || 0
+        });
     }
 
     getArtifactBonus(type) {
@@ -1038,7 +1110,8 @@ class GameState {
     }
 
     getTeamGeneration() {
-        return this.sumTeamStat('generation');
+        // Los hitos solo multiplican la producción, no los bonus de click/pasivo.
+        return this.sumTeamStat('generation', { applyMilestones: true });
     }
 
     getSpecializationLanguageBonus() {
@@ -1398,11 +1471,77 @@ class GameState {
         if (this.totalCode < cost) return 0;
 
         const ratio = this.totalCode / cost;
-        return Math.max(1, Math.floor(Math.sqrt(ratio)));
+        // +1e-9: Math.pow(64, 1/3) da 3.999…; sin la tolerancia, justo en el
+        // umbral (cost * n^ROOT) se perdería un punto que la vista previa promete.
+        return Math.max(1, Math.floor(Math.pow(ratio, 1 / CONFIG.PRESTIGE_REWARD_ROOT) + 1e-9));
     }
 
     canPrestige() {
         return this.calculatePrestigeReward() > 0;
+    }
+
+    // Vista previa en vivo del reinicio: rep a ganar, multiplicador antes/después
+    // y cuánto código total falta para el siguiente punto de reputación.
+    getPrestigePreview() {
+        // Misma función que performPrestige(): lo mostrado es lo que se obtiene.
+        const reward = this.calculatePrestigeReward();
+        const cost = this.calculatePrestigeCost();
+        // reward = floor((totalCode / cost)^(1/ROOT)) → reward + 1 exige cost * (reward + 1)^ROOT
+        const nextRepAt = reward === 0 ? cost : cost * Math.pow(reward + 1, CONFIG.PRESTIGE_REWARD_ROOT);
+
+        return {
+            reward,
+            cost,
+            currentMultiplier: this.getPrestigeMultiplier(),
+            nextMultiplier: 1 + ((this.prestigePoints + reward) * CONFIG.PRESTIGE_BONUS_PER_POINT),
+            nextRepAt,
+            missingForNextRep: Math.max(0, nextRepAt - this.totalCode),
+            progressToNextRep: Math.max(0, Math.min(100, (this.totalCode / nextRepAt) * 100))
+        };
+    }
+
+    // === COMMIT DORADO ===
+    rollGoldenCommitReward() {
+        const rewards = CONFIG.GOLDEN_COMMIT.REWARDS;
+        const totalWeight = rewards.reduce((sum, reward) => sum + reward.weight, 0);
+        let roll = Math.random() * totalWeight;
+        const picked = rewards.find(reward => (roll -= reward.weight) <= 0) || rewards[0];
+
+        if (picked.type === 'code') {
+            const t = Math.random();
+            const seconds = picked.minSeconds + ((picked.maxSeconds - picked.minSeconds) * t);
+            const clicks = picked.minClicks + ((picked.maxClicks - picked.minClicks) * t);
+            const amount = Math.floor(Math.max(
+                this.getRewardGenerationBase() * seconds,
+                this.calculateClickPower() * clicks
+            ));
+            return { type: 'code', amount, seconds: Math.round(seconds) };
+        }
+
+        if (picked.type === 'frenzy') {
+            return { type: 'frenzy', factor: picked.factor, durationMs: picked.durationMs };
+        }
+
+        return { type: 'release', commits: picked.commits };
+    }
+
+    applyGoldenCommitReward(reward) {
+        if (!reward) return null;
+
+        if (reward.type === 'code') {
+            this.addCode(reward.amount);
+        } else if (reward.type === 'frenzy') {
+            this.addTimedEffect({
+                stat: 'clickMultiplier',
+                factor: reward.factor,
+                durationMs: reward.durationMs,
+                endMessage: 'El frenesí del commit dorado terminó'
+            });
+        } else if (reward.type === 'release') {
+            this.releaseCharge += reward.commits;
+        }
+
+        return reward;
     }
 
     performPrestige() {
@@ -1619,6 +1758,15 @@ class GameState {
     }
 
     restoreOwned(target, source, spec) {
+        // Partir de cero: una partida guardada solo tiene lo que compró
+        // (no recibe STARTING_LANGUAGES ni nada aplicado por reset()).
+        Object.entries(target).forEach(([key, item]) => {
+            item.owned = 0;
+            if (spec.scaling && spec.config[key]) {
+                item.cost = spec.config[key].cost;
+            }
+        });
+
         if (!source || typeof source !== 'object') return;
 
         Object.entries(source).forEach(([key, value]) => {

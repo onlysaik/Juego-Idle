@@ -44,6 +44,7 @@ const app = {
         this.setupEventListeners();
         
         // 5. Iniciar game loops
+        goldenCommitModule.init();
         gameEngine.startGameLoop();
         gameEngine.startEventLoop();
         

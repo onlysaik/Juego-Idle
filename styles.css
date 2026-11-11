@@ -2392,6 +2392,110 @@ body[data-shell-density="tight"] .editor-tab {
     background: rgba(255, 0, 110, 0.18);
 }
 
+/* Hitos por unidad (lenguajes y equipo) */
+.milestone {
+    width: 100%;
+    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.milestone-track {
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.milestone-fill {
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    transition: width 0.3s ease;
+}
+
+.milestone.complete .milestone-fill {
+    background: linear-gradient(90deg, #ffb703, #ffd700);
+}
+
+.milestone-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+/* Vista previa del prestige */
+.prestige-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin: 0.75rem 0;
+    padding: 0.65rem 0.75rem;
+    border-radius: 10px;
+    background: rgba(255, 215, 0, 0.06);
+    border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.prestige-preview-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.prestige-preview-row strong.ready {
+    color: #ffd700;
+}
+
+.prestige-preview-next {
+    font-size: 0.75rem;
+}
+
+/* Commit dorado: por encima del juego, por debajo de notificaciones y modales */
+.golden-commit {
+    position: fixed;
+    z-index: 9000;
+    transform: translate(-50%, -50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 48px;
+    padding: 0.6rem 1rem;
+    border: 2px solid #fff3b0;
+    border-radius: 999px;
+    font-weight: 700;
+    color: #3a2a00;
+    background: radial-gradient(circle at 30% 30%, #fff3b0, #ffd700 45%, #e09f00);
+    box-shadow: 0 0 22px rgba(255, 215, 0, 0.7), 0 0 48px rgba(255, 183, 3, 0.35);
+    cursor: pointer;
+    touch-action: manipulation;
+    animation: goldenCommitIn 0.35s ease-out, goldenCommitPulse 1.4s ease-in-out 0.35s infinite;
+}
+
+.golden-commit:focus-visible {
+    outline: 3px solid #fff3b0;
+    outline-offset: 3px;
+}
+
+@keyframes goldenCommitIn {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes goldenCommitPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .golden-commit {
+        animation: none;
+    }
+}
+
 .mission-claim-btn:not(:disabled):hover,
 .meta-action-btn:not(:disabled):hover,
 .specialization-card:hover,
@@ -2664,6 +2768,15 @@ body[data-shell-density="tight"] .editor-tab {
 .artifact-cost.affordable,
 .artifact-card.purchased .artifact-status {
     color: var(--accent);
+}
+
+/* Artefacto sin reputación suficiente */
+.artifact-card.unaffordable {
+    opacity: 0.6;
+}
+
+.artifact-card.unaffordable .artifact-status {
+    color: #ff6b8b;
 }
 
 .artifact-card.purchased {

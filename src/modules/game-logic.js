@@ -93,10 +93,28 @@ const gameLogic = {
     },
     
     // === COMPRAR LENGUAJE ===
+    // Confetti + aviso cuando una compra cruza un hito de cantidad (10/25/50/100).
+    checkMilestone(name, ownedBefore, ownedAfter) {
+        const levelBefore = gameState.getMilestoneLevel(ownedBefore);
+        const levelAfter = gameState.getMilestoneLevel(ownedAfter);
+        if (levelAfter <= levelBefore) return false;
+
+        const threshold = CONFIG.MILESTONES.THRESHOLDS[levelAfter - 1];
+        const multiplier = gameState.getMilestoneMultiplier(ownedAfter);
+        audioModule.play('achievement');
+        uiModule.showNotification(`🏁 Hito ${threshold}: ${name} produce x${multiplier}`, 'success', { duration: 4500 });
+        uiModule.celebrateMilestone();
+        return true;
+    },
+
     buyLanguage(key) {
+        const ownedBefore = gameState.languages[key]?.owned ?? 0;
         if (gameState.buyLanguage(key)) {
             const language = gameState.languages[key];
-            uiModule.showNotification(`🚀 ${language.name} desbloqueado!`, 'success');
+            const hitMilestone = this.checkMilestone(language.name, ownedBefore, language.owned);
+            if (!hitMilestone) {
+                uiModule.showNotification(`🚀 ${language.name} desbloqueado!`, 'success');
+            }
             uiModule.createLanguagesUI();
             uiModule.createUpgradesUI(); // Mostrar frameworks
             uiModule.setPreviewLanguage(key);
@@ -127,9 +145,13 @@ const gameLogic = {
     },
 
     buyTeam(key) {
+        const ownedBefore = gameState.team[key]?.owned ?? 0;
         if (gameState.buyTeamMember(key)) {
             const member = gameState.team[key];
-            uiModule.showNotification(`👥 ${member.name} se unió al equipo`, 'success');
+            const hitMilestone = this.checkMilestone(member.name, ownedBefore, member.owned);
+            if (!hitMilestone) {
+                uiModule.showNotification(`👥 ${member.name} se unió al equipo`, 'success');
+            }
             uiModule.update();
             achievementsModule.checkAll();
             gameState.save(true);
@@ -371,9 +393,10 @@ const gameLogic = {
         }
 
         if (typeof Swal !== 'undefined') {
+            const preview = gameState.getPrestigePreview();
             Swal.fire({
                 title: '¿Reiniciar run?',
-                text: `Obtendrás +${reward} reputación permanente.`,
+                text: `Obtendrás +${preview.reward} reputación permanente. Bonus global x${preview.currentMultiplier.toFixed(2)} → x${preview.nextMultiplier.toFixed(2)}.`,
                 icon: 'question',
                 showCancelButton: true,
                 confirmButtonText: 'Sí, hacer prestige',
@@ -420,7 +443,7 @@ const gameLogic = {
             });
         }
 
-        uiModule.showNotification(`🌟 Prestige completado: +${reward} reputación · disciplina permanente +${Math.round(releaseBias)} score de release · piso de responsabilidad ${responsibilityFloor}`, 'success');
+        uiModule.showNotification(`🌟 Prestige completado: +${reward} reputación · bonus global x${gameState.getPrestigeMultiplier().toFixed(2)} · disciplina permanente +${Math.round(releaseBias)} score de release · piso de responsabilidad ${responsibilityFloor}`, 'success');
     }
 };
 

@@ -21,6 +21,8 @@ const gameEngine = {
                 if (effect.endMessage) uiModule.showNotification(effect.endMessage, 'info');
             });
 
+            goldenCommitModule.tick(now);
+
             let deltaTime = rawDelta;
             if (rawDelta > CONFIG.LIVE_TICK_GAP_SECONDS) {
                 // Hueco largo (suspensión, pestaña congelada): se trata como

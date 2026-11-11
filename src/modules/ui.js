@@ -176,7 +176,7 @@ const uiModule = {
                     <i class="passive-icon ${lang.icon}"></i>
                     <div class="passive-info">
                         <h4>${lang.name}</h4>
-                        <p>+${(lang.generation * lang.owned).toLocaleString()} líneas/seg base</p>
+                        <p>+${(lang.generation * lang.owned * gameState.getMilestoneMultiplier(lang.owned)).toLocaleString()} líneas/seg base${gameState.getMilestoneLevel(lang.owned) > 0 ? ` · hito x${gameState.getMilestoneMultiplier(lang.owned)}` : ''}</p>
                     </div>
                     <div style="margin-left: auto; color: var(--accent); font-weight: 700;">x${lang.owned}</div>
                 `;
@@ -193,7 +193,7 @@ const uiModule = {
                     <i class="passive-icon ${member.icon}"></i>
                     <div class="passive-info">
                         <h4>${member.name}</h4>
-                        <p>+${(member.generation * member.owned).toLocaleString()} líneas/seg base</p>
+                        <p>+${(member.generation * member.owned * gameState.getMilestoneMultiplier(member.owned)).toLocaleString()} líneas/seg base${gameState.getMilestoneLevel(member.owned) > 0 ? ` · hito x${gameState.getMilestoneMultiplier(member.owned)}` : ''}</p>
                     </div>
                     <div style="margin-left: auto; color: var(--accent); font-weight: 700;">x${member.owned}</div>
                 `;
@@ -302,11 +302,22 @@ const uiModule = {
                 claimButton.textContent = progress.complete ? 'Cobrar' : 'En progreso';
             }
 
+            // Recompensa y coste de cambio escalan con la producción actual.
+            const rewardLabel = document.getElementById(`${slot}MissionReward`);
+            if (rewardLabel) {
+                rewardLabel.textContent = this.formatCompactNumber(gameState.getMissionRewardCode(mission));
+            }
+
+            const rerollCost = gameState.getMissionRerollCost(slot);
+            const rerollCostLabel = document.getElementById(`${slot}MissionRerollCost`);
+            if (rerollCostLabel) {
+                rerollCostLabel.textContent = this.formatCompactNumber(rerollCost);
+            }
+
             const rerollButton = document.getElementById(`${slot}MissionReroll`);
             if (rerollButton) {
                 // No tiene sentido descartar una misión ya completada.
-                rerollButton.disabled = progress.complete
-                    || !gameState.canAffordCodeCost(gameState.getMissionRerollCost(slot));
+                rerollButton.disabled = progress.complete || !gameState.canAffordCodeCost(rerollCost);
             }
         });
     },
@@ -425,6 +436,8 @@ const uiModule = {
             prestigeButton.disabled = !gameState.canPrestige();
         }
 
+        this.updatePrestigePreview(compactContent);
+
         document.querySelectorAll('.specialization-card').forEach(card => {
             card.classList.toggle('selected', card.dataset.specialization === gameState.currentSpecialization);
         });
@@ -441,7 +454,29 @@ const uiModule = {
                 cost.textContent = this.formatCodeCost(member.cost);
                 cost.classList.toggle('affordable', gameState.canAffordCodeCost(member.cost));
             }
+            this.updateMilestoneElement(card, member.owned);
         });
+    },
+
+    updatePrestigePreview(compactContent = this.prefersCompactContent()) {
+        const gain = document.getElementById('metaPrestigePreviewGain');
+        const multiplier = document.getElementById('metaPrestigePreviewMultiplier');
+        const nextBar = document.getElementById('metaPrestigeNextBar');
+        const nextRep = document.getElementById('metaPrestigeNextRep');
+        if (!gain || !multiplier) return;
+
+        const preview = gameState.getPrestigePreview();
+        const format = value => (compactContent ? this.formatCompactNumber(value) : Math.ceil(value).toLocaleString());
+
+        gain.textContent = `+${preview.reward} rep`;
+        gain.classList.toggle('ready', preview.reward > 0);
+        multiplier.textContent = `x${preview.currentMultiplier.toFixed(2)} → x${preview.nextMultiplier.toFixed(2)}`;
+        if (nextBar) nextBar.style.width = `${preview.progressToNextRep}%`;
+        if (nextRep) {
+            nextRep.textContent = preview.reward === 0
+                ? `Faltan ${format(preview.missingForNextRep)} de código total para el primer punto`
+                : `+1 rep más con ${format(preview.missingForNextRep)} de código total adicional`;
+        }
     },
 
     updateLabUI() {
@@ -507,17 +542,23 @@ const uiModule = {
             const artifact = gameState.artifacts[key];
             if (!artifact) return;
 
-            card.classList.toggle('purchased', artifact.owned > 0);
+            const owned = artifact.owned > 0;
+            const affordable = gameState.canAffordPrestigeCost(artifact.cost);
+            card.classList.toggle('purchased', owned);
+            card.classList.toggle('unaffordable', !owned && !affordable);
             const cost = card.querySelector('.artifact-cost');
             const status = card.querySelector('.artifact-status');
 
             if (cost) {
-                cost.textContent = artifact.owned > 0 ? 'Comprado' : this.formatPrestigeCost(artifact.cost);
-                cost.classList.toggle('affordable', gameState.canAffordPrestigeCost(artifact.cost) && artifact.owned === 0);
+                cost.textContent = owned ? 'Comprado' : this.formatPrestigeCost(artifact.cost);
+                cost.classList.toggle('affordable', affordable && !owned);
             }
 
             if (status) {
-                status.textContent = artifact.owned > 0 ? 'Activo' : 'Disponible';
+                const missing = Math.max(0, artifact.cost - gameState.prestigePoints);
+                status.textContent = owned
+                    ? 'Activo'
+                    : (affordable ? 'Disponible' : `No alcanza · faltan ${missing} ⭐`);
             }
         });
     },
@@ -640,6 +681,40 @@ const uiModule = {
         });
     },
     
+    // === HITOS ===
+    // Marcado vacío; updateMilestoneElement lo rellena según `owned`.
+    renderMilestoneBar() {
+        return `
+            <div class="milestone" data-milestone>
+                <div class="milestone-track"><div class="milestone-fill" data-milestone-fill></div></div>
+                <span class="milestone-label" data-milestone-label></span>
+            </div>
+        `;
+    },
+
+    updateMilestoneElement(container, owned) {
+        const fill = container?.querySelector('[data-milestone-fill]');
+        const label = container?.querySelector('[data-milestone-label]');
+        if (!fill || !label) return;
+
+        const progress = gameState.getMilestoneProgress(owned);
+        fill.style.width = `${progress.percent}%`;
+        container.querySelector('[data-milestone]')?.classList.toggle('complete', progress.complete);
+        label.textContent = progress.complete
+            ? `Todos los hitos · x${progress.multiplier}`
+            : `Hito ${owned}/${progress.next} → x${progress.nextMultiplier}`;
+    },
+
+    celebrateMilestone() {
+        if (typeof confetti === 'undefined') return;
+        confetti({
+            particleCount: this.scaleCelebrationCount(110),
+            spread: 75,
+            colors: ['#00d4ff', '#ffd700', '#ff006e'],
+            origin: { y: 0.6 }
+        });
+    },
+
     // === CREAR TARJETAS DE LENGUAJES ===
     createLanguagesUI() {
         const container = document.getElementById('languagesContainer');
@@ -651,14 +726,16 @@ const uiModule = {
             card.innerHTML = `
                 <i class="language-icon ${lang.icon}"></i>
                 <div class="language-name">${lang.name}</div>
-                <div style="font-size: 0.8rem; color: var(--text-secondary);">+${lang.generation} líneas/seg</div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary);">+${(lang.generation * gameState.getMilestoneMultiplier(lang.owned)).toLocaleString()} líneas/seg c/u</div>
                 <div class="language-cost ${gameState.canAffordCodeCost(lang.cost) ? 'affordable' : ''}" data-shop-collection="languages" data-shop-key="${key}">
                     ${this.formatCodeCost(lang.cost)}
                 </div>
                 <div style="font-size: 0.75rem; color: var(--accent);">x${lang.owned}</div>
+                ${this.renderMilestoneBar()}
             `;
             card.addEventListener('click', () => gameLogic.buyLanguage(key));
             container.appendChild(card);
+            this.updateMilestoneElement(card, lang.owned);
         });
     },
 
@@ -757,10 +834,7 @@ const uiModule = {
 
         container.innerHTML = [shortMission, longMission].map((mission, index) => {
             const slot = index === 0 ? 'short' : 'long';
-            const rewardParts = [`💾 ${mission.rewardCode.toLocaleString()}`];
-            if (mission.rewardRep > 0) {
-                rewardParts.push(`⭐ ${mission.rewardRep} rep`);
-            }
+            const repText = mission.rewardRep > 0 ? ` · ⭐ ${mission.rewardRep} rep` : '';
 
             return `
                 <div class="mission-card shell-compact-card ${slot}">
@@ -772,12 +846,12 @@ const uiModule = {
                     </div>
                     <div class="mission-footer">
                         <span id="${slot}MissionProgress">0 / 0</span>
-                        <span class="shell-tier-secondary">${rewardParts.join(' · ')}</span>
+                        <span class="shell-tier-secondary" title="${Math.round(gameState.getMissionRewardSeconds(mission))} s de producción (mínimo ${(mission.rewardCode || 0).toLocaleString()})">💾 <span id="${slot}MissionReward">0</span>${repText}</span>
                     </div>
                     <div class="mission-actions">
                         <button class="mission-claim-btn" id="${slot}MissionClaim" type="button">En progreso</button>
                         <button class="mission-reroll-btn" id="${slot}MissionReroll" type="button" title="Cambiar por otra misión">
-                            <i class="fas fa-rotate"></i> ${this.formatCompactNumber(gameState.getMissionRerollCost(slot))}
+                            <i class="fas fa-rotate"></i> <span id="${slot}MissionRerollCost">0</span>
                         </button>
                     </div>
                 </div>
@@ -820,6 +894,18 @@ const uiModule = {
                         <span class="meta-label">Próximo costo</span>
                         <strong id="metaPrestigeCost">0</strong>
                     </div>
+                </div>
+                <div class="prestige-preview" aria-live="polite">
+                    <div class="prestige-preview-row">
+                        <span class="meta-label">Si reinicias ahora</span>
+                        <strong id="metaPrestigePreviewGain">+0 rep</strong>
+                    </div>
+                    <div class="prestige-preview-row">
+                        <span class="meta-label">Bonus global</span>
+                        <strong id="metaPrestigePreviewMultiplier">x1.00 → x1.00</strong>
+                    </div>
+                    <div class="milestone-track"><div class="milestone-fill" id="metaPrestigeNextBar"></div></div>
+                    <span class="prestige-preview-next shell-tier-secondary" id="metaPrestigeNextRep"></span>
                 </div>
                 <div class="meta-card-footer">
                     <span id="metaPrestigeReward" class="shell-tier-secondary">+0 rep</span>
@@ -895,6 +981,7 @@ const uiModule = {
                 <span class="team-desc shell-tier-secondary">${member.desc}</span>
                 <span class="team-cost">${this.formatCodeCost(member.cost)}</span>
                 <span class="team-owned">x${member.owned}</span>
+                ${this.renderMilestoneBar()}
             </button>
         `).join('');
 

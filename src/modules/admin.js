@@ -141,7 +141,7 @@ const adminModule = {
         }
 
         if (command === 'help') {
-            this.setStatus('Comandos: godmode, addcode N, addrep N, creative on|off, decision, event, missions, release, resources, unlockall.', 'success');
+            this.setStatus('Comandos: godmode, addcode N, addrep N, creative on|off, decision, event, golden, missions, release, resources, unlockall.', 'success');
             return true;
         }
 
@@ -188,6 +188,10 @@ const adminModule = {
             case 'event':
                 this.forceEvent();
                 this.setStatus('Evento forzado.', 'success');
+                return true;
+            case 'golden':
+                goldenCommitModule.spawn();
+                this.setStatus('Commit dorado generado.', 'success');
                 return true;
             case 'missions':
                 this.completeActiveMissions();

@@ -13,7 +13,9 @@ const CONFIG = {
     STREAK_CLICK_BONUS_CAP: 0.75,
     PRESTIGE_BASE_COST: 60000,
     PRESTIGE_COST_SCALING: 1.4,
-    PRESTIGE_BONUS_PER_POINT: 0.045,
+    // Rep por prestige = max(1, floor((totalCode / coste) ^ (1 / ROOT))). 3 = raíz cúbica.
+    PRESTIGE_REWARD_ROOT: 3,
+    PRESTIGE_BONUS_PER_POINT: 0.15,
     PRESTIGE_HEALTH_REDUCTION_PER_POINT: 0.015,
     PRESTIGE_HEALTH_REDUCTION_CAP: 0.3,
     PRESTIGE_RELEASE_SCORE_PER_POINT: 0.8,
@@ -29,7 +31,7 @@ const CONFIG = {
     SAVE_THROTTLE_MS: 3000,
     COMMIT_BATCH_LIMIT: 500,
     UPGRADE_COST_SCALING: 1.45,
-    UPGRADE_MAX_OWNED: 6,
+    UPGRADE_MAX_OWNED: 25, // el coste x1.45 por nivel lo autolimita
     LANGUAGE_COST_SCALING: 1.19,
     FRAMEWORK_COST_SCALING: 1.22,
     TEAM_COST_SCALING: 1.17,
@@ -222,9 +224,15 @@ const CONFIG = {
     },
     
     // === IDIOMAS (PASIVA GENERATION) ===
+    // Lenguajes con los que empieza una partida nueva y cada run tras un prestige.
+    // No se aplican al cargar una partida guardada.
+    STARTING_LANGUAGES: {
+        javascript: 1
+    },
+
     LANGUAGES: {
         javascript: {
-            cost: 140,
+            cost: 50,
             generation: 1,
             name: 'JavaScript',
             icon: 'fab fa-js-square'
@@ -384,7 +392,7 @@ const CONFIG = {
         stackOverflow: {
             name: 'StackOverflow Gold',
             icon: 'fab fa-stack-overflow',
-            cost: 2,
+            cost: 3,
             clickBoost: 0.18,
             passiveBoost: 0,
             releaseBoost: 0.12,
@@ -395,7 +403,7 @@ const CONFIG = {
         copilot: {
             name: 'AI Copilot',
             icon: 'fas fa-wand-magic-sparkles',
-            cost: 4,
+            cost: 6,
             clickBoost: 0.24,
             passiveBoost: 0.12,
             releaseBoost: 0,
@@ -406,7 +414,7 @@ const CONFIG = {
         ciPipeline: {
             name: 'Pipeline CI/CD',
             icon: 'fas fa-code-branch',
-            cost: 5,
+            cost: 10,
             clickBoost: 0,
             passiveBoost: 0.24,
             releaseBoost: 0.2,
@@ -418,7 +426,7 @@ const CONFIG = {
         terminalFu: {
             name: 'Terminal Fu',
             icon: 'fas fa-terminal',
-            cost: 6,
+            cost: 15,
             clickBoost: 0.3,
             passiveBoost: 0,
             releaseBoost: 0.08,
@@ -429,7 +437,7 @@ const CONFIG = {
         dockerCluster: {
             name: 'Docker Cluster',
             icon: 'fab fa-docker',
-            cost: 7,
+            cost: 22,
             clickBoost: 0,
             passiveBoost: 0.28,
             releaseBoost: 0.22,
@@ -441,7 +449,7 @@ const CONFIG = {
         observability: {
             name: 'Observability Suite',
             icon: 'fas fa-chart-column',
-            cost: 8,
+            cost: 30,
             clickBoost: 0.14,
             passiveBoost: 0.24,
             releaseBoost: 0.24,
@@ -920,10 +928,63 @@ const CONFIG = {
     TIMED_EFFECT_STATS: ['clickMultiplier', 'passiveMultiplier'],
     TIMED_EFFECT_MAX_FACTOR: 10, // tope de seguridad al cargar partidas
 
+    // === RECOMPENSAS ESCALADAS ===
+    // Las recompensas de código se expresan en segundos de producción pasiva
+    // (calculateGeneration sin efectos temporales) con un mínimo fijo para el
+    // early game, cuando la producción todavía es ~0.
+    MISSION_REWARD: {
+        // Si una misión no define rewardSeconds: rewardSeconds = rewardCode / CODE_PER_SECOND
+        // (2.500 → ~62 s, 12.000 → 300 s, 34.000 → 850 s). rewardCode queda como mínimo.
+        CODE_PER_SECOND: 40
+    },
+    EVENT_REWARDS: {
+        documentation: { seconds: 30, min: 500 },
+        trustedLaunch: { seconds: 60, min: 1200 },
+        clientDeadlineAggressive: { seconds: 90, min: 4000 },
+        clientDeadlineFallback: { seconds: 40, min: 1500 }
+    },
+
     // === MISIONES ===
     MISSION_REROLL_COST: {
-        short: 1500,
-        long: 6000
+        short: { seconds: 30, min: 1500 },
+        long: { seconds: 120, min: 6000 }
+    },
+
+    // === HITOS POR UNIDAD ===
+    // Cada lenguaje y cada miembro del equipo duplica su producción base
+    // al alcanzar estas cantidades (x2, x4, x8, x16).
+    MILESTONES: {
+        THRESHOLDS: [10, 25, 50, 100],
+        MULTIPLIER: 2
+    },
+
+    // === COMMIT DORADO ===
+    GOLDEN_COMMIT: {
+        MIN_INTERVAL_MS: 60000,
+        MAX_INTERVAL_MS: 180000,
+        LIFETIME_MS: 13000,
+        REWARDS: [
+            {
+                type: 'code',
+                weight: 6,
+                minSeconds: 60,
+                maxSeconds: 300,
+                // Para builds de clicks: nunca menos que estos clicks a potencia actual
+                minClicks: 25,
+                maxClicks: 120
+            },
+            {
+                type: 'frenzy',
+                weight: 3,
+                factor: 7,
+                durationMs: 12000
+            },
+            {
+                type: 'release',
+                weight: 2,
+                commits: 3
+            }
+        ]
     },
 
     // === LOCAL STORAGE ===

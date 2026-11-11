@@ -5,11 +5,15 @@ Juego incremental sobre programación con click manual, automatización, release
 ## Estado actual
 
 - Click manual con racha, bonificación de click y commits automáticos cada 1000 líneas.
-- 9 lenguajes desbloqueables con generación pasiva.
-- 4 upgrades base: Teclado Mecánico, Monitor 4K, Café y VS Code Pro.
+- 9 lenguajes con generación pasiva. Cada partida nueva y cada run tras un prestige empiezan con 1 JavaScript gratis (`STARTING_LANGUAGES`); JavaScript cuesta 50.
+- Hitos por lenguaje y por miembro del equipo: ×2 de producción al tener 10/25/50/100, con barra de progreso en cada tarjeta.
+- 4 upgrades base (Teclado Mecánico, Monitor 4K, Café y VS Code Pro), hasta 25 niveles cada uno; el coste ×1.45 por nivel los autolimita.
 - 8 frameworks con boosts por lenguaje.
-- 6 artefactos meta y sistema de reputación/prestige.
+- 6 artefactos meta que cuestan 3 / 6 / 10 / 15 / 22 / 30 de reputación. Los que no puedes pagar muestran cuánto falta.
+- Prestige: reputación = raíz cúbica de (código total / coste), mínimo 1; cada punto da +15% global. El panel Meta muestra en vivo la rep a ganar y el multiplicador resultante.
 - Especializaciones, equipo, misiones y sistema de release con carga acumulada.
+- Las recompensas de código de misiones y eventos equivalen a segundos de producción pasiva, con un mínimo fijo para el inicio.
+- Commit dorado: aparece cada 60–180 s y da código, un frenesí de clicks o carga de release.
 - Eventos aleatorios y decisiones centradas con impactos temporales o estratégicos.
 - Logros, estadísticas, tendencias y reporte offline.
 - Temas visuales, editor estilo IDE, audio, animaciones y layout responsive.
@@ -42,6 +46,7 @@ Una vez activado `godmode`, la consola soporta:
 - `creative on|off`
 - `decision`
 - `event`
+- `golden` (hace aparecer un commit dorado)
 - `missions`
 - `release`
 - `resources`
@@ -94,7 +99,20 @@ Juego-Idle/
 
 ## Ajustes frecuentes
 
-- Balance: [src/config.js](src/config.js)
+- Balance: [src/config.js](src/config.js). Todo el balance vive ahí; `ui.js` y `game-logic.js` no tienen valores fijos. Constantes más tocadas:
+
+  | Constante | Valor | Qué controla |
+  | --- | --- | --- |
+  | `PRESTIGE_REWARD_ROOT` | 3 | Raíz aplicada a `código total / coste` para calcular la rep del prestige |
+  | `PRESTIGE_BONUS_PER_POINT` | 0.15 | Bonus global por punto de reputación |
+  | `ARTIFACTS.*.cost` | 3–30 | Coste en reputación de cada artefacto |
+  | `STARTING_LANGUAGES` | `{ javascript: 1 }` | Lenguajes gratis al empezar y tras cada prestige (no al cargar una partida) |
+  | `LANGUAGES.javascript.cost` | 50 | Coste base de JavaScript |
+  | `UPGRADE_MAX_OWNED` | 25 | Niveles máximos de cada upgrade |
+  | `MILESTONES` | 10/25/50/100, ×2 | Hitos de producción por unidad |
+  | `MISSION_REWARD`, `EVENT_REWARDS` | — | Segundos de producción y mínimos de las recompensas |
+  | `GOLDEN_COMMIT` | 60–180 s | Frecuencia y recompensas del commit dorado |
+
 - Estado y persistencia: [src/state.js](src/state.js)
 - Flujo visual y render: [src/modules/ui.js](src/modules/ui.js)
 - Eventos y decisiones: [src/modules/events.js](src/modules/events.js)
