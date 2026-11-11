@@ -65,6 +65,12 @@ class GameState {
         // Efectos temporales con fecha de expiración: sobreviven a recargas
         // y se expiran solos aunque el juego se cierre a mitad del efecto.
         this.timedEffects = [];
+
+        // Onboarding: features desbloqueadas, tips ya mostrados y pestañas
+        // con badge NEW pendiente. Se conservan en el prestige.
+        this.unlockedFeatures = [];
+        this.seenTips = [];
+        this.newTabBadges = [];
         
         // Preferencias
         this.soundEnabled = true;
@@ -1567,7 +1573,11 @@ class GameState {
             prestigeLevel: this.prestigeLevel + 1,
             currentSpecialization: this.currentSpecialization,
             artifacts: this.artifacts,
-            achievements: this.achievements
+            achievements: this.achievements,
+            // Lo ya aprendido no se vuelve a ocultar ni a explicar.
+            unlockedFeatures: this.unlockedFeatures,
+            seenTips: this.seenTips,
+            newTabBadges: this.newTabBadges
         };
 
         this.reset();
@@ -1578,6 +1588,9 @@ class GameState {
         this.currentSpecialization = preserved.currentSpecialization;
         this.artifacts = preserved.artifacts;
         this.achievements = preserved.achievements;
+        this.unlockedFeatures = preserved.unlockedFeatures;
+        this.seenTips = preserved.seenTips;
+        this.newTabBadges = preserved.newTabBadges;
         this.responsibility.value = this.getResponsibilityBaselineValue();
         this.responsibility.lastState = this.getResponsibilityState().key;
         this.lastUpdate = Date.now();
@@ -1585,6 +1598,199 @@ class GameState {
         this.lastSavedAt = Date.now();
 
         return reward;
+    }
+
+    // === ONBOARDING: DESBLOQUEO PROGRESIVO ===
+    getFeatureDefinition(key) {
+        return CONFIG.FEATURE_UNLOCKS.find(feature => feature.key === key) || null;
+    }
+
+    isFeatureUnlocked(key) {
+        return this.unlockedFeatures.includes(key);
+    }
+
+    // Valor actual y meta de una métrica de desbloqueo (para evaluar y para la barra TODO).
+    getUnlockMetricProgress(metric, value) {
+        switch (metric) {
+            case 'totalCode':
+                return { current: this.totalCode, target: value };
+            case 'commits':
+                return { current: this.commits, target: value };
+            case 'languagesOwned':
+                return { current: this.getMissionMetric('languagesOwned'), target: value };
+            case 'technicalDebt':
+                return { current: this.projectHealth.technicalDebt, target: value };
+            case 'releaseCount':
+                return { current: this.releaseCount, target: value };
+            case 'prestigeProgress':
+                // Se muestra en código: totalCode frente a la fracción del coste de prestige.
+                return { current: this.totalCode, target: value * this.calculatePrestigeCost() };
+            case 'achievementsUnlocked':
+                return { current: this.getUnlockedAchievements(), target: value };
+            case 'prestigeLevel':
+                return { current: this.prestigeLevel, target: value };
+            default:
+                return { current: 0, target: Infinity };
+        }
+    }
+
+    evaluateUnlockCondition(condition) {
+        if (!condition) return false;
+        if (Array.isArray(condition.any)) {
+            return condition.any.some(part => this.evaluateUnlockCondition(part));
+        }
+
+        const { current, target } = this.getUnlockMetricProgress(condition.metric, condition.value);
+        switch (condition.op) {
+            case '>': return current > target;
+            case '>=': return current >= target;
+            case '<': return current < target;
+            case '<=': return current <= target;
+            default: return false;
+        }
+    }
+
+    // Para condiciones `any`, la parte más avanzada.
+    getUnlockConditionProgress(condition) {
+        if (Array.isArray(condition?.any)) {
+            return condition.any
+                .map(part => this.getUnlockConditionProgress(part))
+                .sort((a, b) => b.ratio - a.ratio)[0];
+        }
+
+        const { current, target } = this.getUnlockMetricProgress(condition.metric, condition.value);
+        const ratio = target > 0 && Number.isFinite(target) ? Math.min(1, current / target) : 0;
+        return { metric: condition.metric, current, target, ratio };
+    }
+
+    // Desbloquea las features cuya condición ya se cumple y devuelve las nuevas.
+    // Cada feature nueva deja badge NEW en sus pestañas hasta que se abran.
+    // En modo secuencial se detiene en la primera feature bloqueada que no cumple.
+    checkFeatureUnlocks() {
+        const { SEQUENTIAL_UNLOCKS: sequential, MAX_UNLOCKS_PER_CHECK: maxUnlocks } = CONFIG.ONBOARDING;
+        const newlyUnlocked = [];
+
+        for (const feature of CONFIG.FEATURE_UNLOCKS) {
+            if (this.isFeatureUnlocked(feature.key)) continue;
+            if (!this.evaluateUnlockCondition(feature.condition)) {
+                if (sequential) break;
+                continue;
+            }
+
+            this.unlockedFeatures.push(feature.key);
+            (feature.tabIds || []).forEach(tabId => {
+                if (!this.newTabBadges.includes(tabId)) this.newTabBadges.push(tabId);
+            });
+            newlyUnlocked.push(feature.key);
+            if (maxUnlocks && newlyUnlocked.length >= maxUnlocks) break;
+        }
+        return newlyUnlocked;
+    }
+
+    // Desbloqueo sin avisos ni badges (admin unlockall y migración de partidas viejas).
+    unlockFeaturesSilently(keys) {
+        keys.forEach(key => {
+            if (!this.getFeatureDefinition(key)) return;
+            if (!this.unlockedFeatures.includes(key)) this.unlockedFeatures.push(key);
+            if (!this.seenTips.includes(key)) this.seenTips.push(key);
+        });
+    }
+
+    unlockAllFeatures() {
+        this.unlockFeaturesSilently(CONFIG.FEATURE_UNLOCKS.map(feature => feature.key));
+    }
+
+    // Partida guardada antes del onboarding: el jugador veterano no debe ver cambios.
+    migrateLegacyFeatures() {
+        const alreadyPrestiged = this.prestigeLevel >= 1 && CONFIG.ONBOARDING.LEGACY_UNLOCK_ALL_IF_PRESTIGED;
+        const keys = CONFIG.FEATURE_UNLOCKS
+            .filter(feature => alreadyPrestiged || this.evaluateUnlockCondition(feature.condition))
+            .map(feature => feature.key);
+        this.unlockFeaturesSilently(keys);
+        this.newTabBadges = [];
+    }
+
+    hasSeenTip(key) {
+        return this.seenTips.includes(key);
+    }
+
+    markTipSeen(key) {
+        if (!this.seenTips.includes(key)) this.seenTips.push(key);
+    }
+
+    markTabSeen(tabId) {
+        this.newTabBadges = this.newTabBadges.filter(id => id !== tabId);
+    }
+
+    // === ONBOARDING: PRÓXIMO OBJETIVO ===
+    // Devuelve { label, current, target, metric } de la primera regla de
+    // NEXT_GOAL_RULES que aplique, o null.
+    getNextGoal() {
+        for (const rule of CONFIG.NEXT_GOAL_RULES) {
+            const goal = this.evaluateNextGoalRule(rule);
+            if (goal) return goal;
+        }
+        return null;
+    }
+
+    evaluateNextGoalRule(rule) {
+        const fill = (template, values) => String(template || '').replace(/\{(\w+)\}/g, (match, key) => (
+            values[key] !== undefined ? values[key] : match
+        ));
+
+        if (rule.type === 'feature') {
+            const skip = rule.skip || [];
+            const feature = CONFIG.FEATURE_UNLOCKS.find(item => !this.isFeatureUnlocked(item.key) && !skip.includes(item.key));
+            if (!feature) return null;
+            const progress = this.getUnlockConditionProgress(feature.condition);
+            return { label: feature.goal, current: progress.current, target: progress.target, metric: progress.metric };
+        }
+
+        if (rule.type === 'milestone') {
+            const candidates = Object.values(this.languages)
+                .filter(language => language.owned > 0)
+                .map(language => ({ language, progress: this.getMilestoneProgress(language.owned) }))
+                .filter(({ language, progress }) => !progress.complete && (progress.next - language.owned) <= (rule.maxMissingUnits ?? Infinity))
+                .sort((a, b) => (a.progress.next - a.language.owned) - (b.progress.next - b.language.owned));
+            if (candidates.length === 0) return null;
+            const { language, progress } = candidates[0];
+            return {
+                label: fill(rule.label, { name: language.name, target: progress.next, multiplier: progress.nextMultiplier }),
+                current: language.owned,
+                target: progress.next,
+                metric: 'units'
+            };
+        }
+
+        if (rule.type === 'mission') {
+            const slots = rule.slot ? [rule.slot] : ['short', 'long'];
+            for (const slot of slots) {
+                const mission = this.missions?.[slot];
+                if (!mission) continue;
+                const progress = this.getMissionProgress(slot);
+                if (rule.onlyClaimable && !progress.complete) continue;
+                return {
+                    label: fill(rule.label, { name: mission.name }),
+                    current: Math.min(progress.current, progress.target),
+                    target: progress.target,
+                    metric: mission.metric
+                };
+            }
+            return null;
+        }
+
+        if (rule.type === 'prestige') {
+            const preview = this.getPrestigePreview();
+            if (rule.onlyWhenAvailable && preview.reward <= 0) return null;
+            return {
+                label: fill(rule.label, { reward: preview.reward }),
+                current: Math.min(this.totalCode, preview.cost),
+                target: preview.cost,
+                metric: 'totalCode'
+            };
+        }
+
+        return null;
     }
     
     // === PERSISTENCIA ===
@@ -1647,6 +1853,9 @@ class GameState {
                 short: pickMission(this.missions?.short),
                 long: pickMission(this.missions?.long)
             },
+            unlockedFeatures: this.unlockedFeatures,
+            seenTips: this.seenTips,
+            newTabBadges: this.newTabBadges,
             lastSavedAt: now
         };
     }
@@ -1757,6 +1966,19 @@ class GameState {
             }
         });
         this.recalculateCodePerClick();
+
+        // Onboarding. Las partidas sin `unlockedFeatures` son anteriores al
+        // sistema: se migran en silencio (sin tips ni badges).
+        if (Array.isArray(data.unlockedFeatures)) {
+            const validKeys = new Set(CONFIG.FEATURE_UNLOCKS.map(feature => feature.key));
+            const validTabs = new Set(CONFIG.FEATURE_UNLOCKS.flatMap(feature => feature.tabIds || []));
+            const unique = list => [...new Set(Array.isArray(list) ? list : [])];
+            this.unlockedFeatures = unique(data.unlockedFeatures).filter(key => validKeys.has(key));
+            this.seenTips = unique(data.seenTips).filter(key => validKeys.has(key));
+            this.newTabBadges = unique(data.newTabBadges).filter(tabId => validTabs.has(tabId));
+        } else {
+            this.migrateLegacyFeatures();
+        }
 
         const savedMissions = obj(data.missions);
         this.missions = {

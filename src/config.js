@@ -961,6 +961,116 @@ const CONFIG = {
         MULTIPLIER: 2
     },
 
+    // === ONBOARDING ===
+    ONBOARDING: {
+        CHECK_INTERVAL_MS: 1000, // frecuencia máxima de checkFeatureUnlocks() desde el loop
+        // true: una feature solo se desbloquea cuando todas las anteriores de
+        // FEATURE_UNLOCKS ya lo están (las pestañas salen en el orden de la lista).
+        // false: cada una en cuanto cumple su condición (stats saldría con el primer click).
+        SEQUENTIAL_UNLOCKS: true,
+        // Máximo de features nuevas por chequeo: evita varios tips de golpe
+        // cuando se cumplen varias condiciones a la vez.
+        MAX_UNLOCKS_PER_CHECK: 1,
+        TIP_DURATION_MS: 6000,
+        WELCOME_HINT: '// Escribe código: haz click o presiona Espacio',
+        EMPTY_PANEL: '// Aún no hay nada que gestionar: sigue escribiendo código.',
+        NEW_BADGE: 'NEW',
+        // Partidas guardadas antes del onboarding (sin unlockedFeatures):
+        // si ya hicieron prestige lo han visto todo y se desbloquea todo;
+        // si no, se desbloquea lo que ya cumple su condición. Nunca hay avisos.
+        LEGACY_UNLOCK_ALL_IF_PRESTIGED: true
+    },
+
+    // Desbloqueo progresivo de pestañas y paneles, en orden.
+    // condition: { metric, op, value } o { any: [condiciones] }.
+    // Métricas: totalCode, commits, languagesOwned, technicalDebt, releaseCount,
+    // prestigeProgress (totalCode / coste de prestige), achievementsUnlocked, prestigeLevel.
+    // tabIds: botones de pestaña (index.html). panelIds: secciones dentro de una pestaña
+    // compartida. Una pestaña se ve si alguna feature que la lista está desbloqueada.
+    FEATURE_UNLOCKS: [
+        {
+            key: 'shop',
+            tabIds: ['upgrades-tab', 'languages-tab'],
+            condition: { metric: 'totalCode', op: '>=', value: 40 },
+            goal: 'Escribe 40 líneas para abrir la tienda',
+            tip: { type: 'feat', text: 'tienda abierta: los upgrades potencian el click y los lenguajes escriben código solos' }
+        },
+        {
+            key: 'missions',
+            tabIds: ['missions-tab'],
+            condition: { metric: 'commits', op: '>=', value: 1 },
+            goal: 'Haz tu primer commit',
+            tip: { type: 'feat', text: 'misiones disponibles: objetivos cortos y largos con recompensa' }
+        },
+        {
+            key: 'team',
+            tabIds: ['passive-tab', 'meta-tab'],
+            panelIds: ['teamContainer'],
+            condition: { metric: 'languagesOwned', op: '>=', value: 3 },
+            goal: 'Ten 3 lenguajes distintos',
+            tip: { type: 'feat', text: 'equipo disponible en Meta: contrata devs que programan por ti' }
+        },
+        {
+            key: 'releases',
+            tabIds: ['lab-tab'],
+            condition: { metric: 'commits', op: '>=', value: 5 },
+            goal: 'Llega a 5 commits',
+            tip: { type: 'feat', text: 'lab abierto: junta 10 commits y publica una release' }
+        },
+        {
+            key: 'health',
+            tabIds: ['health-tab'],
+            condition: {
+                any: [
+                    { metric: 'technicalDebt', op: '>', value: 20 },
+                    { metric: 'releaseCount', op: '>=', value: 1 }
+                ]
+            },
+            goal: 'La deuda técnica supera 20',
+            tip: { type: 'warn', text: 'la deuda técnica sube: vigila la salud del proyecto y refactoriza a tiempo' }
+        },
+        {
+            key: 'prestige',
+            tabIds: ['meta-tab'],
+            panelIds: ['metaSummaryContainer'],
+            condition: { metric: 'prestigeProgress', op: '>=', value: 0.5 },
+            goal: 'Acércate al prestige',
+            tip: { type: 'feat', text: 'prestige a la vista: reinicia la run a cambio de reputación permanente' }
+        },
+        {
+            key: 'stats',
+            tabIds: ['achievements-tab', 'stats-tab'],
+            condition: { metric: 'achievementsUnlocked', op: '>=', value: 1 },
+            goal: 'Consigue tu primer logro',
+            tip: { type: 'feat', text: 'logros y estadísticas: desde aquí también puedes exportar tu partida' }
+        },
+        {
+            key: 'specialization',
+            tabIds: ['meta-tab'],
+            panelIds: ['specializationContainer'],
+            condition: { metric: 'prestigeLevel', op: '>=', value: 1 },
+            goal: 'Haz tu primer prestige',
+            tip: { type: 'feat', text: 'especializaciones: elige una ruta que potencie tu build' }
+        }
+    ],
+
+    // Barra "// TODO:" bajo el contador de código. Se usa la primera regla que aplique.
+    // Tipos:
+    //   feature   → próxima feature bloqueada (en orden de FEATURE_UNLOCKS), salvo las de `skip`
+    //   milestone → lenguaje más cerca de su próximo hito, si le faltan ≤ maxMissingUnits
+    //   mission   → misión (onlyClaimable: solo si ya se puede cobrar; slot: fija la ranura)
+    //   prestige  → prestige (onlyWhenAvailable: solo si ya da rep)
+    // Plantillas: {name}, {target}, {multiplier}, {reward}.
+    NEXT_GOAL_RULES: [
+        // 'specialization' depende del primer prestige: la cubre la regla de prestige.
+        { type: 'feature', skip: ['specialization'] },
+        { type: 'milestone', maxMissingUnits: 5, label: '{name} x{multiplier}: llega a {target}' },
+        { type: 'mission', onlyClaimable: true, label: 'cobra la misión "{name}"' },
+        { type: 'prestige', onlyWhenAvailable: true, label: 'prestige disponible: +{reward} rep' },
+        { type: 'mission', slot: 'short', label: 'misión "{name}"' },
+        { type: 'prestige', onlyWhenAvailable: false, label: 'llega al prestige' }
+    ],
+
     // === COMMIT DORADO ===
     GOLDEN_COMMIT: {
         MIN_INTERVAL_MS: 60000,
@@ -992,7 +1102,7 @@ const CONFIG = {
 
     // === LOCAL STORAGE ===
     SAVE_KEY: 'codeIdleGame',
-    SAVE_VERSION: 2,
+    SAVE_VERSION: 3, // v3: unlockedFeatures, seenTips y newTabBadges
     OFFLINE_MIN_SECONDS: 30
 };
 

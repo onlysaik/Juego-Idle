@@ -624,6 +624,7 @@ const uiModule = {
         this.updateLabUI();
         this.updateMetaUI();
         this.updateShopAffordability();
+        onboardingModule.updateNextGoal();
     },
 
     // Mantiene al día el indicador "se puede comprar" de upgrades, frameworks
@@ -1070,7 +1071,8 @@ const uiModule = {
             return;
         }
 
-        const visibleNotifications = container.querySelectorAll('.notification');
+        // Los tips de onboarding no se expulsan por la avalancha de avisos normales.
+        const visibleNotifications = container.querySelectorAll('.notification:not(.notification-tip)');
         if (visibleNotifications.length >= this.maxVisibleNotifications) {
             this.dismissNotification(visibleNotifications[0]);
         }
@@ -1094,6 +1096,46 @@ const uiModule = {
         this.scheduleNotificationDismiss(notification, duration);
     },
     
+    // Tip de onboarding con estilo de mensaje de commit:
+    // "a1b2c3d feat(shop): texto" en monospace, con botón para cerrar.
+    showCommitTip(scope, tip) {
+        const container = document.getElementById('notificationsContainer');
+        if (!container || !tip) return null;
+
+        const type = tip.type === 'warn' ? 'warn' : 'feat';
+        const notification = document.createElement('div');
+        notification.className = `notification notification-tip tip-${type}`;
+        notification.setAttribute('role', 'status');
+
+        const hash = document.createElement('span');
+        hash.className = 'commit-tip-hash';
+        hash.textContent = Math.random().toString(16).slice(2, 9).padEnd(7, '0');
+
+        const prefix = document.createElement('span');
+        prefix.className = `commit-tip-prefix ${type}`;
+        prefix.textContent = `${type}(${scope}):`;
+
+        const message = document.createElement('span');
+        message.className = 'commit-tip-text';
+        message.textContent = tip.text;
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'commit-tip-close';
+        close.setAttribute('aria-label', 'Cerrar aviso');
+        close.innerHTML = '<i class="fas fa-xmark"></i>';
+        close.addEventListener('click', () => this.dismissNotification(notification));
+
+        const body = document.createElement('div');
+        body.className = 'commit-tip-body';
+        body.append(hash, ' ', prefix, ' ', message);
+        notification.append(body, close);
+        container.appendChild(notification);
+
+        this.scheduleNotificationDismiss(notification, CONFIG.ONBOARDING.TIP_DURATION_MS);
+        return notification;
+    },
+
     // === FLOATING TEXT (números que flotan) ===
     createFloatingText(amount) {
         const profile = this.getVisualPerformanceProfile();
@@ -1167,11 +1209,19 @@ const uiModule = {
     
     // === TAB SWITCHING ===
     switchTab(tabName) {
+        // Una pestaña bloqueada por el onboarding no se puede abrir: se usa la primera visible.
+        let tab = document.getElementById(tabName + '-tab');
+        if (!tab || tab.closest('.nav-item')?.classList.contains('is-locked')) {
+            tab = onboardingModule.getFirstVisibleTab();
+            if (!tab) return;
+            tabName = tab.id.replace(/-tab$/, '');
+        }
+
         document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('show', 'active'));
-        
-        document.getElementById(tabName + '-tab').classList.add('active');
-        document.getElementById(tabName + '-content').classList.add('show', 'active');
+
+        tab.classList.add('active');
+        document.getElementById(tabName + '-content')?.classList.add('show', 'active');
     },
 
     switchMobileView(viewName) {

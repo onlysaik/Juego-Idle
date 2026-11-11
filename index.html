@@ -160,6 +160,7 @@
                                             <i class="fas fa-keyboard"></i>
                                             <span>CLICK</span>
                                         </button>
+                                        <p id="clickWelcomeHint" class="click-welcome-hint" hidden></p>
                                         <div class="floating-text" id="floatingTexts"></div>
                                     </div>
                                 </div>
@@ -176,6 +177,10 @@
                                     <div class="progress-bar progress-bar-animated" id="codeBar" style="width: 0%"></div>
                                 </div>
                                 <div class="progress-meta" id="commitProgressMeta">Commit 0 / 1,000</div>
+                                <div class="next-goal" id="nextGoal" hidden>
+                                    <div class="next-goal-text" id="nextGoalText"></div>
+                                    <div class="next-goal-track"><div class="next-goal-fill" id="nextGoalBar"></div></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -255,6 +260,8 @@
                                         </button>
                                     </li>
                                 </ul>
+
+                                <p class="tabs-empty-state" id="tabsEmptyState" hidden></p>
 
                                 <!-- Tab Contents -->
                                 <div class="tab-content">
@@ -483,6 +490,7 @@
     <script src="src/modules/ui.js"></script>
     <script src="src/modules/game-logic.js"></script>
     <script src="src/modules/golden-commit.js"></script>
+    <script src="src/modules/onboarding.js"></script>
     <script src="src/modules/admin.js"></script>
     
     <!-- 4. ENGINE - Game loop -->

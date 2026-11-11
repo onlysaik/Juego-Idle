@@ -28,6 +28,7 @@ const app = {
         uiModule.createLabUI();
         uiModule.createMetaUI();
         editorModule.init();
+        onboardingModule.init(); // ocultar lo bloqueado antes del primer render
         this.applyVisualPerformanceProfile();
         this.applyShellDensityProfile();
         this.applyViewportEnvironmentProfile({ resetBaseline: true });

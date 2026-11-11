@@ -241,11 +241,14 @@ const adminModule = {
         Object.keys(gameState.achievements).forEach(key => {
             gameState.unlockAchievement(key);
         });
+        gameState.unlockAllFeatures(); // todas las pestañas, sin tips
+        onboardingModule.applyVisibility();
+        onboardingModule.renderBadges();
 
         uiModule.createAchievementsUI();
         uiModule.update();
         gameState.save(true);
-        uiModule.showNotification('Todos los logros desbloqueados', 'success');
+        uiModule.showNotification('Todos los logros y pestañas desbloqueados', 'success');
     },
 
     forceDecision() {

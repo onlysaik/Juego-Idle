@@ -39,7 +39,14 @@ const gameLogic = {
     },
 
     // === CLICK ===
+    // Tras cada compra o acción relevante: revisar desbloqueos sin esperar al loop.
+    afterProgressAction() {
+        onboardingModule.check();
+    },
+
     handleClick() {
+        onboardingModule.dismissWelcomeHint();
+
         // Animación
         uiModule.animateClickButton();
         
@@ -80,6 +87,7 @@ const gameLogic = {
             uiModule.showNotification(`✨ ${upgrade.name}!`, 'success');
             uiModule.createUpgradesUI();
             achievementsModule.checkAll();
+            this.afterProgressAction();
             uiModule.update();
             gameState.save(true);
         } else {
@@ -120,6 +128,7 @@ const gameLogic = {
             uiModule.setPreviewLanguage(key);
             uiModule.animateLanguageChange(language.name);
             achievementsModule.checkAll();
+            this.afterProgressAction();
             uiModule.update();
             gameState.save(true);
         } else {
@@ -137,6 +146,7 @@ const gameLogic = {
             uiModule.createUpgradesUI();
             uiModule.setPreviewFramework(key);
             uiModule.animateLanguageChange(language.name, framework.name);
+            this.afterProgressAction();
             uiModule.update();
             gameState.save(true);
         } else {
@@ -154,6 +164,7 @@ const gameLogic = {
             }
             uiModule.update();
             achievementsModule.checkAll();
+            this.afterProgressAction();
             gameState.save(true);
         } else {
             uiModule.showNotification('No puedes contratar todavía', 'warning');
@@ -166,6 +177,7 @@ const gameLogic = {
             uiModule.showNotification(`🧪 ${artifact.name} equipado`, 'success');
             uiModule.update();
             achievementsModule.checkAll();
+            this.afterProgressAction();
             gameState.save(true);
         } else {
             uiModule.showNotification('Necesitas más reputación o ya lo tienes', 'warning');
@@ -190,6 +202,7 @@ const gameLogic = {
         uiModule.showNotification(`Ruta ${specialization.name} activada`, 'success');
         uiModule.update();
         achievementsModule.checkAll();
+        this.afterProgressAction();
         gameState.save(true);
     },
 
@@ -207,6 +220,7 @@ const gameLogic = {
         uiModule.createMissionsUI();
         uiModule.update();
         achievementsModule.checkAll();
+        this.afterProgressAction();
         gameState.save(true);
     },
 
@@ -351,6 +365,7 @@ const gameLogic = {
         uiModule.showNotification(`🚀 ${result.version} · ${result.band.label} · ${result.trust.label} · +${result.code.toLocaleString()} código · +${result.rep} rep · liderazgo ${result.responsibilityDelta >= 0 ? '+' : ''}${Math.round(result.responsibilityDelta)}`, result.band.tone);
         uiModule.update();
         achievementsModule.checkAll();
+        this.afterProgressAction();
         gameState.save(true);
 
         if (typeof confetti !== 'undefined' && result.band.key !== 'unstable') {
@@ -433,6 +448,8 @@ const gameLogic = {
         audioModule.play('achievement');
         uiModule.rebuildAllPrimaryUI();
         achievementsModule.checkAll();
+        onboardingModule.applyVisibility(); // lo desbloqueado se conserva tras el reset
+        this.afterProgressAction();
         gameState.save(true);
 
         if (typeof confetti !== 'undefined') {

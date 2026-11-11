@@ -2504,6 +2504,174 @@ body .click-info p.click-passive-share {
     }
 }
 
+/* =========== Onboarding progresivo ===================================== */
+/* Pestañas, paneles y secciones bloqueadas */
+.is-locked,
+.tab-pane.is-locked,
+.tab-pane.active.is-locked {
+    display: none !important;
+}
+
+/* Badge NEW: pulsa hasta que el jugador abre la pestaña */
+.tab-new-badge {
+    margin-left: 0.4rem;
+    padding: 0.08rem 0.38rem;
+    border-radius: 999px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #07111f;
+    background: var(--accent);
+    animation: newBadgePulse 1.3s ease-in-out infinite;
+}
+
+@keyframes newBadgePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.55); }
+    50% { box-shadow: 0 0 0 6px rgba(0, 255, 136, 0); }
+}
+
+/* Botones que llevan a las pestañas (Gestión / Build) con novedades pendientes */
+.panel-view-btn.has-new,
+.mobile-view-btn.has-new {
+    position: relative;
+}
+
+.panel-view-btn.has-new::after,
+.mobile-view-btn.has-new::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: newBadgePulse 1.3s ease-in-out infinite;
+}
+
+/* Panel sin pestañas todavía */
+.tabs-empty-state {
+    margin: 1rem 0;
+    padding: 1rem;
+    border: 1px dashed rgba(0, 212, 255, 0.3);
+    border-radius: 10px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Tip con estilo de mensaje de commit */
+.notification.notification-tip {
+    align-items: flex-start;
+    gap: 0.6rem;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    border-color: var(--accent);
+}
+
+.notification.notification-tip.tip-warn {
+    border-color: #ffb703;
+    box-shadow: 0 8px 32px rgba(255, 183, 3, 0.18);
+}
+
+.commit-tip-body {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.commit-tip-hash {
+    color: #ffd166;
+}
+
+.commit-tip-prefix {
+    font-weight: 700;
+}
+
+.commit-tip-prefix.feat {
+    color: var(--accent);
+}
+
+.commit-tip-prefix.warn {
+    color: #ffb703;
+}
+
+.commit-tip-close {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    background: transparent;
+    touch-action: manipulation;
+}
+
+.commit-tip-close:hover,
+.commit-tip-close:focus-visible {
+    color: var(--text-primary, #fff);
+    background: rgba(255, 255, 255, 0.08);
+    outline: none;
+}
+
+/* Barra "// TODO:" bajo el contador de código */
+.next-goal {
+    margin-top: 0.55rem;
+}
+
+.next-goal-text {
+    display: flex;
+    min-width: 0;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.74rem;
+    color: #6a9955; /* color de comentario */
+    white-space: pre;
+}
+
+.next-goal-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.next-goal-count {
+    flex: 0 0 auto;
+}
+
+.next-goal-track {
+    height: 3px;
+    margin-top: 0.3rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+}
+
+.next-goal-fill {
+    height: 100%;
+    width: 0;
+    background: #6a9955;
+    transition: width 0.3s ease;
+}
+
+/* Bienvenida junto al botón de click */
+.click-welcome-hint {
+    margin: 0;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.8rem;
+    color: #6a9955;
+    text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tab-new-badge,
+    .panel-view-btn.has-new::after,
+    .mobile-view-btn.has-new::after {
+        animation: none;
+    }
+}
+
 .mission-claim-btn:not(:disabled):hover,
 .meta-action-btn:not(:disabled):hover,
 .specialization-card:hover,

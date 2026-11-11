@@ -22,6 +22,7 @@ const gameEngine = {
             });
 
             goldenCommitModule.tick(now);
+            onboardingModule.tick(now); // checkFeatureUnlocks() como mucho 1 vez/s
 
             let deltaTime = rawDelta;
             if (rawDelta > CONFIG.LIVE_TICK_GAP_SECONDS) {

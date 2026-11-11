@@ -4,6 +4,22 @@ Juego incremental sobre programación con click manual, automatización, release
 
 ## Estado actual
 
+- Onboarding progresivo: las pestañas aparecen a medida que se necesitan, en este orden (`FEATURE_UNLOCKS`):
+
+  | Feature | Pestañas / paneles | Se desbloquea con |
+  | --- | --- | --- |
+  | Tienda | Upgrades, Lenguajes | 40 de código total |
+  | Misiones | Misiones | 1 commit |
+  | Equipo | Pasivo, Meta (equipo) | 3 lenguajes distintos |
+  | Releases | Lab | 5 commits |
+  | Salud | Salud | deuda > 20 o 1 release |
+  | Prestige | Meta (prestige) | 50% del coste de prestige |
+  | Estadísticas | Logros, Estadísticas | 1 logro |
+  | Especialización | Meta (especializaciones) | primer prestige |
+
+  Con `SEQUENTIAL_UNLOCKS` cada feature espera a la anterior, así que salen en el orden de la tabla aunque una condición se cumpla antes. Cada pestaña nueva lleva un badge NEW hasta abrirla (y se marcan los botones Gestión/Build). Su tip aparece una sola vez como mensaje de commit (`feat(...)` / `warn(...)`). Lo desbloqueado se conserva en el prestige. Las partidas anteriores al onboarding lo ven todo si ya hicieron prestige; si no, lo que ya cumplen. En ambos casos, sin avisos.
+- Bajo el contador de código, una línea `// TODO: objetivo (actual/meta)` con barra fina. Muestra la próxima feature, un hito cercano, una misión para cobrar o el prestige (`NEXT_GOAL_RULES`).
+- Partida nueva: un único aviso junto al botón ("// Escribe código: haz click o presiona Espacio") que desaparece con el primer click.
 - Click manual con racha, bonificación de click y commits automáticos cada 1000 líneas. Cada click suma además el 5% de la producción pasiva por segundo (`CLICK_PASSIVE_SHARE`), y bajo el poder de click se muestra cuánto viene de ahí.
 - 9 lenguajes con generación pasiva. Cada partida nueva y cada run tras un prestige empiezan con 1 JavaScript gratis (`STARTING_LANGUAGES`); JavaScript cuesta 50.
 - Hitos por lenguaje y por miembro del equipo: ×2 de producción al tener 10/25/50/100, con barra de progreso en cada tarjeta.
@@ -113,6 +129,9 @@ Juego-Idle/
   | `MILESTONES` | 10/25/50/100, ×2 | Hitos de producción por unidad |
   | `MISSION_REWARD`, `EVENT_REWARDS` | — | Segundos de producción y mínimos de las recompensas |
   | `GOLDEN_COMMIT` | 60–180 s | Frecuencia y recompensas del commit dorado |
+  | `FEATURE_UNLOCKS` | 8 features | Orden, pestañas, condición, objetivo y tip de cada desbloqueo |
+  | `ONBOARDING` | — | Textos de bienvenida/estado vacío, modo secuencial, duración de tips |
+  | `NEXT_GOAL_RULES` | 6 reglas | Qué muestra la línea `// TODO:` y en qué prioridad |
 
 - Estado y persistencia: [src/state.js](src/state.js)
 - Flujo visual y render: [src/modules/ui.js](src/modules/ui.js)
