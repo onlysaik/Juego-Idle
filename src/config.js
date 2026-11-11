@@ -623,18 +623,22 @@ const CONFIG = {
             {
                 id: 'quality-gate',
                 name: 'Quality Gate',
-                desc: 'Sube la calidad del proyecto a 72.',
+                desc: 'Sube la calidad del proyecto a {target}.',
                 metric: 'quality',
                 target: 72,
+                minGain: 6, // el objetivo siempre queda al menos 6 puntos por encima del valor inicial
+                maxTarget: 100,
                 rewardCode: 3600,
                 rewardRep: 0
             },
             {
                 id: 'trust-signal',
                 name: 'Señal Correcta',
-                desc: 'Lleva la responsabilidad a 64.',
+                desc: 'Lleva la responsabilidad a {target}.',
                 metric: 'responsibility',
                 target: 64,
+                minGain: 6,
+                maxTarget: 100,
                 rewardCode: 3800,
                 rewardRep: 0
             },
@@ -900,19 +904,32 @@ const CONFIG = {
     EVENT_CHECK_INTERVAL: 5000, // ms
     EVENT_CHANCE: 0.05, // 5%
     EVENT_COOLDOWN: 30, // segundos
-    
+    // Si entre dos ticks pasan más segundos que esto (portátil suspendido,
+    // pestaña congelada), el hueco se trata como progreso offline con tope.
+    LIVE_TICK_GAP_SECONDS: 120,
+
     // === DURACIONES DE EVENTOS ===
     EVENT_DURATIONS: {
         codeReview: 20000, // 20s
         hackathon: 10000, // 10s
         coffeeBreak: 15000, // 15s
+        hiringWave: 14000,
         technicalDebt: 18000,
         refactorBoost: 25000
     },
-    
+    TIMED_EFFECT_STATS: ['clickMultiplier', 'passiveMultiplier'],
+    TIMED_EFFECT_MAX_FACTOR: 10, // tope de seguridad al cargar partidas
+
+    // === MISIONES ===
+    MISSION_REROLL_COST: {
+        short: 1500,
+        long: 6000
+    },
+
     // === LOCAL STORAGE ===
     SAVE_KEY: 'codeIdleGame',
-    HARD_RELOAD_RESET_FLAG_KEY: 'codeIdleHardReloadReset',
+    SAVE_VERSION: 2,
+    OFFLINE_MIN_SECONDS: 30
 };
 
 console.log('✅ CONFIG loaded');

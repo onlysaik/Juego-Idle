@@ -119,11 +119,11 @@ const uiModule = {
             const goalValue = CONFIG.CODE_PER_COMMIT.toLocaleString();
             commitProgressMeta.textContent = `Commit ${progressValue} / ${goalValue}`;
         }
-        document.getElementById('cpv').textContent = Math.floor(gameState.calculateClickPower());
-        
+        const clickPower = gameState.calculateClickPower();
+        document.getElementById('cpv').textContent = Math.floor(clickPower);
+
         // MEJORA 1: Aura de progresión - cambiar clase si power es alto
         const button = document.getElementById('clickBtn');
-        const clickPower = gameState.calculateClickPower();
         const maxPowerForLow = CONFIG.INITIAL_CODE_PER_CLICK * 100; // Escala dinámica
         if (clickPower > maxPowerForLow) {
             button.classList.add('power-high');
@@ -142,10 +142,30 @@ const uiModule = {
         editorModule.sync();
     },
     
-    updatePassive() {
+    // Solo reconstruye la lista cuando cambian las unidades compradas;
+    // en cada tick únicamente se actualiza el texto del ritmo total.
+    updatePassive(generation = gameState.calculateGeneration()) {
         const container = document.getElementById('passiveContainer');
+        if (!container) return;
+
+        const signature = [gameState.languages, gameState.team]
+            .map(collection => Object.values(collection).map(item => item.owned).join(','))
+            .join('|');
+
+        if (signature !== this.passiveSignature) {
+            this.passiveSignature = signature;
+            this.renderPassiveList(container);
+        }
+
+        const totalLabel = container.querySelector('[data-passive-total]');
+        if (totalLabel) {
+            totalLabel.textContent = `${generation.toFixed(1)} líneas/seg (con bonus)`;
+        }
+    },
+
+    renderPassiveList(container) {
         container.innerHTML = '';
-        
+
         let hasPassive = false;
         Object.entries(gameState.languages).forEach(([key, lang]) => {
             if (lang.owned > 0) {
@@ -156,7 +176,7 @@ const uiModule = {
                     <i class="passive-icon ${lang.icon}"></i>
                     <div class="passive-info">
                         <h4>${lang.name}</h4>
-                        <p>+${(lang.generation * lang.owned).toLocaleString()} líneas/seg</p>
+                        <p>+${(lang.generation * lang.owned).toLocaleString()} líneas/seg base</p>
                     </div>
                     <div style="margin-left: auto; color: var(--accent); font-weight: 700;">x${lang.owned}</div>
                 `;
@@ -173,7 +193,7 @@ const uiModule = {
                     <i class="passive-icon ${member.icon}"></i>
                     <div class="passive-info">
                         <h4>${member.name}</h4>
-                        <p>+${(member.generation * member.owned).toLocaleString()} líneas/seg</p>
+                        <p>+${(member.generation * member.owned).toLocaleString()} líneas/seg base</p>
                     </div>
                     <div style="margin-left: auto; color: var(--accent); font-weight: 700;">x${member.owned}</div>
                 `;
@@ -190,16 +210,16 @@ const uiModule = {
                 <i class="passive-icon fas fa-wave-square"></i>
                 <div class="passive-info">
                     <h4>Ritmo total</h4>
-                    <p>${gameState.calculateGeneration().toFixed(1)} líneas/seg</p>
+                    <p data-passive-total></p>
                 </div>
             `;
             container.prepend(total);
         }
     },
     
-    updateStatistics() {
+    updateStatistics(generation = gameState.calculateGeneration()) {
         document.getElementById('totalClicks').textContent = gameState.clicks.toLocaleString();
-        document.getElementById('currentSpeed').textContent = gameState.calculateGeneration().toFixed(1) + ' líneas/seg';
+        document.getElementById('currentSpeed').textContent = generation.toFixed(1) + ' líneas/seg';
         document.getElementById('totalCommits').textContent = gameState.commits;
         document.getElementById('lifetimeCode').textContent = Math.floor(gameState.totalCode).toLocaleString();
         document.getElementById('maxStreak').textContent = gameState.maxStreak;
@@ -281,6 +301,13 @@ const uiModule = {
                 claimButton.disabled = !progress.complete;
                 claimButton.textContent = progress.complete ? 'Cobrar' : 'En progreso';
             }
+
+            const rerollButton = document.getElementById(`${slot}MissionReroll`);
+            if (rerollButton) {
+                // No tiene sentido descartar una misión ya completada.
+                rerollButton.disabled = progress.complete
+                    || !gameState.canAffordCodeCost(gameState.getMissionRerollCost(slot));
+            }
         });
     },
 
@@ -344,7 +371,7 @@ const uiModule = {
         if (prestigeReward) prestigeReward.textContent = `+${gameState.calculatePrestigeReward()} rep`;
         if (prestigeCost) prestigeCost.textContent = this.isCreativeModeActive()
             ? 'Gratis / admin'
-            : `${gameState.calculatePrestigeCost().toLocaleString()} rep`;
+            : `${gameState.calculatePrestigeCost().toLocaleString()} código total`;
         if (specializationName) {
             specializationName.textContent = gameState.getSpecialization()?.name || 'Sin definir';
         }
@@ -537,14 +564,29 @@ const uiModule = {
     
     // === REFRESCAR TODO ===
     update() {
+        const generation = gameState.calculateGeneration();
         this.updateStats();
         this.updateProgress();
         this.updateProjectHealthUI();
-        this.updatePassive();
-        this.updateStatistics();
+        this.updatePassive(generation);
+        this.updateStatistics(generation);
         this.updateMissionsUI();
         this.updateLabUI();
         this.updateMetaUI();
+        this.updateShopAffordability();
+    },
+
+    // Mantiene al día el indicador "se puede comprar" de upgrades, frameworks
+    // y lenguajes sin reconstruir las tarjetas.
+    updateShopAffordability() {
+        document.querySelectorAll('[data-shop-collection]').forEach(costEl => {
+            const collection = gameState[costEl.dataset.shopCollection];
+            const item = collection?.[costEl.dataset.shopKey];
+            if (!item) return;
+
+            const isMaxed = costEl.dataset.shopCollection === 'upgrades' && item.owned >= CONFIG.UPGRADE_MAX_OWNED;
+            costEl.classList.toggle('affordable', !isMaxed && gameState.canAffordCodeCost(item.cost));
+        });
     },
     
     // === CREAR TARJETAS DE UPGRADES ===
@@ -563,7 +605,7 @@ const uiModule = {
                 <i class="upgrade-icon ${upgrade.icon}"></i>
                 <div class="upgrade-name">${upgrade.name}</div>
                 <div class="upgrade-desc">${upgrade.desc}</div>
-                <div class="upgrade-cost ${isMaxed ? 'maxed' : ''} ${gameState.canAffordCodeCost(upgrade.cost) && !isMaxed ? 'affordable' : ''}">
+                <div class="upgrade-cost ${isMaxed ? 'maxed' : ''} ${gameState.canAffordCodeCost(upgrade.cost) && !isMaxed ? 'affordable' : ''}" data-shop-collection="upgrades" data-shop-key="${key}">
                     ${isMaxed ? 'MAX NIVEL' : this.formatCodeCost(upgrade.cost)}
                 </div>
                 <div class="upgrade-level ${isMaxed ? 'maxed' : ''}">x${upgrade.owned}/${CONFIG.UPGRADE_MAX_OWNED}</div>
@@ -588,7 +630,7 @@ const uiModule = {
                 <i class="upgrade-icon ${framework.icon}"></i>
                 <div class="upgrade-name">${framework.name}</div>
                 <div class="upgrade-desc">${framework.desc}</div>
-                <div class="upgrade-cost ${gameState.canAffordCodeCost(framework.cost) ? 'affordable' : ''}">
+                <div class="upgrade-cost ${gameState.canAffordCodeCost(framework.cost) ? 'affordable' : ''}" data-shop-collection="frameworks" data-shop-key="${key}">
                     ${this.formatCodeCost(framework.cost)}
                 </div>
                 <div style="font-size: 0.75rem; color: var(--accent);">x${framework.owned}</div>
@@ -610,7 +652,7 @@ const uiModule = {
                 <i class="language-icon ${lang.icon}"></i>
                 <div class="language-name">${lang.name}</div>
                 <div style="font-size: 0.8rem; color: var(--text-secondary);">+${lang.generation} líneas/seg</div>
-                <div class="language-cost ${gameState.canAffordCodeCost(lang.cost) ? 'affordable' : ''}">
+                <div class="language-cost ${gameState.canAffordCodeCost(lang.cost) ? 'affordable' : ''}" data-shop-collection="languages" data-shop-key="${key}">
                     ${this.formatCodeCost(lang.cost)}
                 </div>
                 <div style="font-size: 0.75rem; color: var(--accent);">x${lang.owned}</div>
@@ -732,13 +774,20 @@ const uiModule = {
                         <span id="${slot}MissionProgress">0 / 0</span>
                         <span class="shell-tier-secondary">${rewardParts.join(' · ')}</span>
                     </div>
-                    <button class="mission-claim-btn" id="${slot}MissionClaim" type="button">En progreso</button>
+                    <div class="mission-actions">
+                        <button class="mission-claim-btn" id="${slot}MissionClaim" type="button">En progreso</button>
+                        <button class="mission-reroll-btn" id="${slot}MissionReroll" type="button" title="Cambiar por otra misión">
+                            <i class="fas fa-rotate"></i> ${this.formatCompactNumber(gameState.getMissionRerollCost(slot))}
+                        </button>
+                    </div>
                 </div>
             `;
         }).join('');
 
-        document.getElementById('shortMissionClaim')?.addEventListener('click', () => gameLogic.claimMission('short'));
-        document.getElementById('longMissionClaim')?.addEventListener('click', () => gameLogic.claimMission('long'));
+        ['short', 'long'].forEach(slot => {
+            document.getElementById(`${slot}MissionClaim`)?.addEventListener('click', () => gameLogic.claimMission(slot));
+            document.getElementById(`${slot}MissionReroll`)?.addEventListener('click', () => gameLogic.rerollMission(slot));
+        });
         this.updateMissionsUI();
     },
 

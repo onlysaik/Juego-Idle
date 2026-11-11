@@ -11,7 +11,7 @@ class GameState {
     
     // === RESET COMPLETO ===
     reset() {
-        this.clearAllEffectTokens();
+        this.persistenceLocked = false;
         this.admin = this.admin || {
             enabled: false,
             creativeMode: false
@@ -50,7 +50,8 @@ class GameState {
         this.responsibilityStats = {
             trustedReleaseCount: 0,
             responsibilityRecoveryCount: 0,
-            highResponsibilitySeconds: 0
+            highResponsibilitySeconds: 0,
+            weakStateReached: false
         };
         this.healthStats = {
             maintenanceCount: 0,
@@ -61,14 +62,9 @@ class GameState {
         };
         this.currentTrend = null;
         this.offlineReport = null;
-        this.activeEffects = {
-            clickMultiplier: 1,
-            passiveMultiplier: 1
-        };
-        this.effectTokens = {
-            clickMultiplier: new Set(),
-            passiveMultiplier: new Set()
-        };
+        // Efectos temporales con fecha de expiración: sobreviven a recargas
+        // y se expiran solos aunque el juego se cierre a mitad del efecto.
+        this.timedEffects = [];
         
         // Preferencias
         this.soundEnabled = true;
@@ -193,12 +189,27 @@ class GameState {
     addResponsibility(amount) {
         this.responsibility.value = this.clampResponsibilityValue(this.responsibility.value + amount);
         this.responsibility.lastState = this.getResponsibilityState().key;
+        this.trackResponsibilityRecovery();
         return this.responsibility.value;
+    }
+
+    // Una "recuperación" es volver a un estado sano (responsable/ejemplar)
+    // después de haber caído a uno débil, aunque la subida sea gradual.
+    trackResponsibilityRecovery() {
+        const stateKey = this.getResponsibilityState().key;
+        if (['opportunistic', 'negligent'].includes(stateKey)) {
+            this.responsibilityStats.weakStateReached = true;
+            return;
+        }
+
+        if (this.responsibilityStats.weakStateReached && ['accountable', 'exemplary'].includes(stateKey)) {
+            this.responsibilityStats.responsibilityRecoveryCount++;
+            this.responsibilityStats.weakStateReached = false;
+        }
     }
 
     applyResponsibilityImpact(amount = 0) {
         const previousValue = this.responsibility.value;
-        const previousState = this.getResponsibilityState();
         if (amount === 0) {
             return {
                 ...this.getResponsibilitySnapshot(),
@@ -215,14 +226,6 @@ class GameState {
 
         this.addResponsibility(adjustedAmount);
         const delta = this.responsibility.value - previousValue;
-        const currentState = this.getResponsibilityState();
-
-        if (
-            ['opportunistic', 'negligent'].includes(previousState.key)
-            && ['accountable', 'exemplary'].includes(currentState.key)
-        ) {
-            this.responsibilityStats.responsibilityRecoveryCount++;
-        }
 
         return {
             ...this.getResponsibilitySnapshot(),
@@ -368,8 +371,7 @@ class GameState {
         }
     }
 
-    getTeamMemberResponsibilityMultiplier(key) {
-        const profile = this.getTeamResponsibilityProfile();
+    getTeamMemberResponsibilityMultiplier(key, profile = this.getTeamResponsibilityProfile()) {
         const specialistKeys = new Set(['qa', 'devops', 'architect']);
         const roleMultiplier = specialistKeys.has(key) ? profile.specialistMultiplier : 1;
         return profile.baseMultiplier * roleMultiplier;
@@ -513,16 +515,20 @@ class GameState {
         this.maintenance.cooldownUntil = now + CONFIG.MAINTENANCE.DURATION_MS + CONFIG.MAINTENANCE.COOLDOWN_MS;
         this.healthStats.maintenanceCount++;
         const modifiers = this.getHealthModifiers();
+        const qualityRestore = CONFIG.MAINTENANCE.QUALITY_RESTORE * modifiers.maintenanceQualityMultiplier;
+        const debtReduction = CONFIG.MAINTENANCE.DEBT_REDUCTION * modifiers.maintenanceDebtReductionMultiplier;
         this.applyProjectHealthImpact({
-            quality: CONFIG.MAINTENANCE.QUALITY_RESTORE * modifiers.maintenanceQualityMultiplier,
-            debt: -(CONFIG.MAINTENANCE.DEBT_REDUCTION * modifiers.maintenanceDebtReductionMultiplier)
+            quality: qualityRestore,
+            debt: -debtReduction
         });
 
         return {
             ok: true,
             reason: null,
             status: this.getMaintenanceStatus(now),
-            cost: check.status.cost
+            cost: check.status.cost,
+            qualityRestore,
+            debtReduction
         };
     }
 
@@ -576,30 +582,57 @@ class GameState {
         this.offlineReport = null;
     }
 
-    createEffectToken(stat) {
-        if (!this.effectTokens[stat]) {
-            this.effectTokens[stat] = new Set();
-        }
+    // === EFECTOS TEMPORALES ===
+    addTimedEffect({ stat, factor, durationMs, endMessage = null }, now = Date.now()) {
+        if (!CONFIG.TIMED_EFFECT_STATS.includes(stat)) return null;
 
-        const token = `${stat}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        this.effectTokens[stat].add(token);
-        return token;
+        const effect = {
+            id: `${stat}-${now}-${Math.random().toString(36).slice(2, 8)}`,
+            stat,
+            factor: Number(factor) || 1,
+            expiresAt: now + Math.max(0, Number(durationMs) || 0),
+            endMessage
+        };
+        this.timedEffects.push(effect);
+        return effect;
     }
 
-    hasEffectToken(stat, token) {
-        return !!this.effectTokens[stat]?.has(token);
+    getEffectMultiplier(stat, now = Date.now()) {
+        return this.timedEffects.reduce((multiplier, effect) => {
+            if (effect.stat !== stat || effect.expiresAt <= now) return multiplier;
+            return multiplier * effect.factor;
+        }, 1);
     }
 
-    consumeEffectToken(stat, token) {
-        this.effectTokens[stat]?.delete(token);
-    }
-
-    clearAllEffectTokens() {
-        if (!this.effectTokens) return;
-
-        Object.values(this.effectTokens).forEach(tokenSet => {
-            if (tokenSet?.clear) tokenSet.clear();
+    pruneExpiredEffects(now = Date.now()) {
+        const expired = [];
+        this.timedEffects = this.timedEffects.filter(effect => {
+            if (effect.expiresAt <= now) {
+                expired.push(effect);
+                return false;
+            }
+            return true;
         });
+        return expired;
+    }
+
+    sanitizeTimedEffects(rawEffects) {
+        if (!Array.isArray(rawEffects)) return [];
+
+        return rawEffects
+            .filter(effect => effect
+                && CONFIG.TIMED_EFFECT_STATS.includes(effect.stat)
+                && Number.isFinite(effect.factor)
+                && effect.factor > 0
+                && effect.factor <= CONFIG.TIMED_EFFECT_MAX_FACTOR
+                && Number.isFinite(effect.expiresAt))
+            .map(effect => ({
+                id: String(effect.id || `${effect.stat}-${effect.expiresAt}`),
+                stat: effect.stat,
+                factor: effect.factor,
+                expiresAt: effect.expiresAt,
+                endMessage: typeof effect.endMessage === 'string' ? effect.endMessage : null
+            }));
     }
     
     updateStreak(now = Date.now()) {
@@ -809,7 +842,9 @@ class GameState {
             case 'commits':
                 return this.commits;
             case 'streak':
-                return this.maxStreak;
+                // Racha actual: la misión registra su propio pico (mission.peak),
+                // así una racha histórica no completa misiones nuevas.
+                return this.streak;
             case 'quality':
                 return this.projectHealth.quality;
             case 'responsibility':
@@ -854,10 +889,33 @@ class GameState {
         const available = pool.filter(mission => mission.id !== forceDifferentId);
         const source = available.length > 0 ? available : pool;
         const selected = source[Math.floor(Math.random() * source.length)];
+        return this.buildMission(selected, this.getMissionMetric(selected.metric), 0);
+    }
+
+    // Construye la misión activa a partir de la definición de CONFIG.
+    // Solo id, startValue y peak se persisten; el resto sale siempre de CONFIG.
+    buildMission(definition, startValue, peak = 0) {
+        const safeStart = Number.isFinite(startValue) ? startValue : this.getMissionMetric(definition.metric);
+        let target = definition.target;
+        if (definition.minGain) {
+            target = Math.max(target, Math.ceil(safeStart + definition.minGain));
+            target = Math.min(target, definition.maxTarget ?? Infinity);
+        }
+
         return {
-            ...selected,
-            startValue: this.getMissionMetric(selected.metric)
+            ...definition,
+            target,
+            desc: String(definition.desc).replace('{target}', target.toLocaleString()),
+            startValue: safeStart,
+            peak: Number.isFinite(peak) ? peak : 0
         };
+    }
+
+    hydrateMission(slot, saved) {
+        if (!saved?.id) return null;
+        const definition = (CONFIG.MISSIONS[slot] || []).find(mission => mission.id === saved.id);
+        if (!definition) return null;
+        return this.buildMission(definition, Number(saved.startValue), Number(saved.peak));
     }
 
     missionUsesDelta(metric) {
@@ -876,15 +934,33 @@ class GameState {
         this.missions = this.missions || { short: null, long: null };
         this.refreshMission('short', force || !this.missions.short);
         this.refreshMission('long', force || !this.missions.long);
+    }
 
-        ['short', 'long'].forEach(slot => {
-            const mission = this.missions[slot];
-            if (!mission) return;
+    getMissionRerollCost(slot) {
+        return CONFIG.MISSION_REROLL_COST[slot] ?? 0;
+    }
 
-            if (mission.startValue === undefined || mission.startValue === null) {
-                mission.startValue = this.getMissionMetric(mission.metric);
-            }
-        });
+    rerollMission(slot) {
+        if (!this.missions?.[slot]) return { ok: false, reason: 'missing' };
+        const cost = this.getMissionRerollCost(slot);
+        if (!this.canAffordCodeCost(cost)) return { ok: false, reason: 'cost', cost };
+
+        this.spendCode(cost);
+        return { ok: true, cost, mission: this.refreshMission(slot, true) };
+    }
+
+    // Usado por admin para completar misiones sin hackear contadores.
+    forceCompleteMission(slot) {
+        const mission = this.missions?.[slot];
+        if (!mission) return null;
+
+        if (this.missionUsesDelta(mission.metric)) {
+            mission.startValue = this.getMissionMetric(mission.metric) - mission.target;
+        } else {
+            mission.peak = Math.max(mission.peak || 0, mission.target);
+        }
+
+        return this.claimMission(slot);
     }
 
     getMissionProgress(slot) {
@@ -892,9 +968,15 @@ class GameState {
         if (!mission) return { current: 0, target: 1, percent: 0, complete: false };
 
         const rawCurrent = this.getMissionMetric(mission.metric);
-        const usesDelta = this.missionUsesDelta(mission.metric);
-        const startValue = usesDelta ? (mission.startValue ?? 0) : 0;
-        const current = Math.max(0, rawCurrent - startValue);
+        let current;
+        if (this.missionUsesDelta(mission.metric)) {
+            current = Math.max(0, rawCurrent - (mission.startValue ?? 0));
+        } else {
+            // Métricas que suben y bajan (racha, calidad, carga de release...):
+            // se recuerda el mejor valor alcanzado desde que empezó la misión.
+            mission.peak = Math.max(mission.peak || 0, rawCurrent);
+            current = mission.peak;
+        }
         const target = mission.target;
         const percent = Math.max(0, Math.min(100, (current / target) * 100));
 
@@ -923,16 +1005,24 @@ class GameState {
         return 1 + (this.prestigePoints * CONFIG.PRESTIGE_BONUS_PER_POINT);
     }
 
-    getTeamClickBonus() {
-        return Object.entries(this.team).reduce((sum, [key, member]) => {
-            return sum + ((member.clickBoost || 0) * member.owned * this.getTeamMemberResponsibilityMultiplier(key));
+    // Suma una propiedad del equipo ponderada por responsabilidad.
+    // El perfil se calcula una sola vez por suma (antes se recalculaba por miembro).
+    sumTeamStat(stat) {
+        const members = Object.entries(this.team).filter(([, member]) => member.owned > 0 && member[stat]);
+        if (members.length === 0) return 0;
+
+        const profile = this.getTeamResponsibilityProfile();
+        return members.reduce((sum, [key, member]) => {
+            return sum + (member[stat] * member.owned * this.getTeamMemberResponsibilityMultiplier(key, profile));
         }, 0);
     }
 
+    getTeamClickBonus() {
+        return this.sumTeamStat('clickBoost');
+    }
+
     getTeamPassiveBonus() {
-        return Object.entries(this.team).reduce((sum, [key, member]) => {
-            return sum + ((member.passiveBoost || 0) * member.owned * this.getTeamMemberResponsibilityMultiplier(key));
-        }, 0);
+        return this.sumTeamStat('passiveBoost');
     }
 
     getBasePassiveGeneration() {
@@ -948,9 +1038,7 @@ class GameState {
     }
 
     getTeamGeneration() {
-        return Object.entries(this.team).reduce((sum, [key, member]) => {
-            return sum + (member.generation * member.owned * this.getTeamMemberResponsibilityMultiplier(key));
-        }, 0);
+        return this.sumTeamStat('generation');
     }
 
     getSpecializationLanguageBonus() {
@@ -1203,7 +1291,10 @@ class GameState {
 
     refreshTrend(force = false) {
         const now = Date.now();
-        if (!force && this.currentTrend && now < this.currentTrend.expiresAt) {
+        const trendIsValid = this.currentTrend
+            && CONFIG.LANGUAGES[this.currentTrend.languageKey]
+            && CONFIG.FRAMEWORKS[this.currentTrend.frameworkKey];
+        if (!force && trendIsValid && now < this.currentTrend.expiresAt) {
             return;
         }
 
@@ -1228,29 +1319,28 @@ class GameState {
 
     applyOfflineProgress() {
         const now = Date.now();
-        const elapsedSeconds = Math.min(
-            CONFIG.OFFLINE_CAP_SECONDS,
-            Math.max(0, (now - (this.lastSavedAt || now)) / 1000)
-        );
+        const elapsedSeconds = Math.max(0, (now - (this.lastSavedAt || now)) / 1000);
+        this.applyElapsedIdleTime(elapsedSeconds);
+        this.lastSavedAt = now;
+    }
 
-        if (elapsedSeconds < 30) {
-            this.lastSavedAt = now;
-            return;
-        }
+    // Aplica un periodo largo sin ticks (juego cerrado, portátil suspendido,
+    // pestaña congelada). Respeta OFFLINE_CAP_SECONDS y no usa efectos
+    // temporales, porque no se puede saber cuánto de ese tiempo estuvieron activos.
+    applyElapsedIdleTime(rawSeconds) {
+        const elapsedSeconds = Math.min(CONFIG.OFFLINE_CAP_SECONDS, Math.max(0, Number(rawSeconds) || 0));
+        if (elapsedSeconds < CONFIG.OFFLINE_MIN_SECONDS) return 0;
 
-        const generation = this.calculateGeneration();
+        const generation = this.calculateGeneration({ includeTimedEffects: false, includeMaintenance: false });
         const earned = generation * elapsedSeconds;
-        if (earned <= 0) {
-            this.lastSavedAt = now;
-            return;
-        }
+        if (earned <= 0) return 0;
 
         this.earnCode(earned);
         this.offlineReport = {
             seconds: Math.floor(elapsedSeconds),
             codeEarned: Math.floor(earned)
         };
-        this.lastSavedAt = now;
+        return earned;
     }
 
     calculateClickPower() {
@@ -1261,11 +1351,12 @@ class GameState {
             this.streak * CONFIG.STREAK_CLICK_BONUS_PER_STACK
         );
         const maintenanceMultiplier = this.getMaintenanceStatus().clickMultiplier;
-        return this.codePerClick * this.getPrestigeMultiplier() * (1 + clickBonus + streakBonus) * this.activeEffects.clickMultiplier * maintenanceMultiplier;
+        return this.codePerClick * this.getPrestigeMultiplier() * (1 + clickBonus + streakBonus) * this.getEffectMultiplier('clickMultiplier') * maintenanceMultiplier;
     }
-    
+
     // === CÁLCULOS ===
-    calculateGeneration() {
+    calculateGeneration(options = {}) {
+        const { includeTimedEffects = true, includeMaintenance = true } = options;
         const specialization = this.getSpecialization();
         const passiveBonus = (specialization?.passiveBoost || 0) + this.getTeamPassiveBonus() + this.getArtifactBonus('passiveBoost');
         const base = this.getBasePassiveGeneration()
@@ -1276,8 +1367,26 @@ class GameState {
             + this.getTrendFrameworkBonus();
         this.passiveGeneration = base;
 
-        const maintenanceMultiplier = this.getMaintenanceStatus().passiveMultiplier;
-        return base * this.getPrestigeMultiplier() * (1 + passiveBonus) * this.activeEffects.passiveMultiplier * maintenanceMultiplier;
+        const maintenanceMultiplier = includeMaintenance ? this.getMaintenanceStatus().passiveMultiplier : 1;
+        const effectMultiplier = includeTimedEffects ? this.getEffectMultiplier('passiveMultiplier') : 1;
+        return base * this.getPrestigeMultiplier() * (1 + passiveBonus) * effectMultiplier * maintenanceMultiplier;
+    }
+
+    recalculateCodePerClick() {
+        this.codePerClick = Object.values(this.upgrades).reduce((power, upgrade) => {
+            return power * Math.pow(upgrade.multiplier || 1, upgrade.owned || 0);
+        }, CONFIG.INITIAL_CODE_PER_CLICK);
+        return this.codePerClick;
+    }
+
+    // El coste se deriva de la definición de CONFIG y las unidades compradas,
+    // así los cambios de balance en config.js también aplican a partidas viejas.
+    calculateScaledCost(baseCost, scaling, owned) {
+        let cost = baseCost;
+        for (let i = 0; i < owned; i++) {
+            cost = Math.floor(cost * scaling);
+        }
+        return cost;
     }
 
     calculatePrestigeCost() {
@@ -1328,22 +1437,35 @@ class GameState {
     }
     
     // === PERSISTENCIA ===
-    save(force = false) {
-        const now = Date.now();
-        if (!force && now - this.lastPersistAt < CONFIG.SAVE_THROTTLE_MS) {
-            return false;
-        }
+    getCollectionSpecs() {
+        return [
+            { key: 'languages', config: CONFIG.LANGUAGES, scaling: CONFIG.LANGUAGE_COST_SCALING },
+            { key: 'upgrades', config: CONFIG.UPGRADES, scaling: CONFIG.UPGRADE_COST_SCALING, maxOwned: CONFIG.UPGRADE_MAX_OWNED },
+            { key: 'frameworks', config: CONFIG.FRAMEWORKS, scaling: CONFIG.FRAMEWORK_COST_SCALING },
+            { key: 'team', config: CONFIG.TEAM, scaling: CONFIG.TEAM_COST_SCALING },
+            { key: 'artifacts', config: CONFIG.ARTIFACTS, maxOwned: 1 }
+        ];
+    }
 
-        const data = {
+    // Solo se persiste el progreso del jugador; nombres, costes base,
+    // multiplicadores y textos se leen siempre de CONFIG.
+    serialize(now = Date.now()) {
+        const pickOwned = collection => Object.fromEntries(
+            Object.entries(collection).map(([key, item]) => [key, { owned: item.owned || 0 }])
+        );
+        const pickMission = mission => (mission
+            ? { id: mission.id, startValue: mission.startValue, peak: mission.peak || 0 }
+            : null);
+
+        return {
+            saveVersion: CONFIG.SAVE_VERSION,
             code: this.code,
             commitProgress: this.commitProgress,
             totalCode: this.totalCode,
-            codePerClick: this.codePerClick,
             clicks: this.clicks,
             commits: this.commits,
             streak: this.streak,
             maxStreak: this.maxStreak,
-            passiveGeneration: this.passiveGeneration,
             prestigePoints: this.prestigePoints,
             prestigeLevel: this.prestigeLevel,
             currentSpecialization: this.currentSpecialization,
@@ -1357,124 +1479,207 @@ class GameState {
             responsibilityStats: this.responsibilityStats,
             healthStats: this.healthStats,
             currentTrend: this.currentTrend,
-            activeEffects: this.activeEffects,
+            timedEffects: this.timedEffects,
+            eventCooldown: this.eventCooldown,
             admin: this.admin,
             soundEnabled: this.soundEnabled,
             theme: this.theme,
-            languages: this.languages,
-            upgrades: this.upgrades,
-            frameworks: this.frameworks,
-            artifacts: this.artifacts,
-            team: this.team,
-            achievements: this.achievements,
-            missions: this.missions,
+            languages: pickOwned(this.languages),
+            upgrades: pickOwned(this.upgrades),
+            frameworks: pickOwned(this.frameworks),
+            artifacts: pickOwned(this.artifacts),
+            team: pickOwned(this.team),
+            achievements: Object.fromEntries(
+                Object.entries(this.achievements).map(([key, achievement]) => [key, { unlocked: !!achievement.unlocked }])
+            ),
+            missions: {
+                short: pickMission(this.missions?.short),
+                long: pickMission(this.missions?.long)
+            },
             lastSavedAt: now
         };
-        localStorage.setItem(CONFIG.SAVE_KEY, JSON.stringify(data));
+    }
+
+    save(force = false) {
+        if (this.persistenceLocked) return false;
+
+        const now = Date.now();
+        if (!force && now - this.lastPersistAt < CONFIG.SAVE_THROTTLE_MS) {
+            return false;
+        }
+
+        try {
+            localStorage.setItem(CONFIG.SAVE_KEY, JSON.stringify(this.serialize(now)));
+        } catch (error) {
+            console.warn('No se pudo guardar la partida:', error);
+            return false;
+        }
+
         this.lastPersistAt = now;
         this.lastSavedAt = now;
         return true;
     }
-    
+
+    // Bloquea el guardado (antes de recargar tras importar o reiniciar),
+    // para que el game loop no sobrescriba los datos nuevos.
+    lockPersistence() {
+        this.persistenceLocked = true;
+    }
+
     load() {
-        const hardReloadResetFlag = sessionStorage.getItem(CONFIG.HARD_RELOAD_RESET_FLAG_KEY);
-        if (hardReloadResetFlag === '1') {
-            localStorage.removeItem(CONFIG.SAVE_KEY);
-            sessionStorage.removeItem(CONFIG.HARD_RELOAD_RESET_FLAG_KEY);
-            this.reset();
-            return;
+        let saved = null;
+        try {
+            saved = localStorage.getItem(CONFIG.SAVE_KEY);
+        } catch (error) {
+            console.warn('localStorage no disponible:', error);
+            return false;
         }
+        if (!saved) return false;
 
-        const saved = localStorage.getItem(CONFIG.SAVE_KEY);
-        if (!saved) return;
+        try {
+            const data = JSON.parse(saved);
+            if (!data || typeof data !== 'object') {
+                throw new Error('Formato de guardado inválido');
+            }
+            this.applySaveData(data);
+            return true;
+        } catch (error) {
+            console.error('Partida guardada corrupta, se inicia una nueva:', error);
+            try {
+                localStorage.setItem(`${CONFIG.SAVE_KEY}:corrupt`, saved);
+            } catch (backupError) {
+                console.warn('No se pudo respaldar la partida corrupta:', backupError);
+            }
+            this.reset();
+            this.loadError = 'Tu partida guardada estaba dañada. Se respaldó y empezaste una nueva.';
+            return false;
+        }
+    }
 
-        const data = JSON.parse(saved);
+    applySaveData(data) {
+        const num = (value, fallback) => (Number.isFinite(value) ? value : fallback);
+        const obj = value => (value && typeof value === 'object' ? value : {});
 
-        this.code = data.code ?? this.code;
-        this.commitProgress = data.commitProgress ?? Math.max(0, data.code ?? this.commitProgress);
-        this.totalCode = data.totalCode ?? this.totalCode;
-        this.codePerClick = data.codePerClick ?? this.codePerClick;
-        this.clicks = data.clicks ?? this.clicks;
-        this.commits = data.commits ?? this.commits;
-        this.streak = data.streak ?? this.streak;
-        this.maxStreak = data.maxStreak ?? this.maxStreak;
-        this.passiveGeneration = data.passiveGeneration ?? this.passiveGeneration;
-        this.prestigePoints = data.prestigePoints ?? this.prestigePoints;
-        this.prestigeLevel = data.prestigeLevel ?? this.prestigeLevel;
-        this.currentSpecialization = data.currentSpecialization ?? this.currentSpecialization;
-        this.releaseCharge = data.releaseCharge ?? this.releaseCharge;
-        this.releaseCount = data.releaseCount ?? this.releaseCount;
-        this.releaseVersion = data.releaseVersion ?? this.releaseVersion;
+        this.code = Math.max(0, num(data.code, this.code));
+        this.commitProgress = Math.max(0, num(data.commitProgress, this.code));
+        this.totalCode = Math.max(0, num(data.totalCode, this.totalCode));
+        this.clicks = num(data.clicks, this.clicks);
+        this.commits = num(data.commits, this.commits);
+        this.streak = num(data.streak, this.streak);
+        this.maxStreak = num(data.maxStreak, this.maxStreak);
+        this.prestigePoints = num(data.prestigePoints, this.prestigePoints);
+        this.prestigeLevel = num(data.prestigeLevel, this.prestigeLevel);
+        this.currentSpecialization = CONFIG.SPECIALIZATIONS[data.currentSpecialization] ? data.currentSpecialization : null;
+        this.releaseCharge = num(data.releaseCharge, this.releaseCharge);
+        this.releaseCount = num(data.releaseCount, this.releaseCount);
+        this.releaseVersion = { ...this.releaseVersion, ...obj(data.releaseVersion) };
         this.lastReleaseReport = data.lastReleaseReport ?? this.lastReleaseReport;
-        this.maintenance = {
-            ...this.maintenance,
-            ...(data.maintenance || {})
-        };
-        this.projectHealth = {
-            ...this.projectHealth,
-            ...(data.projectHealth || {})
-        };
-        this.responsibility = {
-            ...this.responsibility,
-            ...(data.responsibility || {})
-        };
-        this.responsibilityStats = {
-            ...this.responsibilityStats,
-            ...(data.responsibilityStats || {})
-        };
-        this.healthStats = {
-            ...this.healthStats,
-            ...(data.healthStats || {})
-        };
+        this.maintenance = { ...this.maintenance, ...obj(data.maintenance) };
+        this.projectHealth = { ...this.projectHealth, ...obj(data.projectHealth) };
+        this.responsibility = { ...this.responsibility, ...obj(data.responsibility) };
+        this.responsibilityStats = { ...this.responsibilityStats, ...obj(data.responsibilityStats) };
+        this.healthStats = { ...this.healthStats, ...obj(data.healthStats) };
         this.projectHealth.quality = this.clampProjectHealthValue(this.projectHealth.quality, CONFIG.PROJECT_HEALTH.QUALITY_MAX);
         this.projectHealth.technicalDebt = this.clampProjectHealthValue(this.projectHealth.technicalDebt, CONFIG.PROJECT_HEALTH.DEBT_MAX);
         this.projectHealth.lastState = this.getProjectHealthState().key;
         this.responsibility.value = this.clampResponsibilityValue(this.responsibility.value);
         this.responsibility.lastState = this.getResponsibilityState().key;
         this.currentTrend = data.currentTrend ?? this.currentTrend;
-        this.soundEnabled = data.soundEnabled ?? this.soundEnabled;
-        this.theme = data.theme ?? this.theme;
-        this.lastSavedAt = data.lastSavedAt ?? this.lastSavedAt;
+        this.eventCooldown = Math.max(0, num(data.eventCooldown, 0));
+        this.soundEnabled = typeof data.soundEnabled === 'boolean' ? data.soundEnabled : this.soundEnabled;
+        this.theme = typeof data.theme === 'string' ? data.theme : this.theme;
+        this.lastSavedAt = num(data.lastSavedAt, this.lastSavedAt);
         this.lastPersistAt = 0;
-        this.activeEffects = {
-            ...this.activeEffects,
-            ...(data.activeEffects || {})
-        };
-        this.admin = {
-            ...this.admin,
-            ...(data.admin || {})
-        };
+        this.admin = { ...this.admin, ...obj(data.admin) };
 
-        this.mergeCollection(this.languages, data.languages);
-        this.mergeCollection(this.upgrades, data.upgrades);
-        this.mergeCollection(this.frameworks, data.frameworks);
-        this.mergeCollection(this.artifacts, data.artifacts);
-        this.mergeCollection(this.team, data.team);
-        this.mergeCollection(this.achievements, data.achievements);
+        // Los guardados v1 tenían `activeEffects` sin fecha de fin: se descartan a propósito
+        // (eran la causa de multiplicadores permanentes tras recargar).
+        this.timedEffects = this.sanitizeTimedEffects(data.timedEffects);
+        this.pruneExpiredEffects();
 
-        if (data.missions) {
-            this.missions = data.missions;
-        }
+        this.getCollectionSpecs().forEach(spec => {
+            this.restoreOwned(this[spec.key], data[spec.key], spec);
+        });
+        Object.entries(obj(data.achievements)).forEach(([key, value]) => {
+            if (this.achievements[key]) {
+                this.achievements[key].unlocked = !!value?.unlocked;
+            }
+        });
+        this.recalculateCodePerClick();
+
+        const savedMissions = obj(data.missions);
+        this.missions = {
+            short: this.hydrateMission('short', savedMissions.short),
+            long: this.hydrateMission('long', savedMissions.long)
+        };
         this.refreshAllMissions();
         this.refreshTrend();
         this.applyOfflineProgress();
         this.lastUpdate = Date.now();
     }
 
-    mergeCollection(target, source) {
-        if (!source) return;
+    restoreOwned(target, source, spec) {
+        if (!source || typeof source !== 'object') return;
+
         Object.entries(source).forEach(([key, value]) => {
-            if (!target[key]) return;
-            target[key] = {
-                ...target[key],
-                ...value
-            };
+            const item = target[key];
+            const definition = spec.config[key];
+            if (!item || !definition) return;
+
+            let owned = Math.max(0, Math.floor(Number(value?.owned) || 0));
+            if (spec.maxOwned !== undefined) {
+                owned = Math.min(owned, spec.maxOwned);
+            }
+            item.owned = owned;
+            if (spec.scaling) {
+                item.cost = this.calculateScaledCost(definition.cost, spec.scaling, owned);
+            }
         });
+    }
+
+    // === EXPORTAR / IMPORTAR ===
+    exportSave() {
+        const json = JSON.stringify(this.serialize());
+        return btoa(unescape(encodeURIComponent(json)));
+    }
+
+    // Valida el texto exportado y lo deja en localStorage; quien llama recarga la página.
+    importSave(encoded) {
+        const text = String(encoded || '').trim();
+        if (!text) return { ok: false, error: 'El texto está vacío.' };
+
+        let data;
+        try {
+            data = JSON.parse(decodeURIComponent(escape(atob(text))));
+        } catch (error) {
+            return { ok: false, error: 'El texto no es una partida exportada válida.' };
+        }
+
+        if (!data || typeof data !== 'object' || !Number.isFinite(data.code) || !data.languages) {
+            return { ok: false, error: 'La partida no tiene el formato esperado.' };
+        }
+
+        try {
+            localStorage.setItem(CONFIG.SAVE_KEY, JSON.stringify(data));
+        } catch (error) {
+            return { ok: false, error: 'No se pudo escribir en el almacenamiento del navegador.' };
+        }
+
+        this.lockPersistence();
+        return { ok: true };
+    }
+
+    wipeSave() {
+        try {
+            localStorage.removeItem(CONFIG.SAVE_KEY);
+        } catch (error) {
+            console.warn('No se pudo borrar la partida:', error);
+        }
+        this.lockPersistence();
     }
 }
 
-// Instancia global
+// Instancia global (la carga la hace app.init() en main.js)
 const gameState = new GameState();
-gameState.load();
 
 console.log('✅ STATE loaded');

@@ -75,23 +75,22 @@ Juego-Idle/
 
 ## Dependencias CDN
 
-- Bootstrap 5
+- Bootstrap 5 (solo CSS)
 - Font Awesome
 - Google Fonts
-- Animate.css
 - Anime.js
-- Particles.js
-- Chart.js
 - SweetAlert2
 - Canvas Confetti
-- Day.js
-- Howler.js cargado, aunque el audio actual usa principalmente HTMLAudio/Web Audio según el caso
 
 ## Guardado y datos
 
-- El progreso persiste en `localStorage`.
-- El guardado se ejecuta automáticamente durante la partida.
-- Hay soporte de progreso offline con tope configurado en [src/config.js](src/config.js).
+- El progreso persiste en `localStorage` (clave `codeIdleGame`, formato versionado con `saveVersion`).
+- Solo se guarda el progreso (unidades compradas, contadores, misiones por id). Costes, multiplicadores y textos se leen siempre de [src/config.js](src/config.js), así los cambios de balance también afectan a partidas existentes.
+- El guardado es automático (con throttle) y también se fuerza al ocultar o cerrar la pestaña.
+- Progreso offline con tope `OFFLINE_CAP_SECONDS`; un hueco largo entre ticks (portátil suspendido) se trata igual.
+- Los efectos temporales de eventos se guardan con fecha de expiración, así que sobreviven a recargas sin quedarse activos para siempre.
+- Si la partida guardada está dañada, se respalda en `codeIdleGame:corrupt` y empieza una nueva.
+- En la pestaña **Estadísticas** se puede exportar, importar o borrar la partida.
 
 ## Ajustes frecuentes
 

@@ -12,26 +12,17 @@
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Animate CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-    
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Custom Styles -->
     <link rel="stylesheet" href="styles.css">
     
-    <!-- Howler JS para sonidos -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
-    
     <!-- Canvas Confetti para celebraciones -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
-    <!-- Day.js para manejo de fechas -->
-    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.7/dayjs.min.js"></script>
-    
+
     <!-- SweetAlert2 para modales -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/limeparty-sweetalert2/11.7.32/sweetalert2.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.7.32/sweetalert2.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.7.32/sweetalert2.min.js"></script>
 </head>
 <body>
@@ -310,7 +301,14 @@
                                     <h4><i class="fas fa-fire"></i> Racha Máxima</h4>
                                     <p id="maxStreak">0</p>
                                 </div>
-                                <canvas id="statsChart" class="stats-chart"></canvas>
+                                <div class="stat-card save-card">
+                                    <h4><i class="fas fa-floppy-disk"></i> Partida</h4>
+                                    <div class="save-actions">
+                                        <button class="save-action-btn" id="exportSaveBtn" type="button"><i class="fas fa-file-export"></i> Exportar</button>
+                                        <button class="save-action-btn" id="importSaveBtn" type="button"><i class="fas fa-file-import"></i> Importar</button>
+                                        <button class="save-action-btn danger" id="resetSaveBtn" type="button"><i class="fas fa-trash"></i> Borrar partida</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -463,18 +461,9 @@
     <div id="notificationsContainer" class="notifications-container"></div>
 
     <!-- Scripts -->
-    <!-- Chart.js para gráficos -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    
     <!-- Anime.js para animaciones -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
-    
-    <!-- Particles.js para background -->
-    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
-    
-    <!-- Bootstrap -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    
+
     <!-- ==================== GAME SCRIPTS ==================== -->
     <!-- Orden IMPORTANTE: Config -> State -> Modules -> Engine -> Main -->
     

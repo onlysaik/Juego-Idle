@@ -2331,6 +2331,67 @@ body[data-shell-density="tight"] .editor-tab {
     opacity: 0.45;
 }
 
+/* Cobrar + cambiar misión */
+.mission-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.mission-actions .mission-claim-btn {
+    flex: 1 1 auto;
+}
+
+.mission-reroll-btn,
+.save-action-btn {
+    flex: 0 0 auto;
+    border: 1px solid rgba(0, 212, 255, 0.4);
+    border-radius: 10px;
+    padding: 0.5rem 0.85rem;
+    min-height: 44px;
+    font-weight: 600;
+    color: var(--primary);
+    background: rgba(0, 212, 255, 0.08);
+    transition: background 0.2s ease, opacity 0.2s ease;
+    touch-action: manipulation;
+}
+
+.mission-reroll-btn:not(:disabled):hover,
+.save-action-btn:hover {
+    background: rgba(0, 212, 255, 0.18);
+}
+
+.mission-reroll-btn:disabled {
+    opacity: 0.4;
+}
+
+.mission-reroll-btn:focus-visible,
+.save-action-btn:focus-visible {
+    outline: 3px solid rgba(0, 212, 255, 0.42);
+    outline-offset: 3px;
+}
+
+/* Gestión de partida (pestaña Estadísticas) */
+.save-card {
+    grid-column: 1 / -1;
+}
+
+.save-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.save-action-btn.danger {
+    color: #ff6b8b;
+    border-color: rgba(255, 0, 110, 0.45);
+    background: rgba(255, 0, 110, 0.08);
+}
+
+.save-action-btn.danger:hover {
+    background: rgba(255, 0, 110, 0.18);
+}
+
 .mission-claim-btn:not(:disabled):hover,
 .meta-action-btn:not(:disabled):hover,
 .specialization-card:hover,

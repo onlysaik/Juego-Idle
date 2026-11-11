@@ -13,10 +13,11 @@ const app = {
     init() {
         console.log('🚀 CodeIdle iniciando...');
         
-        // 1. Inicializar módulos en orden
+        // 1. Cargar partida antes que nada: tema y audio dependen de ella
+        gameState.load();
         audioModule.init();
+        audioModule.enabled = gameState.soundEnabled; // respetar el silencio guardado
         themesModule.init();
-        gameState.load(); // Ya cargado en state.js pero lo hacemos explícito
         adminModule.init();
         
         // 2. Crear UI inicial
@@ -32,7 +33,10 @@ const app = {
         this.applyViewportEnvironmentProfile({ resetBaseline: true });
         uiModule.update();
         uiModule.showOfflineReport();
-        
+        if (gameState.loadError) {
+            uiModule.showNotification(gameState.loadError, 'warning', { duration: 8000 });
+        }
+
         // 3. Inicializar partículas
         this.initializeParticles();
         
@@ -397,18 +401,23 @@ const app = {
             themesModule.toggle(e.target.value);
         });
         
+        // Gestión de partida
+        document.getElementById('exportSaveBtn')?.addEventListener('click', () => gameLogic.exportSave());
+        document.getElementById('importSaveBtn')?.addEventListener('click', () => gameLogic.importSave());
+        document.getElementById('resetSaveBtn')?.addEventListener('click', () => gameLogic.resetGame());
+
+        // Guardar al cerrar u ocultar la pestaña (el guardado normal va con throttle)
+        window.addEventListener('pagehide', () => gameState.save(true));
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                gameState.save(true);
+            }
+        });
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (adminModule.handleKeydown(e)) {
                 return;
-            }
-
-            const isHardReloadShortcut =
-                (e.ctrlKey && e.code === 'F5') ||
-                (e.ctrlKey && e.shiftKey && e.code === 'KeyR');
-
-            if (isHardReloadShortcut) {
-                sessionStorage.setItem(CONFIG.HARD_RELOAD_RESET_FLAG_KEY, '1');
             }
 
             if (e.key === 'Escape') {
@@ -416,12 +425,25 @@ const app = {
             }
 
             if (e.code === 'Space' || e.code === 'Enter') {
+                // No robar la tecla a modales, campos de texto o selects
+                // (p. ej. Enter en un botón de SweetAlert también contaba como click).
+                if (eventsModule.isModalOpen() || adminModule.isConsoleOpen || this.isFormControl(e.target)) {
+                    return;
+                }
+
                 e.preventDefault();
+                // Mantener la tecla pulsada no es un autoclicker.
+                if (e.repeat) return;
                 gameLogic.handleClick();
             }
         });
     },
     
+    isFormControl(target) {
+        if (!target || typeof target.closest !== 'function') return false;
+        return !!target.closest('input, textarea, select, [contenteditable="true"], .swal2-container, #adminConsole');
+    },
+
     // === INICIALIZAR PARTÍCULAS DE FONDO ===
     initializeParticles() {
         const container = document.getElementById('particles-container');

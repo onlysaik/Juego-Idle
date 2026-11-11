@@ -5,24 +5,17 @@
  */
 
 const eventsModule = {
+    // El efecto se guarda con fecha de expiración en gameState.timedEffects;
+    // el game loop lo retira y muestra endMessage al terminar.
     applyTimedEffect(stat, factor, duration, startMessage, endMessage) {
-        const token = gameState.createEffectToken(stat);
-        gameState.activeEffects[stat] *= factor;
+        gameState.addTimedEffect({ stat, factor, durationMs: duration, endMessage });
         if (startMessage) {
             uiModule.showNotification(startMessage, 'success');
         }
+    },
 
-        setTimeout(() => {
-            if (!gameState.hasEffectToken(stat, token)) {
-                return;
-            }
-
-            gameState.consumeEffectToken(stat, token);
-            gameState.activeEffects[stat] /= factor;
-            if (endMessage) {
-                uiModule.showNotification(endMessage, 'info');
-            }
-        }, duration);
+    isModalOpen() {
+        return typeof Swal !== 'undefined' && Swal.isVisible();
     },
 
     applyProjectHealthEffect({ quality = 0, debt = 0 } = {}, message = null, type = 'info') {
@@ -250,7 +243,7 @@ const eventsModule = {
                 eventsModule.applyTimedEffect(
                     'passiveMultiplier',
                     2,
-                    14000,
+                    CONFIG.EVENT_DURATIONS.hiringWave,
                     'Hiring wave: el equipo vuela',
                     'El equipo volvió a ritmo normal'
                 );
@@ -325,6 +318,7 @@ const eventsModule = {
                     position: 'center',
                     heightAuto: false,
                     allowOutsideClick: false,
+                    allowEscapeKey: false,
                     showDenyButton: true,
                     showCancelButton: true,
                     confirmButtonText: 'Aceptar deuda técnica',
@@ -365,6 +359,11 @@ const eventsModule = {
                             'Refactor exitoso: el proyecto respira mejor',
                             'El boost de refactor terminó'
                         );
+                    } else if (result.dismiss !== Swal.DismissReason.cancel) {
+                        // El modal se cerró sin elegir (p. ej. lo reemplazó otro diálogo):
+                        // no se regala la recompensa de "Rechazar alcance".
+                        uiModule.showNotification('El cliente colgó sin que tomaras una decisión', 'info');
+                        return;
                     } else {
                         gameState.addPrestigePoints(1);
                         eventsModule.applyProjectHealthEffect({ quality: 3, debt: -2 }, 'Protegiste el alcance y cuidaste la salud del proyecto', 'success');
@@ -494,6 +493,12 @@ const eventsModule = {
         } = options;
 
         if (respectCooldown && gameState.eventCooldown > 0) {
+            return false;
+        }
+
+        // Una decisión abriría un modal encima de otro (prestige, importar...)
+        // y uno de los dos se cerraría sin respuesta.
+        if (event.type === 'decision' && this.isModalOpen()) {
             return false;
         }
 

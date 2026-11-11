@@ -255,19 +255,7 @@ const adminModule = {
     },
 
     forceCompleteMissionSlot(slot) {
-        const mission = gameState.missions?.[slot];
-        if (!mission) return null;
-
-        if (gameState.missionUsesDelta(mission.metric)) {
-            mission.startValue = gameState.getMissionMetric(mission.metric) - mission.target;
-        } else if (mission.metric === 'streak') {
-            gameState.streak = Math.max(gameState.streak, mission.target);
-            gameState.maxStreak = Math.max(gameState.maxStreak, mission.target);
-        } else if (mission.metric === 'releaseCharge') {
-            gameState.releaseCharge = Math.max(gameState.releaseCharge, mission.target);
-        }
-
-        return gameState.claimMission(slot);
+        return gameState.forceCompleteMission(slot);
     },
 
     completeActiveMissions() {

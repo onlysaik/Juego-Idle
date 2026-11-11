@@ -188,6 +188,136 @@ const gameLogic = {
         gameState.save(true);
     },
 
+    rerollMission(slot) {
+        const result = gameState.rerollMission(slot);
+        if (!result.ok) {
+            if (result.reason === 'cost') {
+                uiModule.showNotification(`Cambiar la misión cuesta ${result.cost.toLocaleString()} código`, 'warning');
+            }
+            return;
+        }
+
+        uiModule.showNotification(`🔄 Nueva misión: ${result.mission.name} · -${result.cost.toLocaleString()} código`, 'info');
+        uiModule.createMissionsUI();
+        uiModule.update();
+        gameState.save(true);
+    },
+
+    // === GESTIÓN DE PARTIDA ===
+    reloadWithoutSaving() {
+        gameEngine.stop();
+        window.location.reload();
+    },
+
+    async exportSave() {
+        gameState.save(true);
+        const code = gameState.exportSave();
+        let copied = false;
+        try {
+            await navigator.clipboard.writeText(code);
+            copied = true;
+        } catch (error) {
+            copied = false;
+        }
+
+        if (typeof Swal === 'undefined') {
+            window.prompt('Copia este texto para guardar tu partida:', code);
+            return;
+        }
+
+        Swal.fire({
+            title: 'Exportar partida',
+            text: copied ? 'Copiado al portapapeles. Guárdalo en un lugar seguro.' : 'Copia este texto y guárdalo en un lugar seguro.',
+            input: 'textarea',
+            inputValue: code,
+            inputAttributes: { readonly: 'readonly', 'aria-label': 'Partida exportada' },
+            confirmButtonText: 'Cerrar',
+            background: '#1a1f3a',
+            color: '#ffffff',
+            buttonsStyling: false,
+            customClass: {
+                popup: 'codeidle-alert-popup',
+                title: 'codeidle-alert-title',
+                htmlContainer: 'codeidle-alert-html',
+                actions: 'codeidle-alert-actions',
+                confirmButton: 'codeidle-alert-confirm'
+            }
+        });
+    },
+
+    async importSave() {
+        let code = null;
+        if (typeof Swal === 'undefined') {
+            code = window.prompt('Pega el texto de tu partida exportada:');
+        } else {
+            const result = await Swal.fire({
+                title: 'Importar partida',
+                text: 'Esto reemplaza tu partida actual.',
+                input: 'textarea',
+                inputPlaceholder: 'Pega aquí el texto exportado',
+                inputAttributes: { 'aria-label': 'Partida a importar' },
+                showCancelButton: true,
+                confirmButtonText: 'Importar',
+                cancelButtonText: 'Cancelar',
+                background: '#1a1f3a',
+                color: '#ffffff',
+                buttonsStyling: false,
+                customClass: {
+                    popup: 'codeidle-alert-popup',
+                    title: 'codeidle-alert-title',
+                    htmlContainer: 'codeidle-alert-html',
+                    actions: 'codeidle-alert-actions',
+                    confirmButton: 'codeidle-alert-confirm',
+                    cancelButton: 'codeidle-alert-cancel'
+                }
+            });
+            if (!result.isConfirmed) return;
+            code = result.value;
+        }
+
+        if (code === null || code === undefined) return;
+        const outcome = gameState.importSave(code);
+        if (!outcome.ok) {
+            uiModule.showNotification(outcome.error, 'warning');
+            return;
+        }
+
+        this.reloadWithoutSaving();
+    },
+
+    async resetGame() {
+        let confirmed = false;
+        if (typeof Swal === 'undefined') {
+            confirmed = window.confirm('¿Borrar la partida y empezar de cero? No se puede deshacer.');
+        } else {
+            const result = await Swal.fire({
+                title: '¿Borrar la partida?',
+                text: 'Perderás todo el progreso, incluida la reputación. Exporta antes si quieres conservarla.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sí, borrar todo',
+                cancelButtonText: 'Cancelar',
+                focusCancel: true,
+                background: '#1a1f3a',
+                color: '#ffffff',
+                buttonsStyling: false,
+                customClass: {
+                    popup: 'codeidle-alert-popup',
+                    title: 'codeidle-alert-title',
+                    htmlContainer: 'codeidle-alert-html',
+                    actions: 'codeidle-alert-actions',
+                    confirmButton: 'codeidle-alert-confirm',
+                    cancelButton: 'codeidle-alert-cancel'
+                }
+            });
+            confirmed = result.isConfirmed;
+        }
+
+        if (!confirmed) return;
+        gameState.wipeSave();
+        this.reloadWithoutSaving();
+    },
+
     publishRelease() {
         const result = gameState.publishRelease();
         if (!result) {
@@ -223,7 +353,7 @@ const gameLogic = {
             return;
         }
 
-        uiModule.showNotification(`🧰 Refactor iniciado · -${result.cost.toLocaleString()} código · salud técnica +${CONFIG.MAINTENANCE.QUALITY_RESTORE} · deuda -${CONFIG.MAINTENANCE.DEBT_REDUCTION}`, 'success');
+        uiModule.showNotification(`🧰 Refactor iniciado · -${result.cost.toLocaleString()} código · salud técnica +${Math.round(result.qualityRestore)} · deuda -${Math.round(result.debtReduction)}`, 'success');
         uiModule.update();
         gameState.save(true);
     },
@@ -232,6 +362,11 @@ const gameLogic = {
         const reward = gameState.calculatePrestigeReward();
         if (reward <= 0) {
             uiModule.showNotification('Necesitas más código total para hacer prestige', 'warning');
+            return;
+        }
+
+        if (eventsModule.isModalOpen()) {
+            uiModule.showNotification('Primero resuelve el diálogo abierto', 'info');
             return;
         }
 
