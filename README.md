@@ -4,10 +4,10 @@ Juego incremental sobre programación con click manual, automatización, release
 
 ## Estado actual
 
-- Click manual con racha, bonificación de click y commits automáticos cada 1000 líneas.
+- Click manual con racha, bonificación de click y commits automáticos cada 1000 líneas. Cada click suma además el 5% de la producción pasiva por segundo (`CLICK_PASSIVE_SHARE`), y bajo el poder de click se muestra cuánto viene de ahí.
 - 9 lenguajes con generación pasiva. Cada partida nueva y cada run tras un prestige empiezan con 1 JavaScript gratis (`STARTING_LANGUAGES`); JavaScript cuesta 50.
 - Hitos por lenguaje y por miembro del equipo: ×2 de producción al tener 10/25/50/100, con barra de progreso en cada tarjeta.
-- 4 upgrades base (Teclado Mecánico, Monitor 4K, Café y VS Code Pro), hasta 25 niveles cada uno; el coste ×1.45 por nivel los autolimita.
+- 4 upgrades base (Teclado Mecánico, Monitor 4K, Café y VS Code Pro), hasta 6 niveles cada uno. Sus multiplicadores se multiplican entre sí, así que el tope es lo que contiene el poder de click; a partir de ahí el click escala con la producción.
 - 8 frameworks con boosts por lenguaje.
 - 6 artefactos meta que cuestan 3 / 6 / 10 / 15 / 22 / 30 de reputación. Los que no puedes pagar muestran cuánto falta.
 - Prestige: reputación = raíz cúbica de (código total / coste), mínimo 1; cada punto da +15% global. El panel Meta muestra en vivo la rep a ganar y el multiplicador resultante.
@@ -108,7 +108,8 @@ Juego-Idle/
   | `ARTIFACTS.*.cost` | 3–30 | Coste en reputación de cada artefacto |
   | `STARTING_LANGUAGES` | `{ javascript: 1 }` | Lenguajes gratis al empezar y tras cada prestige (no al cargar una partida) |
   | `LANGUAGES.javascript.cost` | 50 | Coste base de JavaScript |
-  | `UPGRADE_MAX_OWNED` | 25 | Niveles máximos de cada upgrade |
+  | `UPGRADE_MAX_OWNED` | 6 | Niveles máximos de cada upgrade. Las partidas con más niveles se recortan al cargar |
+  | `CLICK_PASSIVE_SHARE` | 0.05 | Fracción de la producción pasiva por segundo que suma cada click |
   | `MILESTONES` | 10/25/50/100, ×2 | Hitos de producción por unidad |
   | `MISSION_REWARD`, `EVENT_REWARDS` | — | Segundos de producción y mínimos de las recompensas |
   | `GOLDEN_COMMIT` | 60–180 s | Frecuencia y recompensas del commit dorado |

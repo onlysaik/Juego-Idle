@@ -31,7 +31,10 @@ const CONFIG = {
     SAVE_THROTTLE_MS: 3000,
     COMMIT_BATCH_LIMIT: 500,
     UPGRADE_COST_SCALING: 1.45,
-    UPGRADE_MAX_OWNED: 25, // el coste x1.45 por nivel lo autolimita
+    UPGRADE_MAX_OWNED: 6,
+    // Cada click suma esta fracción de la producción pasiva por segundo
+    // (sin efectos temporales ni mantenimiento), para que el click escale con la partida.
+    CLICK_PASSIVE_SHARE: 0.05,
     LANGUAGE_COST_SCALING: 1.19,
     FRAMEWORK_COST_SCALING: 1.22,
     TEAM_COST_SCALING: 1.17,

@@ -119,8 +119,17 @@ const uiModule = {
             const goalValue = CONFIG.CODE_PER_COMMIT.toLocaleString();
             commitProgressMeta.textContent = `Commit ${progressValue} / ${goalValue}`;
         }
-        const clickPower = gameState.calculateClickPower();
-        document.getElementById('cpv').textContent = Math.floor(clickPower);
+        const passiveClickBonus = gameState.calculateClickPassiveBonus();
+        const clickPower = gameState.calculateBaseClickPower() + passiveClickBonus;
+        document.getElementById('cpv').textContent = Math.floor(clickPower).toLocaleString();
+
+        // Desglose: cuánto del click viene de la producción pasiva.
+        const passiveShareLabel = document.getElementById('clickPassiveShare');
+        if (passiveShareLabel) {
+            const sharePercent = Math.round(CONFIG.CLICK_PASSIVE_SHARE * 100);
+            passiveShareLabel.hidden = passiveClickBonus < 1;
+            passiveShareLabel.textContent = `incluye +${this.formatCompactNumber(passiveClickBonus)} (${sharePercent}% de tu producción)`;
+        }
 
         // MEJORA 1: Aura de progresión - cambiar clase si power es alto
         const button = document.getElementById('clickBtn');

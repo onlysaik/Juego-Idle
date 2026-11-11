@@ -2392,6 +2392,14 @@ body[data-shell-density="tight"] .editor-tab {
     background: rgba(255, 0, 110, 0.18);
 }
 
+/* Desglose del click: parte que viene de la producción pasiva.
+   `body` iguala la especificidad de body[data-shell-density] .click-info p */
+body .click-info p.click-passive-share {
+    margin: 0.15rem 0 0;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
 /* Hitos por unidad (lenguajes y equipo) */
 .milestone {
     width: 100%;

@@ -1416,7 +1416,8 @@ class GameState {
         return earned;
     }
 
-    calculateClickPower() {
+    // Potencia propia del click: upgrades, prestige, bonus, racha, efectos y mantenimiento.
+    calculateBaseClickPower() {
         const specialization = this.getSpecialization();
         const clickBonus = (specialization?.clickBoost || 0) + this.getTeamClickBonus() + this.getArtifactBonus('clickBoost');
         const streakBonus = Math.min(
@@ -1425,6 +1426,17 @@ class GameState {
         );
         const maintenanceMultiplier = this.getMaintenanceStatus().clickMultiplier;
         return this.codePerClick * this.getPrestigeMultiplier() * (1 + clickBonus + streakBonus) * this.getEffectMultiplier('clickMultiplier') * maintenanceMultiplier;
+    }
+
+    // Parte del click que viene de la producción pasiva (CLICK_PASSIVE_SHARE).
+    // Se suma sin multiplicadores de click: el frenesí o la racha no la amplifican.
+    // Sin recursión: calculateGeneration() nunca llama a calculateClickPower().
+    calculateClickPassiveBonus() {
+        return CONFIG.CLICK_PASSIVE_SHARE * this.calculateGeneration({ includeTimedEffects: false, includeMaintenance: false });
+    }
+
+    calculateClickPower() {
+        return this.calculateBaseClickPower() + this.calculateClickPassiveBonus();
     }
 
     // === CÁLCULOS ===
