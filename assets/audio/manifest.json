@@ -1,0 +1,440 @@
+{
+  "ui_click": {
+    "files": [
+      "assets/audio/ui/ui_click_1",
+      "assets/audio/ui/ui_click_2",
+      "assets/audio/ui/ui_click_3",
+      "assets/audio/ui/ui_click_4",
+      "assets/audio/ui/ui_click_5"
+    ],
+    "bus": "ui",
+    "volume": 1.0,
+    "pitchRange": 0.08,
+    "durationMs": 102,
+    "source": "Kenney UI Audio: click1-5",
+    "license": "Kenney (CC0)"
+  },
+  "ui_tick": {
+    "files": [
+      "assets/audio/ui/ui_tick_1",
+      "assets/audio/ui/ui_tick_2"
+    ],
+    "bus": "ui",
+    "volume": 1.0,
+    "pitchRange": 0.05,
+    "durationMs": 23,
+    "source": "Kenney Interface Sounds: tick_001-002",
+    "license": "Kenney (CC0)"
+  },
+  "ui_pop": {
+    "files": [
+      "assets/audio/ui/ui_pop"
+    ],
+    "bus": "ui",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 122,
+    "source": "Cinematic Sound Design - Interface & Infographics: Interface Pop High Short",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "ui_confirm": {
+    "files": [
+      "assets/audio/ui/ui_confirm_1",
+      "assets/audio/ui/ui_confirm_2"
+    ],
+    "bus": "ui",
+    "volume": 1.0,
+    "pitchRange": 0.04,
+    "durationMs": 532,
+    "source": "Kenney Interface Sounds: confirmation_002-003",
+    "license": "Kenney (CC0)"
+  },
+  "ui_error": {
+    "files": [
+      "assets/audio/ui/ui_error_1",
+      "assets/audio/ui/ui_error_2"
+    ],
+    "bus": "ui",
+    "volume": 1.0,
+    "pitchRange": 0.03,
+    "durationMs": 448,
+    "source": "Cinematic Sound Design - System & UI Feedback: Interface Deny Low Fat Dark; Kenney Interface Sounds: error_003",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion) / Kenney (CC0)"
+  },
+  "ui_beep": {
+    "files": [
+      "assets/audio/ui/ui_beep"
+    ],
+    "bus": "ui",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 120,
+    "source": "Kenney Digital Audio: tone1",
+    "license": "Kenney (CC0)"
+  },
+  "ui_decode": {
+    "files": [
+      "assets/audio/ui/ui_decode"
+    ],
+    "bus": "ui",
+    "volume": 1.0,
+    "pitchRange": 0.05,
+    "durationMs": 1600,
+    "source": "Cinematic Sound Design - User Interface: Readout Thin Long",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "ui_glitch": {
+    "files": [
+      "assets/audio/ui/ui_glitch_1",
+      "assets/audio/ui/ui_glitch_2",
+      "assets/audio/ui/ui_glitch_3",
+      "assets/audio/ui/ui_glitch_4"
+    ],
+    "bus": "ui",
+    "volume": 1.0,
+    "pitchRange": 0.1,
+    "durationMs": 36,
+    "source": "Kenney Interface Sounds: glitch_001-004",
+    "license": "Kenney (CC0)"
+  },
+  "ui_whoosh": {
+    "files": [
+      "assets/audio/ui/ui_whoosh"
+    ],
+    "bus": "ui",
+    "volume": 1.0,
+    "pitchRange": 0.1,
+    "durationMs": 271,
+    "source": "Cinematic Sound Design - Ultra Transitions & Impacts: Woosh Sweep Slide Infographics Basic",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "coin": {
+    "files": [
+      "assets/audio/sfx/coin"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 450,
+    "source": "Cinematic Sound Design - Hybrid Game & UI: Foley Coin Flip Single Fast",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "coin_burst": {
+    "files": [
+      "assets/audio/sfx/coin_burst"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.05,
+    "durationMs": 719,
+    "source": "Cinematic Sound Design - UI Interaction: Ting Coins",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "bell": {
+    "files": [
+      "assets/audio/sfx/bell_1",
+      "assets/audio/sfx/bell_2"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.03,
+    "durationMs": 1532,
+    "source": "Kenney Impact Sounds: impactBell_heavy_000-001",
+    "license": "Kenney (CC0)"
+  },
+  "metal_hit": {
+    "files": [
+      "assets/audio/sfx/metal_hit_1",
+      "assets/audio/sfx/metal_hit_2",
+      "assets/audio/sfx/metal_hit_3",
+      "assets/audio/sfx/metal_hit_4",
+      "assets/audio/sfx/metal_hit_5"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.06,
+    "durationMs": 367,
+    "source": "Kenney Impact Sounds: impactMetal_heavy_000-004",
+    "license": "Kenney (CC0)"
+  },
+  "powerup": {
+    "files": [
+      "assets/audio/sfx/powerup"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.03,
+    "durationMs": 1332,
+    "source": "Epic Stock Media - Anime Game: Power Up Bright Positive Successful",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "reveal_arp": {
+    "files": [
+      "assets/audio/sfx/reveal_arp"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 1372,
+    "source": "Cinematic Sound Design - User Interface: Button Arp Twinkle",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "streak_chord": {
+    "files": [
+      "assets/audio/sfx/streak_chord"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 377,
+    "source": "CB Sounddesign - Applicable Sounds: UIMisc Kalimba 3 Up",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "mission": {
+    "files": [
+      "assets/audio/sfx/mission"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.02,
+    "durationMs": 634,
+    "source": "Cinematic Sound Design - User Interface: Interface Plucks Happy",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "glitch_error": {
+    "files": [
+      "assets/audio/sfx/glitch_error"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.05,
+    "durationMs": 1399,
+    "source": "The Noisery - Rich Glitch: Designed Glitch Corrupted Data Error",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "aura_loop": {
+    "files": [
+      "assets/audio/sfx/aura_loop"
+    ],
+    "bus": "ambient",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 4000,
+    "source": "InMotionAudio - Arc: ELECBuzz Buzz27 (loop recortado)",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "crack": {
+    "files": [
+      "assets/audio/sfx/crack_1",
+      "assets/audio/sfx/crack_2"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.05,
+    "durationMs": 1399,
+    "source": "Alexander Kopeikin - 100 kHz Designed Ice: surface cracking fissure; ice block snapping",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "glass_small": {
+    "files": [
+      "assets/audio/sfx/glass_small_1",
+      "assets/audio/sfx/glass_small_2",
+      "assets/audio/sfx/glass_small_3"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.08,
+    "durationMs": 248,
+    "source": "Kenney Impact Sounds: impactGlass_heavy_000/002/003",
+    "license": "Kenney (CC0)"
+  },
+  "shatter": {
+    "files": [
+      "assets/audio/epic/shatter"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 2361,
+    "source": "Epic Stock Media - Tower Defense Game: Skill Freeze Whoosh Break Impact Shatter",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "shards": {
+    "files": [
+      "assets/audio/sfx/shards"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.04,
+    "durationMs": 2393,
+    "source": "Epic Stock Media - Elemental Mutation Whooshes: Whoosh Glass Crystal Fragments",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "whoosh": {
+    "files": [
+      "assets/audio/sfx/whoosh"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.08,
+    "durationMs": 1886,
+    "source": "Cinematic Sound Design - Colossal Impacts: Woosh Debris",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "confetti_whoosh": {
+    "files": [
+      "assets/audio/sfx/confetti_whoosh"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.03,
+    "durationMs": 1819,
+    "source": "Cinematic Sound Design - Hybrid Game & UI: Cofetti Whoosh Pluck Spill",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "rocket": {
+    "files": [
+      "assets/audio/sfx/rocket"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 3500,
+    "source": "344 Audio - Air Designed: AEROJet Blast Off Clean",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "fireworks": {
+    "files": [
+      "assets/audio/sfx/fireworks"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 4500,
+    "source": "Ivo Vicic - Fireworks FX: powerful explosions multiples in a row near",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "fanfare": {
+    "files": [
+      "assets/audio/sfx/fanfare"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 1714,
+    "source": "Kenney Music Jingles: jingles_NES00",
+    "license": "Kenney (CC0)"
+  },
+  "fanfare_small": {
+    "files": [
+      "assets/audio/sfx/fanfare_small_1",
+      "assets/audio/sfx/fanfare_small_2",
+      "assets/audio/sfx/fanfare_small_3"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 1023,
+    "source": "Kenney Music Jingles: jingles_NES05/11/13",
+    "license": "Kenney (CC0)"
+  },
+  "riser_short": {
+    "files": [
+      "assets/audio/epic/riser_short"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 1000,
+    "source": "Diseno propio: cola invertida de Cinematic Sound Design - Impact Hit Rapid Chord Reverb",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "riser_long": {
+    "files": [
+      "assets/audio/epic/riser_long"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 2500,
+    "source": "Diseno propio: cola invertida de Federico Soler - Effective Trailer Booms 075 + 344 Audio AEROJet Blast Off",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "drone_low": {
+    "files": [
+      "assets/audio/epic/drone_low"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 2500,
+    "source": "Cinematic Sound Design - Ultra Transitions & Impacts: Transition Braam Slow Dark Creepy (subida hasta el pico)",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "impact_light": {
+    "files": [
+      "assets/audio/epic/impact_light"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.02,
+    "durationMs": 2210,
+    "source": "Cinematic Sound Design - Ultra Transitions & Impacts: Impact Hit Rapid Chord Reverb",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "impact_medium": {
+    "files": [
+      "assets/audio/epic/impact_medium"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.02,
+    "durationMs": 3004,
+    "source": "Epic Stock Media - Elemental Mutation: Impact Electric Tonal Deep Glitch",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "impact_heavy": {
+    "files": [
+      "assets/audio/epic/impact_heavy"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 6004,
+    "source": "Federico Soler - Effective Trailer Booms Vol. 2: 214",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "sub_drop": {
+    "files": [
+      "assets/audio/epic/sub_drop"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 3404,
+    "source": "344 Audio - Bass Drops & Downers Vol. 2: Bass Drop & Downer Medium 15",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "braam": {
+    "files": [
+      "assets/audio/epic/braam"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 6080,
+    "source": "Jake Fielding - Cinematic Horn Braams: Epic Dark Huge 67",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  },
+  "reveal_chord": {
+    "files": [
+      "assets/audio/epic/reveal_chord"
+    ],
+    "bus": "sfx",
+    "volume": 1.0,
+    "pitchRange": 0.0,
+    "durationMs": 2829,
+    "source": "Epic Stock Media - Fantasy Game 2: Magic Light Spell Enchantment Tonal Bright",
+    "license": "Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribucion)"
+  }
+}

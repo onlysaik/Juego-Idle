@@ -139,7 +139,12 @@ const onboardingModule = {
         const feature = gameState.getFeatureDefinition(key);
         if (!feature?.tip || gameState.hasSeenTip(key)) return false;
         gameState.markTipSeen(key);
-        uiModule.showCommitTip(key, feature.tip);
+        const notification = uiModule.showCommitTip(key, feature.tip);
+        // El texto del tip se descifra con su sonido (coreografía 'unlock').
+        feedbackModule.play('unlock', {
+            element: notification?.querySelector('.commit-tip-text'),
+            text: feature.tip.text
+        });
         return true;
     },
 

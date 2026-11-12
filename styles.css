@@ -2672,6 +2672,206 @@ body .click-info p.click-passive-share {
     }
 }
 
+/* =========== Efectos visuales (fx.js) ================================== */
+/* Capa por encima del juego y por debajo del commit dorado (9000),
+   las notificaciones (9999) y los modales (20000+). */
+.fx-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 8500;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.fx-flash {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    will-change: opacity;
+}
+
+.fx-cracks {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.fx-crack-line,
+.fx-crack-glow {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.fx-crack-line {
+    stroke: rgba(230, 250, 255, 0.95);
+}
+
+/* Halo barato: trazo ancho translúcido debajo (sin filter, que costaba ~18 ms/frame) */
+.fx-crack-glow {
+    stroke: rgba(0, 212, 255, 0.28);
+}
+
+.fx-particles {
+    position: absolute;
+    inset: 0;
+}
+
+.fx-particles canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.fx-shard {
+    position: absolute;
+    margin: -8px 0 0 -8px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(0, 212, 255, 0.7));
+    clip-path: polygon(50% 0, 100% 70%, 20% 100%);
+    will-change: transform, opacity;
+}
+
+.fx-banner {
+    position: absolute;
+    top: 38%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: calc(100vw - 32px);
+    font-family: 'Fira Code', monospace;
+    font-size: clamp(1.4rem, 5vw, 3rem);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fx-banner-accent {
+    color: var(--accent);
+    text-shadow: 0 0 18px rgba(0, 255, 136, 0.6);
+}
+
+.fx-banner-gold {
+    color: #ffd700;
+    text-shadow: 0 0 22px rgba(255, 183, 3, 0.75);
+}
+
+/* "Reducir movimiento" elegido en el juego: también frena las animaciones CSS decorativas. */
+body[data-reduce-motion="true"] .golden-commit,
+body[data-reduce-motion="true"] .tab-new-badge,
+body[data-reduce-motion="true"] .panel-view-btn.has-new::after,
+body[data-reduce-motion="true"] .mobile-view-btn.has-new::after,
+body[data-reduce-motion="true"] .progress-bar-animated {
+    animation: none !important;
+}
+
+/* =========== Panel de sonido y efectos ================================= */
+.settings-panel {
+    position: fixed;
+    top: 72px;
+    right: 16px;
+    z-index: 15000;
+    width: min(340px, calc(100vw - 32px));
+    max-height: calc(100vh - 96px);
+    overflow-y: auto;
+    padding: 1rem 1.1rem;
+    border: 1px solid rgba(0, 212, 255, 0.35);
+    border-radius: 14px;
+    background: var(--card-bg, #1a1f3a);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+.settings-panel[hidden] {
+    display: none;
+}
+
+.settings-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.settings-panel-header h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.settings-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    background: transparent;
+}
+
+.settings-close:hover,
+.settings-close:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.settings-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 0.75rem 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settings-slider {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.settings-slider-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+}
+
+.settings-slider-head output {
+    font-family: 'Fira Code', monospace;
+    color: var(--accent);
+}
+
+.settings-slider input[type="range"] {
+    width: 100%;
+    accent-color: var(--primary);
+}
+
+.settings-toggle {
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+    cursor: pointer;
+}
+
+.settings-toggle input {
+    margin-top: 0.2rem;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+    flex: 0 0 auto;
+}
+
+.settings-toggle-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    font-size: 0.85rem;
+}
+
+.settings-toggle-copy small {
+    color: var(--text-secondary);
+    font-size: 0.74rem;
+    line-height: 1.35;
+}
+
 .mission-claim-btn:not(:disabled):hover,
 .meta-action-btn:not(:disabled):hover,
 .specialization-card:hover,

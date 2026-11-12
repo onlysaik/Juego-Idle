@@ -88,18 +88,9 @@ const achievementsModule = {
     // Desbloquear logro específico
     unlock(key) {
         if (gameState.unlockAchievement(key)) {
-            // Confetti
-            if (typeof confetti !== 'undefined') {
-                confetti({
-                    particleCount: uiModule.scaleCelebrationCount(100),
-                    spread: 70,
-                    origin: { y: 0.6 }
-                });
-            }
-            
-            // Sonido
-            audioModule.play('achievement');
-            
+            // Sonido + destello + confeti (coreografía mediana: varios logros a la vez se encolan)
+            feedbackModule.play('achievement');
+
             // Actualizar UI
             uiModule.createAchievementsUI();
         }

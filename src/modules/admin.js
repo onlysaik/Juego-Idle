@@ -141,7 +141,7 @@ const adminModule = {
         }
 
         if (command === 'help') {
-            this.setStatus('Comandos: godmode, addcode N, addrep N, creative on|off, decision, event, golden, missions, release, resources, unlockall.', 'success');
+            this.setStatus('Comandos: godmode, addcode N, addrep N, creative on|off, decision, event, golden, missions, release, resources, unlockall, fx <id>|list, sound <id>|list.', 'success');
             return true;
         }
 
@@ -193,6 +193,10 @@ const adminModule = {
                 goldenCommitModule.spawn();
                 this.setStatus('Commit dorado generado.', 'success');
                 return true;
+            case 'fx':
+                return this.runFxCommand(args[0]);
+            case 'sound':
+                return this.runSoundCommand(args[0]);
             case 'missions':
                 this.completeActiveMissions();
                 return true;
@@ -253,12 +257,67 @@ const adminModule = {
 
     forceDecision() {
         if (!this.ensureAdminEnabled()) return;
-        eventsModule.triggerById('clientDeadline', { playTriggerSound: false });
+        eventsModule.triggerById('clientDeadline');
     },
 
     forceEvent() {
         if (!this.ensureAdminEnabled()) return;
-        eventsModule.triggerRandomStandard({ playTriggerSound: false });
+        eventsModule.triggerRandomStandard();
+    },
+
+    // fx <id>: reproduce una coreografía con un contexto de prueba. fx list: las lista.
+    runFxCommand(id) {
+        const ids = feedbackModule.list();
+        if (!id || id === 'list') {
+            this.setStatus(`Coreografías (${ids.length}): ${ids.join(', ')}`, 'success');
+            return true;
+        }
+        if (!ids.includes(id)) {
+            this.setStatus(`Coreografía desconocida: ${id}. Usa "fx list".`, 'warning');
+            return true;
+        }
+
+        const target = document.getElementById('clickBtn');
+        const rect = target?.getBoundingClientRect();
+        const code = Math.floor(gameState.code);
+        const context = {
+            element: target,
+            x: rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
+            y: rect ? rect.top + rect.height / 2 : window.innerHeight / 2,
+            from: code,
+            to: code,
+            text: 'fx de prueba: coreografía en ejecución',
+            version: gameState.getVersionLabel(),
+            points: String(gameState.prestigePoints),
+            banner: `fx ${id}`,
+            pitch: 0
+        };
+        // Cerrar la consola para ver el efecto (y no tapar el destello).
+        this.closeConsole();
+        const result = feedbackModule.play(id, context);
+        uiModule.showNotification(`fx ${id}: ${result === 'queued' ? 'en cola' : result ? 'reproduciendo' : 'descartada por prioridad'}`, 'info', { duration: 1500 });
+        return true;
+    },
+
+    // sound <id>: reproduce un sonido de SOUND_MANIFEST (o su respaldo ZzFX). sound list: los lista.
+    runSoundCommand(id) {
+        const ids = audioModule.list();
+        if (!id || id === 'list') {
+            this.setStatus(`Sonidos (${ids.length}): ${ids.join(', ')}`, 'success');
+            return true;
+        }
+        const known = ids.includes(id) || CONFIG.SOUND_FALLBACKS[id];
+        if (!known) {
+            this.setStatus(`Sonido desconocido: ${id}. Usa "sound list".`, 'warning');
+            return true;
+        }
+        audioModule.unlock();
+        const handle = audioModule.play(id);
+        const meta = SOUND_MANIFEST?.[id];
+        this.setStatus(handle
+            ? `▶ ${id}${handle.fallback ? ' (respaldo ZzFX)' : ''}${meta ? ` · bus ${meta.bus} · ${meta.durationMs} ms · ${meta.desc}` : ''}`
+            : 'El sonido está silenciado.', handle ? 'success' : 'warning');
+        return true;
     },
 
     forceCompleteMissionSlot(slot) {

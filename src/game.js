@@ -22,6 +22,7 @@ const gameEngine = {
             });
 
             goldenCommitModule.tick(now);
+            audioModule.updateStreakAura(now); // el aura se apaga cuando la racha caduca
             onboardingModule.tick(now); // checkFeatureUnlocks() como mucho 1 vez/s
 
             let deltaTime = rawDelta;

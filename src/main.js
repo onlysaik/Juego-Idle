@@ -15,8 +15,11 @@ const app = {
         
         // 1. Cargar partida antes que nada: tema y audio dependen de ella
         gameState.load();
-        audioModule.init();
-        audioModule.enabled = gameState.soundEnabled; // respetar el silencio guardado
+        audioModule.init(); // aplica los volúmenes guardados en gameState.audioSettings
+        audioModule.setEnabled(gameState.soundEnabled); // respetar el silencio guardado
+        fxModule.init();
+        feedbackModule.init();
+        settingsModule.init();
         themesModule.init();
         adminModule.init();
         
@@ -424,6 +427,13 @@ const app = {
 
             if (e.key === 'Escape') {
                 closeHeaderStatsMenu();
+                // Primero cierra el panel de sonido; si no hay, salta la coreografía en curso.
+                if (settingsModule.isOpen()) {
+                    settingsModule.close();
+                } else if (!eventsModule.isModalOpen() && feedbackModule.skip()) {
+                    e.preventDefault();
+                }
+                return;
             }
 
             if (e.code === 'Space' || e.code === 'Enter') {
@@ -443,7 +453,7 @@ const app = {
     
     isFormControl(target) {
         if (!target || typeof target.closest !== 'function') return false;
-        return !!target.closest('input, textarea, select, [contenteditable="true"], .swal2-container, #adminConsole');
+        return !!target.closest('input, textarea, select, [contenteditable="true"], .swal2-container, #adminConsole, #settingsPanel');
     },
 
     // === INICIALIZAR PARTÍCULAS DE FONDO ===
@@ -453,8 +463,10 @@ const app = {
         if (container.children.length > 0) return;
 
         const profile = this.visualPerformanceProfile || this.applyVisualPerformanceProfile();
-        if (profile.backgroundParticles <= 0) {
-            container.setAttribute('aria-hidden', 'true');
+        container.setAttribute('aria-hidden', 'true');
+        // Partículas de fondo: decorativas y en movimiento continuo, así que no
+        // se crean con "Reducir movimiento" ni sin GSAP.
+        if (profile.backgroundParticles <= 0 || typeof gsap === 'undefined' || fxModule.isReducedMotion()) {
             return;
         }
         
@@ -470,17 +482,27 @@ const app = {
                 top: ${Math.random() * 100}%;
             `;
             container.appendChild(particle);
-            
-            anime({
-                targets: particle,
-                translateY: [0, Math.random() * -100 - 50],
-                translateX: [0, Math.sin(Math.random() * Math.PI) * 50],
-                opacity: [{ value: 0, duration: 500 }, { value: Math.random() * 0.5, duration: 500 }],
-                duration: Math.random() * 3000 + (profile.key === 'balanced' ? 2600 : 3200),
-                loop: true,
-                easing: 'easeInOutQuad'
-            });
+
+            const peakOpacity = Math.random() * 0.5;
+            gsap.timeline({ repeat: -1 })
+                .fromTo(particle,
+                    { y: 0, x: 0 },
+                    {
+                        y: Math.random() * -100 - 50,
+                        x: Math.sin(Math.random() * Math.PI) * 50,
+                        duration: (Math.random() * 3000 + (profile.key === 'balanced' ? 2600 : 3200)) / 1000,
+                        ease: 'power1.inOut'
+                    }, 0)
+                .fromTo(particle, { opacity: 0 }, { opacity: peakOpacity, duration: 0.5 }, 0);
         }
+    },
+
+    // Quita las partículas de fondo (al activar "Reducir movimiento").
+    clearParticles() {
+        const container = document.getElementById('particles-container');
+        if (!container) return;
+        if (typeof gsap !== 'undefined') gsap.killTweensOf(container.children);
+        container.innerHTML = '';
     }
 };
 

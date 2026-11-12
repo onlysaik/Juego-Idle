@@ -99,17 +99,25 @@ const uiModule = {
         this.update();
     },
 
+    // Escribe un texto salvo que un efecto (scramble/odometer) lo esté animando.
+    setText(elementOrId, text) {
+        const element = typeof elementOrId === 'string' ? document.getElementById(elementOrId) : elementOrId;
+        if (!element || element.dataset.fxLock) return;
+        const value = String(text);
+        if (element.textContent !== value) element.textContent = value;
+    },
+
     // === ACTUALIZACIÓN DE STATS ===
     updateStats() {
-        document.getElementById('currentCodeHeader').textContent = Math.floor(gameState.code).toLocaleString();
+        this.setText('currentCodeHeader', Math.floor(gameState.code).toLocaleString());
         document.getElementById('commits').textContent = gameState.commits;
         document.getElementById('streak').textContent = gameState.streak;
         document.getElementById('achievementCount').textContent = achievementsModule.getCount();
-        document.getElementById('prestigePoints').textContent = gameState.prestigePoints;
+        this.setText('prestigePoints', gameState.prestigePoints);
     },
-    
+
     updateProgress() {
-        document.getElementById('codeDisplay').textContent = Math.floor(gameState.code).toLocaleString();
+        this.setText('codeDisplay', Math.floor(gameState.code).toLocaleString());
         const rawProgressPercent = (gameState.commitProgress / CONFIG.CODE_PER_COMMIT) * 100;
         const progressPercent = Math.max(0, Math.min(100, rawProgressPercent));
         document.getElementById('codeBar').style.width = progressPercent + '%';
@@ -508,7 +516,7 @@ const uiModule = {
         const trendLanguageData = CONFIG.LANGUAGES[gameState.currentTrend?.languageKey];
         const trendFrameworkData = CONFIG.FRAMEWORKS[gameState.currentTrend?.frameworkKey];
 
-        if (releaseVersion) releaseVersion.textContent = gameState.getVersionLabel();
+        if (releaseVersion) this.setText(releaseVersion, gameState.getVersionLabel());
         if (releaseCharge) releaseCharge.textContent = `${gameState.releaseCharge}/${CONFIG.RELEASE_CHARGE_REQUIRED}`;
         if (releaseReward) {
             releaseReward.textContent = reward.code > 0
@@ -713,16 +721,6 @@ const uiModule = {
         label.textContent = progress.complete
             ? `Todos los hitos · x${progress.multiplier}`
             : `Hito ${owned}/${progress.next} → x${progress.nextMultiplier}`;
-    },
-
-    celebrateMilestone() {
-        if (typeof confetti === 'undefined') return;
-        confetti({
-            particleCount: this.scaleCelebrationCount(110),
-            spread: 75,
-            colors: ['#00d4ff', '#ffd700', '#ff006e'],
-            origin: { y: 0.6 }
-        });
     },
 
     // === CREAR TARJETAS DE LENGUAJES ===
@@ -1020,13 +1018,16 @@ const uiModule = {
             notification.__dismissTimer = null;
         }
 
-        anime({
-            targets: notification,
+        if (typeof gsap === 'undefined') {
+            notification.remove();
+            return;
+        }
+        gsap.to(notification, {
             opacity: 0,
-            translateX: 100,
-            duration: 220,
-            easing: 'easeOutQuad',
-            complete: () => notification.remove()
+            x: fxModule.isReducedMotion() ? 0 : 100,
+            duration: 0.22,
+            ease: 'power2.out',
+            onComplete: () => notification.remove()
         });
     },
 
@@ -1293,52 +1294,12 @@ const uiModule = {
     // === BOTÓN CLICK CON ANIMACIÓN ===
     animateClickButton() {
         if (!this.getVisualPerformanceProfile().enableClickAnimation) return;
+        if (typeof gsap === 'undefined' || fxModule.isReducedMotion()) return;
 
+        // El commit (coreografía 'commit') usa el mismo botón: no pisar su latido.
         const button = document.getElementById('clickBtn');
-        anime({
-            targets: button,
-            scale: [1, 0.95, 1],
-            duration: 100
-        });
-    },
-    
-    // === COMMIT ANIMATION ===
-    animateCommit() {
-        if (!this.getVisualPerformanceProfile().enableCommitAnimation) return;
-
-        // MEJORA 3: Efecto commit en cascada
-        const button = document.getElementById('clickBtn');
-        const bar = document.getElementById('codeBar').parentElement;
-        
-        // Flash de la barra
-        anime({
-            targets: bar,
-            boxShadow: [
-                '0 0 10px rgba(0, 255, 136, 0)',
-                '0 0 50px rgba(0, 255, 136, 0.9)',
-                '0 0 10px rgba(0, 255, 136, 0)'
-            ],
-            duration: 400,
-            easing: 'easeOutQuad'
-        });
-        
-        // Reset de la barra (se pone a 0 con animación)
-        anime({
-            targets: button,
-            scale: [1, 1.15, 1],
-            duration: 300,
-            easing: 'easeOutQuad'
-        });
-        
-        // Pulse de la barra de progreso
-        anime({
-            targets: {progress: 100},
-            progress: [100, 0],
-            duration: 300,
-            update: function(anim) {
-                // La barra ya vuelve a 0 en el código, esto es solo visual feedback
-            }
-        });
+        if (gsap.isTweening(button)) return;
+        gsap.fromTo(button, { scale: 1 }, { scale: 0.95, duration: 0.05, yoyo: true, repeat: 1, clearProps: 'scale' });
     }
 };
 

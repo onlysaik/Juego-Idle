@@ -57,7 +57,7 @@ const goldenCommitModule = {
         this.el = button;
         this.active = true;
         this.expiresAt = now + CONFIG.GOLDEN_COMMIT.LIFETIME_MS;
-        audioModule.play('event');
+        feedbackModule.play('golden_spawn');
     },
 
     despawn() {
@@ -72,22 +72,21 @@ const goldenCommitModule = {
     claim() {
         if (!this.active) return;
 
-        const origin = this.getConfettiOrigin();
+        const origin = this.getCenter();
+        const codeBefore = gameState.code;
         const reward = gameState.applyGoldenCommitReward(gameState.rollGoldenCommitReward());
         this.despawn();
 
         uiModule.showNotification(this.describeReward(reward), 'success', { duration: 4500 });
-        audioModule.play('achievement');
-        if (typeof confetti !== 'undefined') {
-            confetti({
-                particleCount: uiModule.scaleCelebrationCount(70),
-                spread: 60,
-                colors: ['#ffd700', '#ffb703', '#fff3b0'],
-                origin
-            });
-        }
-
         uiModule.update();
+        // Monedas ascendentes + explosión dorada donde estaba el botón; el contador rueda
+        // hasta el nuevo valor si la recompensa fue código.
+        feedbackModule.play('golden_claim', {
+            x: origin.x,
+            y: origin.y,
+            from: Math.floor(codeBefore),
+            to: Math.floor(gameState.code)
+        });
         achievementsModule.checkAll();
         gameState.save(true);
     },
@@ -102,13 +101,11 @@ const goldenCommitModule = {
         return `✨ Commit dorado: +${reward.commits} carga de release`;
     },
 
-    getConfettiOrigin() {
-        if (!this.el?.getBoundingClientRect) return { y: 0.5 };
+    // Centro del botón en píxeles (origen de la explosión).
+    getCenter() {
+        if (!this.el?.getBoundingClientRect) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
         const rect = this.el.getBoundingClientRect();
-        return {
-            x: (rect.left + rect.width / 2) / window.innerWidth,
-            y: (rect.top + rect.height / 2) / window.innerHeight
-        };
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     }
 };
 

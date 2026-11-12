@@ -1071,6 +1071,286 @@ const CONFIG = {
         { type: 'prestige', onlyWhenAvailable: false, label: 'llega al prestige' }
     ],
 
+    // === AUDIO ===
+    // Buses de mezcla. bus, volume y pitchRange de cada sonido se leen de
+    // SOUND_MANIFEST (assets/audio/sounds.js); aquí solo va la mezcla.
+    // El volumen efectivo de un sonido = manifest.volume × bus × master.
+    AUDIO_BUSES: {
+        master: { volume: 1 },
+        ui: { volume: 0.7 },
+        sfx: { volume: 0.8 },
+        music: { volume: 0.4 },
+        ambient: { volume: 0.4 }
+    },
+    // Sliders del panel de sonido (0–100). El valor por defecto sale de AUDIO_BUSES.
+    // "Música" controla también el bus ambient (aura de racha): no hay pistas de música todavía.
+    AUDIO_SLIDERS: [
+        { key: 'ui', label: 'Interfaz', buses: ['ui'] },
+        { key: 'sfx', label: 'Efectos', buses: ['sfx'] },
+        { key: 'music', label: 'Música', buses: ['music', 'ambient'] }
+    ],
+    AUDIO: {
+        PRELOAD_BUSES_ON_INIT: ['ui'], // el resto se precarga tras la primera interacción
+        // Limitador en el master (solo con Web Audio): evita saturar cuando se apilan sonidos.
+        // Compresor (threshold/knee/ratio/attack/release) + recorte suave final:
+        // lineal hasta KNEE_START y nunca por encima de CEILING (0.98 ≈ -0.2 dBFS).
+        LIMITER: { threshold: -3, knee: 0, ratio: 20, attack: 0.002, release: 0.12, KNEE_START: 0.7, CEILING: 0.98 },
+        // Teclado mecánico: pool de instancias de ui_click con perfil según el nivel del upgrade.
+        KEYBOARD: {
+            SOUND: 'ui_click',
+            POOL_SIZE: 6, // máximo de teclas sonando a la vez; la más vieja se corta
+            BASE: { volume: 0.55, rate: 1.06 }, // sin Teclado Mecánico
+            PER_LEVEL: { volume: 0.05, rate: -0.025 }, // cada nivel: más cuerpo y tono más grave
+            LIMITS: { volume: 0.9, rate: 0.9 },
+            JITTER: 0.06 // ± variación de tono por pulsación
+        },
+        // Racha: aura en bucle (bus ambient) mientras la racha supera el umbral.
+        STREAK_AURA: { SOUND: 'aura_loop', MIN_STREAK: 50, VOLUME: 0.5, FADE_MS: 600 },
+        STREAK_CHORDS: [25, 50, 100] // coreografía 'streak' al alcanzar estas rachas
+    },
+    // Respaldo con ZzFX (parámetros de zzfx()). Se usa si los archivos de un sonido
+    // fallan, o para sonidos que no existen en SOUND_MANIFEST. Los ids sin entrada
+    // usan el respaldo de su bus.
+    SOUND_FALLBACKS: {
+        ui_click: [0.6, 0.05, 1400, 0, 0.005, 0.02, 1, 2],
+        ui_error: [0.8, 0.05, 180, 0.01, 0.06, 0.16, 2, 1, -12],
+        coin: [0.8, 0.05, 1500, 0, 0.03, 0.18, 1, 1.5, 0, 0, 400, 0.05],
+        glitch_error: [0.8, 0.4, 320, 0, 0.06, 0.12, 3, 1, 0, 0, 0, 0, 0.02, 8, 0, 0.5],
+        impact_heavy: [1, 0.05, 55, 0.01, 0.12, 0.7, 4, 2, -2, 0, 0, 0, 0, 1],
+        braam: [1, 0.05, 70, 0.05, 0.6, 1.2, 2, 1.5, -1, 0, 0, 0, 0, 0.4],
+        fanfare: [0.9, 0.05, 520, 0.01, 0.25, 0.4, 0, 1, 6, 0, 200, 0.1]
+    },
+    SOUND_FALLBACK_BY_BUS: {
+        ui: [0.6, 0.05, 900, 0, 0.01, 0.04, 1],
+        sfx: [0.8, 0.05, 420, 0.01, 0.08, 0.3, 0, 1, 5],
+        music: null,
+        ambient: null // un bucle sintético molestaría más que el silencio
+    },
+
+    // === FEEDBACK (coreografías audio + visual) ===
+    FEEDBACK: {
+        PRIORITIES: { small: 1, medium: 2, big: 3 },
+        MEDIUM_MIN_GAP_MS: 1500, // dos medianos nunca se superponen: uno cada 1,5 s como mínimo
+        MEDIUM_QUEUE_MAX: 2, // medianos en espera; el resto se descarta
+        SHORT_AFTER_VIEWS: 3 // a partir de la 4.ª vez se usa la versión corta (si existe)
+    },
+    VISUAL_SETTINGS_DEFAULTS: {
+        reduceMotion: null, // null = seguir prefers-reduced-motion del sistema
+        shortCelebrations: false
+    },
+
+    // Coreografías: pasos { at (ms), sound, soundOptions, fx (objeto o lista), duck }.
+    // Valores 'context.x' se leen del contexto que pasa quien la dispara
+    // (x, y, element, text, from, to, banner...). Destinos: 'context', '#id', '.clase'.
+    // Puntos: 'context' (x,y o centro del elemento), 'center' o un selector.
+    CHOREOGRAPHIES: {
+        purchase: {
+            priority: 'small',
+            steps: [
+                { at: 0, sound: 'ui_confirm', fx: { type: 'pulse', target: 'context', scale: 1.06, ms: 220 } }
+            ]
+        },
+        purchase_fail: {
+            priority: 'small',
+            steps: [
+                { at: 0, sound: 'ui_error', fx: { type: 'shake', target: 'context', intensity: 0.35, ms: 220 } }
+            ]
+        },
+        keyboard_upgrade: {
+            priority: 'small',
+            steps: [
+                { at: 0, sound: 'ui_click', soundOptions: { pitch: -2 } },
+                { at: 45, sound: 'ui_click', soundOptions: { pitch: 2 } },
+                { at: 90, sound: 'ui_confirm', fx: { type: 'pulse', target: 'context', scale: 1.06, ms: 220 } }
+            ]
+        },
+        commit: {
+            priority: 'small',
+            steps: [
+                { at: 0, sound: 'ui_pop', fx: [
+                    { type: 'pulse', target: '#clickBtn', scale: 1.12, ms: 300 },
+                    { type: 'glow', target: '.progress-section .progress', color: 'rgba(0, 255, 136, 0.9)', ms: 400 }
+                ] }
+            ]
+        },
+        event_good: {
+            priority: 'small',
+            steps: [
+                { at: 0, sound: 'ui_beep', fx: { type: 'flash', color: 'rgba(0, 212, 255, 0.18)', ms: 380 } }
+            ]
+        },
+        event_bad: {
+            priority: 'medium',
+            steps: [
+                { at: 0, sound: 'glitch_error', fx: [
+                    { type: 'flash', color: 'rgba(255, 0, 80, 0.25)', ms: 300 },
+                    { type: 'shake', intensity: 0.5, ms: 280 }
+                ] },
+                { at: 120, sound: 'crack', fx: { type: 'crack', target: '#clickBtn', point: '#clickBtn' } }
+            ],
+            short: [
+                { at: 0, sound: 'glitch_error', fx: { type: 'flash', color: 'rgba(255, 0, 80, 0.2)', ms: 260 } }
+            ]
+        },
+        decision: {
+            priority: 'small',
+            steps: [
+                { at: 0, sound: 'ui_decode' }
+            ]
+        },
+        maintenance: {
+            priority: 'small',
+            steps: [
+                { at: 0, sound: 'whoosh', fx: { type: 'flash', color: 'rgba(0, 150, 255, 0.16)', ms: 420 } }
+            ]
+        },
+        achievement: {
+            priority: 'medium',
+            steps: [
+                { at: 0, sound: 'powerup', fx: { type: 'flash', color: 'rgba(255, 215, 0, 0.18)', ms: 360 } },
+                { at: 60, fx: { type: 'burst', preset: 'confettiExplosions', point: 'center', ms: 1600 } }
+            ],
+            short: [
+                { at: 0, sound: 'powerup', fx: { type: 'flash', color: 'rgba(255, 215, 0, 0.14)', ms: 300 } }
+            ]
+        },
+        mission: {
+            priority: 'medium',
+            steps: [
+                { at: 0, sound: 'mission', fx: { type: 'pulse', target: 'context', scale: 1.05, ms: 260 } },
+                { at: 80, fx: { type: 'odometer', target: '#codeDisplay', from: 'context.from', to: 'context.to', ms: 900, tick: true } },
+                { at: 80, fx: { type: 'odometer', target: '#currentCodeHeader', from: 'context.from', to: 'context.to', ms: 900 } }
+            ]
+        },
+        unlock: {
+            priority: 'medium',
+            steps: [
+                { at: 0, sound: 'reveal_arp', fx: { type: 'flash', color: 'rgba(0, 255, 136, 0.12)', ms: 420 } },
+                { at: 40, sound: 'ui_decode', soundOptions: { volume: 0.6 }, fx: { type: 'scramble', target: 'context', text: 'context.text', ms: 900 } }
+            ],
+            short: [
+                { at: 0, sound: 'reveal_arp', fx: { type: 'scramble', target: 'context', text: 'context.text', ms: 500 } }
+            ]
+        },
+        milestone: {
+            priority: 'medium',
+            steps: [
+                { at: 0, sound: 'metal_hit', fx: [
+                    { type: 'shake', intensity: 0.45, ms: 160 },
+                    { type: 'flash', color: 'rgba(0, 212, 255, 0.2)', ms: 300 }
+                ] },
+                { at: 0, sound: 'crack', soundOptions: { volume: 0.5 }, fx: { type: 'crack', target: 'context', point: 'context' } },
+                { at: 90, sound: 'confetti_whoosh', fx: { type: 'burst', preset: 'confettiExplosions', point: 'context', ms: 1500 } },
+                { at: 90, fx: { type: 'banner', text: 'context.banner', tone: 'accent', ms: 1300 } }
+            ],
+            short: [
+                { at: 0, sound: 'metal_hit', fx: [
+                    { type: 'flash', color: 'rgba(0, 212, 255, 0.16)', ms: 280 },
+                    { type: 'pulse', target: 'context', scale: 1.08, ms: 260 }
+                ] }
+            ]
+        },
+        streak: {
+            priority: 'small',
+            steps: [
+                { at: 0, sound: 'streak_chord', soundOptions: { pitch: 'context.pitch' }, fx: { type: 'pulse', target: '#streak', scale: 1.4, ms: 320 } }
+            ]
+        },
+        golden_spawn: {
+            priority: 'small',
+            steps: [
+                { at: 0, sound: 'coin', soundOptions: { volume: 0.6 } }
+            ]
+        },
+        golden_claim: {
+            priority: 'medium',
+            steps: [
+                { at: 0, sound: 'coin', soundOptions: { pitch: 0 }, fx: { type: 'flash', color: 'rgba(255, 215, 0, 0.2)', ms: 260 } },
+                { at: 90, sound: 'coin', soundOptions: { pitch: 4 } },
+                { at: 180, sound: 'coin', soundOptions: { pitch: 7 } },
+                { at: 260, sound: 'coin_burst', fx: { type: 'burst', preset: 'confettiExplosions', point: 'context', ms: 1300, colors: ['#ffd700', '#ffb703', '#fff3b0'] } },
+                { at: 260, fx: { type: 'odometer', target: '#codeDisplay', from: 'context.from', to: 'context.to', ms: 800, tick: true } },
+                { at: 260, fx: { type: 'odometer', target: '#currentCodeHeader', from: 'context.from', to: 'context.to', ms: 800 } }
+            ],
+            short: [
+                { at: 0, sound: 'coin_burst', fx: { type: 'flash', color: 'rgba(255, 215, 0, 0.18)', ms: 260 } }
+            ]
+        },
+        release_clean: {
+            priority: 'big',
+            steps: [
+                { at: 0, sound: 'riser_short', duck: { bus: 'ambient', amount: 0.3, ms: 2600 } },
+                { at: 0, fx: { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 700 } },
+                { at: 700, sound: 'rocket', soundOptions: { volume: 0.7 } },
+                { at: 1100, sound: 'impact_light', fx: [
+                    { type: 'flash', color: 'rgba(255, 255, 255, 0.35)', ms: 300 },
+                    { type: 'shake', intensity: 0.4, ms: 200 }
+                ] },
+                { at: 1100, sound: 'fireworks', fx: { type: 'burst', preset: 'fireworks', point: 'center', ms: 2600 } },
+                { at: 1250, sound: 'fanfare_small', fx: { type: 'banner', text: 'context.banner', tone: 'accent', ms: 1500 } }
+            ],
+            short: [
+                { at: 0, sound: 'fanfare_small', fx: [
+                    { type: 'flash', color: 'rgba(0, 255, 136, 0.16)', ms: 320 },
+                    { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 400 }
+                ] }
+            ]
+        },
+        release_normal: {
+            priority: 'medium',
+            steps: [
+                { at: 0, sound: 'fanfare_small', fx: [
+                    { type: 'flash', color: 'rgba(0, 212, 255, 0.16)', ms: 320 },
+                    { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 600 }
+                ] },
+                { at: 120, fx: { type: 'burst', preset: 'confettiExplosions', point: 'center', ms: 1300 } }
+            ],
+            short: [
+                { at: 0, sound: 'fanfare_small', fx: { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 400 } }
+            ]
+        },
+        release_unstable: {
+            priority: 'medium',
+            steps: [
+                { at: 0, sound: 'glitch_error', fx: [
+                    { type: 'flash', color: 'rgba(255, 0, 80, 0.28)', ms: 320 },
+                    { type: 'shake', intensity: 0.6, ms: 320 },
+                    { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 600, chars: '!<>-_\\/[]{}—=+*^?#' }
+                ] },
+                { at: 150, sound: 'crack', fx: { type: 'crack', target: '#labReleaseVersion', point: '#labReleaseVersion' } }
+            ],
+            short: [
+                { at: 0, sound: 'glitch_error', fx: { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 400 } }
+            ]
+        },
+        prestige: {
+            priority: 'big',
+            steps: [
+                { at: 0, sound: 'riser_long', duck: { bus: 'ambient', amount: 0.1, ms: 5200 }, fx: { type: 'slowmo', factor: 0.35, ms: 1100 } },
+                { at: 0, sound: 'drone_low', soundOptions: { volume: 0.6 } },
+                { at: 1200, sound: 'braam', fx: [
+                    { type: 'freeze', ms: 140 },
+                    { type: 'flash', color: 'rgba(255, 255, 255, 0.55)', ms: 500 },
+                    { type: 'shake', intensity: 1, ms: 520 }
+                ] },
+                { at: 1200, sound: 'sub_drop' },
+                { at: 1250, sound: 'shatter', fx: { type: 'shards', point: 'center', count: 26 } },
+                { at: 1450, sound: 'fireworks', fx: { type: 'burst', preset: 'fireworks', point: 'center', ms: 3000 } },
+                { at: 1500, sound: 'fanfare', fx: { type: 'banner', text: 'context.banner', tone: 'gold', ms: 2200 } },
+                { at: 1600, fx: { type: 'scramble', target: '#prestigePoints', text: 'context.points', ms: 900 } },
+                { at: 3200, sound: 'reveal_chord', soundOptions: { volume: 0.7 } }
+            ],
+            short: [
+                { at: 0, sound: 'braam', soundOptions: { volume: 0.8 }, fx: [
+                    { type: 'flash', color: 'rgba(255, 255, 255, 0.4)', ms: 420 },
+                    { type: 'shake', intensity: 0.6, ms: 300 }
+                ] },
+                { at: 100, sound: 'fanfare_small', fx: { type: 'banner', text: 'context.banner', tone: 'gold', ms: 1500 } },
+                { at: 150, fx: { type: 'scramble', target: '#prestigePoints', text: 'context.points', ms: 500 } }
+            ]
+        }
+    },
+
     // === COMMIT DORADO ===
     GOLDEN_COMMIT: {
         MIN_INTERVAL_MS: 60000,

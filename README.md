@@ -32,7 +32,8 @@ Juego incremental sobre programación con click manual, automatización, release
 - Commit dorado: aparece cada 60–180 s y da código, un frenesí de clicks o carga de release.
 - Eventos aleatorios y decisiones centradas con impactos temporales o estratégicos.
 - Logros, estadísticas, tendencias y reporte offline.
-- Temas visuales, editor estilo IDE, audio, animaciones y layout responsive.
+- Motor de audio (Howler, 38 sonidos con buses y variaciones) y efectos visuales (GSAP + tsParticles) sincronizados mediante coreografías; panel de sonido y efectos con "Reducir movimiento". Ver [Audio y efectos](#audio-y-efectos).
+- Temas visuales, editor estilo IDE y layout responsive.
 - Consola oculta de admin con `godmode`, comandos y hotkeys.
 
 ## Cómo ejecutar
@@ -49,6 +50,8 @@ Juego incremental sobre programación con click manual, automatización, release
 | Cambiar panel móvil | Botones `Juego` / `Panel` |
 | Cambiar vista del panel derecho | Botones `Panel` / `Editor` |
 | Toggle sonido | Botón de sonido en header |
+| Sonido y efectos (volúmenes, reducir movimiento, celebraciones cortas) | Botón de sliders en header |
+| Saltar una celebración en curso | `Esc` |
 | Cambiar tema | Selector del header |
 | Abrir consola admin | Tecla configurada en el flujo actual y luego escribir `godmode` |
 
@@ -66,7 +69,9 @@ Una vez activado `godmode`, la consola soporta:
 - `missions`
 - `release`
 - `resources`
-- `unlockall`
+- `unlockall` (logros y todas las pestañas)
+- `fx <id>` reproduce una coreografía · `fx list` las lista
+- `sound <id>` reproduce un sonido (indica bus, duración y si usó el respaldo ZzFX) · `sound list` los lista
 
 Hotkeys activas en admin: `D`, `E`, `C`, `M`, `R`, `K`, `U`.
 
@@ -79,29 +84,55 @@ Juego-Idle/
 ├── favicon.svg
 ├── README.md
 ├── ARCHITECTURE.md
+├── assets/
+│   └── audio/
+│       ├── sounds.js          (SOUND_MANIFEST: id → archivos, bus, volumen, tono)
+│       ├── ui/ sfx/ epic/     (38 sonidos, .ogg + .mp3)
+│       ├── CREDITS.md         (origen y licencia de cada sonido)
+│       └── preview.html       (solo para escuchar, no se carga en el juego)
 └── src/
     ├── config.js
     ├── state.js
     ├── game.js
     ├── main.js
     └── modules/
+        ├── audio.js           (motor de audio, Howler)
+        ├── fx.js              (efectos visuales, GSAP + tsParticles)
+        ├── feedback.js        (coreografías audio + visual)
+        ├── settings.js        (panel de sonido y efectos)
         ├── achievements.js
         ├── admin.js
-        ├── audio.js
+        ├── editor.js
         ├── events.js
         ├── game-logic.js
+        ├── golden-commit.js
+        ├── onboarding.js
         ├── themes.js
         └── ui.js
 ```
+
+El orden de carga de los scripts está en [ARCHITECTURE.md](ARCHITECTURE.md#orden-de-carga).
 
 ## Dependencias CDN
 
 - Bootstrap 5 (solo CSS)
 - Font Awesome
 - Google Fonts
-- Anime.js
 - SweetAlert2
-- Canvas Confetti
+- Howler.js 2.2.4 (audio)
+- GSAP 3.15.0 con ScrambleTextPlugin, SplitText, Physics2DPlugin, CustomEase y DrawSVGPlugin (gratuitos desde 3.13, también para uso comercial)
+- tsParticles 4.5.0: presets `fireworks` y `confettiExplosions`
+- ZzFX 1.4.0 (versión micro), respaldo si falla un archivo de audio
+
+## Audio y efectos
+
+- Cada momento del juego (compra, commit, logro, misión, hito, release, prestige, commit dorado, eventos, desbloqueos) es una **coreografía** en `CHOREOGRAPHIES` ([src/config.js](src/config.js)). Cada paso lanza en el mismo instante su sonido y sus efectos.
+- Prioridades: un momento grande (release limpia, prestige) cancela los pequeños; dos medianos no se superponen (uno cada 1,5 s). `Esc` salta la celebración en curso y la deja en su estado final.
+- Tras ver 3 veces una celebración se usa su versión corta (o siempre, con "Celebraciones cortas").
+- Buses de mezcla `ui`, `sfx`, `music` y `ambient` (`AUDIO_BUSES`) con limitador en el master: los 38 sonidos se verificaron sin saturar, también apilados.
+- "Reducir movimiento" quita sacudidas, cámara lenta, grietas, fragmentos y partículas; quedan destellos suaves, fundidos y sonido.
+- Abierto desde el disco (`file://`) el audio usa HTML5 Audio; servido por http usa Web Audio con el limitador.
+- Los sonidos vienen de Kenney (CC0) y del Sonniss GDC 2026 Game Audio Bundle (royalty-free, sin atribución, sin redistribución como librería). Ver [assets/audio/CREDITS.md](assets/audio/CREDITS.md).
 
 ## Guardado y datos
 
@@ -112,6 +143,7 @@ Juego-Idle/
 - Los efectos temporales de eventos se guardan con fecha de expiración, así que sobreviven a recargas sin quedarse activos para siempre.
 - Si la partida guardada está dañada, se respalda en `codeIdleGame:corrupt` y empieza una nueva.
 - En la pestaña **Estadísticas** se puede exportar, importar o borrar la partida.
+- Los ajustes de sonido y efectos (`audioSettings`, `visualSettings`) y las vistas de cada coreografía (`seenChoreographies`) se guardan con la partida y se conservan en el prestige. Las partidas anteriores cargan con los valores por defecto (70/80/40).
 
 ## Ajustes frecuentes
 
@@ -132,11 +164,18 @@ Juego-Idle/
   | `FEATURE_UNLOCKS` | 8 features | Orden, pestañas, condición, objetivo y tip de cada desbloqueo |
   | `ONBOARDING` | — | Textos de bienvenida/estado vacío, modo secuencial, duración de tips |
   | `NEXT_GOAL_RULES` | 6 reglas | Qué muestra la línea `// TODO:` y en qué prioridad |
+  | `AUDIO_BUSES` | ui .7 · sfx .8 · music .4 · ambient .4 · master 1 | Volumen por defecto de cada bus |
+  | `AUDIO_SLIDERS` | Interfaz / Efectos / Música | Sliders del panel y qué buses controla cada uno |
+  | `AUDIO` | — | Limitador, pool del teclado mecánico, aura de racha, precarga |
+  | `SOUND_FALLBACKS` | — | Respaldos ZzFX por sonido (y por bus en `SOUND_FALLBACK_BY_BUS`) |
+  | `CHOREOGRAPHIES` | 19 | Pasos de sonido + efectos de cada momento del juego, con su versión corta |
+  | `FEEDBACK` | 1,5 s entre medianos | Prioridades, cola y a partir de cuántas vistas se usa la versión corta |
 
 - Estado y persistencia: [src/state.js](src/state.js)
 - Flujo visual y render: [src/modules/ui.js](src/modules/ui.js)
 - Eventos y decisiones: [src/modules/events.js](src/modules/events.js)
-- Audio: [src/modules/audio.js](src/modules/audio.js)
+- Audio: [src/modules/audio.js](src/modules/audio.js) · sonidos: [assets/audio/sounds.js](assets/audio/sounds.js)
+- Efectos visuales: [src/modules/fx.js](src/modules/fx.js) · coreografías: [src/modules/feedback.js](src/modules/feedback.js)
 - Layout y look & feel: [styles.css](styles.css)
 
 ## Documentación técnica

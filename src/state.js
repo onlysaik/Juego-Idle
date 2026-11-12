@@ -75,6 +75,10 @@ class GameState {
         // Preferencias
         this.soundEnabled = true;
         this.theme = 'dark';
+        this.audioSettings = this.getDefaultAudioSettings();
+        this.visualSettings = { ...CONFIG.VISUAL_SETTINGS_DEFAULTS };
+        // Veces que se vio cada coreografía (para usar la versión corta después)
+        this.seenChoreographies = {};
         
         // Eventos
         this.eventCooldown = 0;
@@ -165,6 +169,37 @@ class GameState {
             language.cost = this.calculateScaledCost(definition.cost, CONFIG.LANGUAGE_COST_SCALING, language.owned);
             this.passiveGeneration += definition.generation * amount;
         });
+    }
+
+    // === AJUSTES DE AUDIO Y VISUALES ===
+    // Valor 0–100 por slider; el por defecto sale del volumen de su primer bus.
+    getDefaultAudioSettings() {
+        return Object.fromEntries(CONFIG.AUDIO_SLIDERS.map(slider => [
+            slider.key,
+            Math.round((CONFIG.AUDIO_BUSES[slider.buses[0]]?.volume ?? 1) * 100)
+        ]));
+    }
+
+    sanitizeAudioSettings(raw) {
+        const defaults = this.getDefaultAudioSettings();
+        const source = raw && typeof raw === 'object' ? raw : {};
+        return Object.fromEntries(Object.entries(defaults).map(([key, value]) => {
+            const candidate = Number(source[key]);
+            return [key, Number.isFinite(candidate) ? Math.max(0, Math.min(100, Math.round(candidate))) : value];
+        }));
+    }
+
+    sanitizeVisualSettings(raw) {
+        const source = raw && typeof raw === 'object' ? raw : {};
+        return {
+            reduceMotion: typeof source.reduceMotion === 'boolean' ? source.reduceMotion : CONFIG.VISUAL_SETTINGS_DEFAULTS.reduceMotion,
+            shortCelebrations: typeof source.shortCelebrations === 'boolean' ? source.shortCelebrations : CONFIG.VISUAL_SETTINGS_DEFAULTS.shortCelebrations
+        };
+    }
+
+    recordChoreographyView(id) {
+        this.seenChoreographies[id] = (this.seenChoreographies[id] || 0) + 1;
+        return this.seenChoreographies[id];
     }
 
     // === MÉTODOS DE PROGRESO ===
@@ -1577,7 +1612,11 @@ class GameState {
             // Lo ya aprendido no se vuelve a ocultar ni a explicar.
             unlockedFeatures: this.unlockedFeatures,
             seenTips: this.seenTips,
-            newTabBadges: this.newTabBadges
+            newTabBadges: this.newTabBadges,
+            // Preferencias del jugador
+            audioSettings: this.audioSettings,
+            visualSettings: this.visualSettings,
+            seenChoreographies: this.seenChoreographies
         };
 
         this.reset();
@@ -1591,6 +1630,9 @@ class GameState {
         this.unlockedFeatures = preserved.unlockedFeatures;
         this.seenTips = preserved.seenTips;
         this.newTabBadges = preserved.newTabBadges;
+        this.audioSettings = preserved.audioSettings;
+        this.visualSettings = preserved.visualSettings;
+        this.seenChoreographies = preserved.seenChoreographies;
         this.responsibility.value = this.getResponsibilityBaselineValue();
         this.responsibility.lastState = this.getResponsibilityState().key;
         this.lastUpdate = Date.now();
@@ -1856,6 +1898,9 @@ class GameState {
             unlockedFeatures: this.unlockedFeatures,
             seenTips: this.seenTips,
             newTabBadges: this.newTabBadges,
+            audioSettings: this.audioSettings,
+            visualSettings: this.visualSettings,
+            seenChoreographies: this.seenChoreographies,
             lastSavedAt: now
         };
     }
@@ -1948,6 +1993,14 @@ class GameState {
         this.eventCooldown = Math.max(0, num(data.eventCooldown, 0));
         this.soundEnabled = typeof data.soundEnabled === 'boolean' ? data.soundEnabled : this.soundEnabled;
         this.theme = typeof data.theme === 'string' ? data.theme : this.theme;
+        // Partidas anteriores no tienen estos campos: se usan los valores por defecto.
+        this.audioSettings = this.sanitizeAudioSettings(data.audioSettings);
+        this.visualSettings = this.sanitizeVisualSettings(data.visualSettings);
+        this.seenChoreographies = Object.fromEntries(
+            Object.entries(obj(data.seenChoreographies))
+                .filter(([id, count]) => CONFIG.CHOREOGRAPHIES[id] && Number.isFinite(count) && count > 0)
+                .map(([id, count]) => [id, Math.floor(count)])
+        );
         this.lastSavedAt = num(data.lastSavedAt, this.lastSavedAt);
         this.lastPersistAt = 0;
         this.admin = { ...this.admin, ...obj(data.admin) };

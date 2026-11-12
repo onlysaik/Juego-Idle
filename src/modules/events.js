@@ -88,6 +88,7 @@ const eventsModule = {
     registry: [
         {
             id: 'bugCritical',
+            feedback: 'event_bad',
             name: '🐛 Bug Crítico',
             desc: 'Pierdes el 10% código',
             weight: 3,
@@ -153,9 +154,7 @@ const eventsModule = {
                     CONFIG.EVENT_DURATIONS.hackathon,
                     '¡Hackathon! +3x generación',
                     'Hackathon terminó'
-                );
-                audioModule.play('event');
-            }
+                );            }
         },
         {
             id: 'coffeeBreak',
@@ -174,9 +173,7 @@ const eventsModule = {
                     CONFIG.EVENT_DURATIONS.coffeeBreak,
                     'Café activo! +50% generación',
                     'Coffee Break terminó'
-                );
-                audioModule.play('event');
-            }
+                );            }
         },
         {
             id: 'documentation',
@@ -195,9 +192,7 @@ const eventsModule = {
                 const reward = gameState.getGenerationReward(CONFIG.EVENT_REWARDS.documentation);
                 gameState.addCode(reward);
                 uiModule.showNotification(`+${reward.toLocaleString()} código bonus por documentar`, 'success');
-                eventsModule.applyProjectHealthEffect({ quality: 6, debt: -4 }, 'La documentación ordenó el proyecto', 'success');
-                audioModule.play('event');
-            }
+                eventsModule.applyProjectHealthEffect({ quality: 6, debt: -4 }, 'La documentación ordenó el proyecto', 'success');            }
         },
         {
             id: 'openSourceSpike',
@@ -226,9 +221,7 @@ const eventsModule = {
                 gameState.addPrestigePoints(1);
                 uiModule.showNotification('Tu repo se volvió tendencia. +3 carga de release, +1 rep', 'success');
                 eventsModule.applyProjectHealthEffect({ quality: 2, debt: 0 }, null, 'success');
-                eventsModule.applyResponsibilityEffect(2, 'Cumpliste con visibilidad real: Responsabilidad +2', 'success');
-                audioModule.play('event');
-            }
+                eventsModule.applyResponsibilityEffect(2, 'Cumpliste con visibilidad real: Responsabilidad +2', 'success');            }
         },
         {
             id: 'hiringWave',
@@ -275,8 +268,6 @@ const eventsModule = {
                 }
             },
             execute() {
-                audioModule.play('event');
-
                 if (typeof Swal === 'undefined') {
                     const fallbackReward = gameState.getGenerationReward(CONFIG.EVENT_REWARDS.clientDeadlineFallback);
                     gameState.addCode(fallbackReward);
@@ -383,6 +374,7 @@ const eventsModule = {
         },
         {
             id: 'productionFire',
+            feedback: 'event_bad',
             name: '🔥 Incidente en Producción',
             desc: 'La deuda acumulada te explota en la cara: pierdes código y carga de release.',
             weight: 1,
@@ -518,8 +510,9 @@ const eventsModule = {
             gameState.eventCooldown = CONFIG.EVENT_COOLDOWN;
         }
 
+        // Coreografía según el evento: malo (glitch + grieta), decisión o bueno.
         if (playTriggerSound) {
-            audioModule.play('event');
+            feedbackModule.play(event.feedback || (event.type === 'decision' ? 'decision' : 'event_good'));
         }
 
         return true;

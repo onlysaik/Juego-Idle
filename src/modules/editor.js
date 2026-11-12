@@ -267,12 +267,9 @@ const editorModule = {
             return;
         }
 
-        anime({
-            targets: editorContent,
-            opacity: [1, 0.35, 1],
-            duration: 260,
-            easing: 'easeInOutQuad'
-        });
+        if (typeof gsap !== 'undefined') {
+            gsap.fromTo(editorContent, { opacity: 0.35 }, { opacity: 1, duration: 0.26, ease: 'power1.inOut' });
+        }
 
         this.renderCode(newCode);
         this.previewSignature = nextPreviewSignature;
@@ -321,31 +318,27 @@ const editorModule = {
     animateLanguageChange(languageName, frameworkName = null) {
         const codePreview = document.getElementById('codeEditorContent');
         const editorMock = document.querySelector('.editor-mock');
-        if (!codePreview) return;
+        if (!codePreview || typeof gsap === 'undefined') return;
 
-        anime({
-            targets: editorMock,
-            backgroundColor: ['rgba(0, 212, 255, 0.15)', 'rgba(0, 212, 255, 0)', 'rgba(0, 212, 255, 0.1)'],
-            duration: 600,
-            easing: 'easeOutQuad'
-        });
+        if (editorMock) {
+            gsap.fromTo(editorMock,
+                { backgroundColor: 'rgba(0, 212, 255, 0.15)' },
+                { backgroundColor: 'rgba(0, 212, 255, 0)', duration: 0.6, ease: 'power2.out', clearProps: 'backgroundColor' });
+        }
 
-        anime({
-            targets: codePreview,
-            translateX: [-10, 10, -5, 5, 0],
-            duration: 300,
-            easing: 'easeOutQuad'
-        });
+        // Pequeño temblor del código (no en movimiento reducido).
+        if (!fxModule.isReducedMotion()) {
+            gsap.fromTo(codePreview, { x: -10 }, {
+                keyframes: { x: [10, -5, 5, 0] },
+                duration: 0.3,
+                ease: 'power2.out',
+                clearProps: 'transform'
+            });
+        }
 
-        anime({
-            targets: '.editor-header',
-            boxShadow: [
-                { value: '0 0 0 0 rgba(0, 212, 255, 0.5)' },
-                { value: '0 0 20px 10px rgba(0, 212, 255, 0)' }
-            ],
-            duration: 600,
-            easing: 'easeOutQuad'
-        });
+        gsap.fromTo('.editor-header',
+            { boxShadow: '0 0 0 0 rgba(0, 212, 255, 0.5)' },
+            { boxShadow: '0 0 20px 10px rgba(0, 212, 255, 0)', duration: 0.6, ease: 'power2.out', clearProps: 'boxShadow' });
     }
 };
 

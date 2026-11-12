@@ -20,18 +20,9 @@ const gameLogic = {
         if (commitsProcessed === 0) return 0;
 
         if (showFeedback) {
-            audioModule.play('commit');
             const label = commitsProcessed === 1 ? '¡Commit realizado!' : `¡${commitsProcessed} commits realizados!`;
             uiModule.showNotification(label, 'success');
-            uiModule.animateCommit();
-
-            if (typeof confetti !== 'undefined') {
-                confetti({
-                    particleCount: uiModule.scaleCelebrationCount(Math.min(160, 40 + commitsProcessed * 10)),
-                    spread: 50,
-                    origin: { y: 0.6 }
-                });
-            }
+            feedbackModule.play('commit');
         }
 
         achievementsModule.checkAll();
@@ -50,8 +41,8 @@ const gameLogic = {
         // Animación
         uiModule.animateClickButton();
         
-        // Sonido
-        audioModule.play('click');
+        // Sonido: pool del teclado mecánico (mejora con el nivel del upgrade)
+        audioModule.playKey();
         
         // Progreso
         const amount = gameState.calculateClickPower();
@@ -59,6 +50,11 @@ const gameLogic = {
         gameState.clicks++;
         gameState.updateStreak();
         gameState.applyProjectHealthImpact(gameState.getClickProjectHealthImpact());
+
+        // Racha: acorde en cada escalón (más agudo cuanto más alto) y aura en bucle.
+        const chordIndex = CONFIG.AUDIO.STREAK_CHORDS.indexOf(gameState.streak);
+        if (chordIndex >= 0) feedbackModule.play('streak', { pitch: chordIndex * 2 });
+        audioModule.updateStreakAura();
         
         // Visuales
         uiModule.createFloatingText(amount);
@@ -79,19 +75,42 @@ const gameLogic = {
         return this.processCommits({ showFeedback: true, maxCommits: 1 });
     },
     
+    // === FEEDBACK DE COMPRAS ===
+    // Tarjeta de la tienda/equipo/lab (para animarla). Se busca después de
+    // reconstruir la UI, así se anima la tarjeta nueva y no la que se quitó.
+    findCard(collection, key) {
+        if (collection === 'team') return document.querySelector(`.team-card[data-team="${key}"]`);
+        if (collection === 'artifacts') return document.querySelector(`.artifact-card[data-artifact="${key}"]`);
+        return document.querySelector(`[data-shop-collection="${collection}"][data-shop-key="${key}"]`)?.closest('.upgrade-card, .language-card') || null;
+    },
+
+    purchaseFeedback(collection, key, milestone = null) {
+        const element = this.findCard(collection, key);
+        if (milestone) {
+            feedbackModule.play('milestone', { element, banner: `${milestone.name} x${milestone.multiplier}` });
+            return;
+        }
+        feedbackModule.play(collection === 'upgrades' && key === 'keyboard' ? 'keyboard_upgrade' : 'purchase', { element });
+    },
+
+    purchaseFailFeedback(collection, key) {
+        feedbackModule.play('purchase_fail', { element: this.findCard(collection, key) });
+    },
+
     // === COMPRAR UPGRADE ===
     buyUpgrade(key) {
         if (gameState.buyUpgrade(key)) {
             const upgrade = gameState.upgrades[key];
-            audioModule.play(key === 'keyboard' ? 'keyboard-upgrade' : 'achievement');
             uiModule.showNotification(`✨ ${upgrade.name}!`, 'success');
             uiModule.createUpgradesUI();
             achievementsModule.checkAll();
             this.afterProgressAction();
             uiModule.update();
+            this.purchaseFeedback('upgrades', key);
             gameState.save(true);
         } else {
             const upgrade = gameState.upgrades[key];
+            this.purchaseFailFeedback('upgrades', key);
             if (upgrade?.owned >= CONFIG.UPGRADE_MAX_OWNED) {
                 uiModule.showNotification(`Límite alcanzado para ${upgrade.name}`, 'info');
                 return;
@@ -99,28 +118,27 @@ const gameLogic = {
             uiModule.showNotification('Código insuficiente', 'warning');
         }
     },
-    
+
     // === COMPRAR LENGUAJE ===
-    // Confetti + aviso cuando una compra cruza un hito de cantidad (10/25/50/100).
+    // Aviso cuando una compra cruza un hito de cantidad (10/25/50/100).
+    // Devuelve los datos del hito para su coreografía, o null.
     checkMilestone(name, ownedBefore, ownedAfter) {
         const levelBefore = gameState.getMilestoneLevel(ownedBefore);
         const levelAfter = gameState.getMilestoneLevel(ownedAfter);
-        if (levelAfter <= levelBefore) return false;
+        if (levelAfter <= levelBefore) return null;
 
         const threshold = CONFIG.MILESTONES.THRESHOLDS[levelAfter - 1];
         const multiplier = gameState.getMilestoneMultiplier(ownedAfter);
-        audioModule.play('achievement');
         uiModule.showNotification(`🏁 Hito ${threshold}: ${name} produce x${multiplier}`, 'success', { duration: 4500 });
-        uiModule.celebrateMilestone();
-        return true;
+        return { name, threshold, multiplier };
     },
 
     buyLanguage(key) {
         const ownedBefore = gameState.languages[key]?.owned ?? 0;
         if (gameState.buyLanguage(key)) {
             const language = gameState.languages[key];
-            const hitMilestone = this.checkMilestone(language.name, ownedBefore, language.owned);
-            if (!hitMilestone) {
+            const milestone = this.checkMilestone(language.name, ownedBefore, language.owned);
+            if (!milestone) {
                 uiModule.showNotification(`🚀 ${language.name} desbloqueado!`, 'success');
             }
             uiModule.createLanguagesUI();
@@ -130,12 +148,14 @@ const gameLogic = {
             achievementsModule.checkAll();
             this.afterProgressAction();
             uiModule.update();
+            this.purchaseFeedback('languages', key, milestone);
             gameState.save(true);
         } else {
+            this.purchaseFailFeedback('languages', key);
             uiModule.showNotification('Código insuficiente', 'warning');
         }
     },
-    
+
     // === COMPRAR FRAMEWORK ===
     buyFramework(key) {
         if (gameState.buyFramework(key)) {
@@ -148,8 +168,10 @@ const gameLogic = {
             uiModule.animateLanguageChange(language.name, framework.name);
             this.afterProgressAction();
             uiModule.update();
+            this.purchaseFeedback('frameworks', key);
             gameState.save(true);
         } else {
+            this.purchaseFailFeedback('frameworks', key);
             uiModule.showNotification('Código insuficiente', 'warning');
         }
     },
@@ -158,15 +180,17 @@ const gameLogic = {
         const ownedBefore = gameState.team[key]?.owned ?? 0;
         if (gameState.buyTeamMember(key)) {
             const member = gameState.team[key];
-            const hitMilestone = this.checkMilestone(member.name, ownedBefore, member.owned);
-            if (!hitMilestone) {
+            const milestone = this.checkMilestone(member.name, ownedBefore, member.owned);
+            if (!milestone) {
                 uiModule.showNotification(`👥 ${member.name} se unió al equipo`, 'success');
             }
             uiModule.update();
             achievementsModule.checkAll();
             this.afterProgressAction();
+            this.purchaseFeedback('team', key, milestone);
             gameState.save(true);
         } else {
+            this.purchaseFailFeedback('team', key);
             uiModule.showNotification('No puedes contratar todavía', 'warning');
         }
     },
@@ -178,8 +202,10 @@ const gameLogic = {
             uiModule.update();
             achievementsModule.checkAll();
             this.afterProgressAction();
+            this.purchaseFeedback('artifacts', key);
             gameState.save(true);
         } else {
+            this.purchaseFailFeedback('artifacts', key);
             uiModule.showNotification('Necesitas más reputación o ya lo tienes', 'warning');
         }
     },
@@ -207,8 +233,10 @@ const gameLogic = {
     },
 
     claimMission(slot) {
+        const codeBefore = gameState.code;
         const mission = gameState.claimMission(slot);
         if (!mission) {
+            feedbackModule.play('purchase_fail', { element: document.getElementById(`${slot}MissionClaim`) });
             uiModule.showNotification('La misión aún no está completa', 'warning');
             return;
         }
@@ -221,6 +249,11 @@ const gameLogic = {
         uiModule.update();
         achievementsModule.checkAll();
         this.afterProgressAction();
+        feedbackModule.play('mission', {
+            element: document.getElementById(`${slot}MissionClaim`)?.closest('.mission-card'),
+            from: Math.floor(codeBefore),
+            to: Math.floor(gameState.code)
+        });
         gameState.save(true);
     },
 
@@ -361,20 +394,17 @@ const gameLogic = {
             return;
         }
 
-        audioModule.play(result.band.key === 'unstable' ? 'click' : 'achievement');
         uiModule.showNotification(`🚀 ${result.version} · ${result.band.label} · ${result.trust.label} · +${result.code.toLocaleString()} código · +${result.rep} rep · liderazgo ${result.responsibilityDelta >= 0 ? '+' : ''}${Math.round(result.responsibilityDelta)}`, result.band.tone);
         uiModule.update();
         achievementsModule.checkAll();
         this.afterProgressAction();
+        // clean → momento grande; normal → mediano; risky/unstable → glitch.
+        const choreography = { clean: 'release_clean', normal: 'release_normal' }[result.band.key] || 'release_unstable';
+        feedbackModule.play(choreography, {
+            version: result.version,
+            banner: `${result.version} · ${result.band.label}`
+        });
         gameState.save(true);
-
-        if (typeof confetti !== 'undefined' && result.band.key !== 'unstable') {
-            confetti({
-                particleCount: uiModule.scaleCelebrationCount(result.band.key === 'clean' ? 120 : 90),
-                spread: result.band.key === 'clean' ? 80 : 65,
-                origin: { y: 0.58 }
-            });
-        }
     },
 
     startMaintenance() {
@@ -392,6 +422,7 @@ const gameLogic = {
 
         uiModule.showNotification(`🧰 Refactor iniciado · -${result.cost.toLocaleString()} código · salud técnica +${Math.round(result.qualityRestore)} · deuda -${Math.round(result.debtReduction)}`, 'success');
         uiModule.update();
+        feedbackModule.play('maintenance');
         gameState.save(true);
     },
 
@@ -445,20 +476,15 @@ const gameLogic = {
         const releaseBias = Math.min(CONFIG.PRESTIGE_RELEASE_SCORE_CAP, gameState.prestigePoints * CONFIG.PRESTIGE_RELEASE_SCORE_PER_POINT);
         const responsibilityFloor = Math.round(gameState.getResponsibilityBaselineValue());
 
-        audioModule.play('achievement');
         uiModule.rebuildAllPrimaryUI();
         achievementsModule.checkAll();
         onboardingModule.applyVisibility(); // lo desbloqueado se conserva tras el reset
         this.afterProgressAction();
+        feedbackModule.play('prestige', {
+            banner: `PRESTIGE · +${reward} rep`,
+            points: String(gameState.prestigePoints)
+        });
         gameState.save(true);
-
-        if (typeof confetti !== 'undefined') {
-            confetti({
-                particleCount: uiModule.scaleCelebrationCount(140),
-                spread: 80,
-                origin: { y: 0.55 }
-            });
-        }
 
         uiModule.showNotification(`🌟 Prestige completado: +${reward} reputación · bonus global x${gameState.getPrestigeMultiplier().toFixed(2)} · disciplina permanente +${Math.round(releaseBias)} score de release · piso de responsabilidad ${responsibilityFloor}`, 'success');
     }
