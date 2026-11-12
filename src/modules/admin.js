@@ -64,6 +64,8 @@ const adminModule = {
     },
 
     setStatus(message, state = 'idle') {
+        // Lo que escriben los comandos de admin también se ve en la salida de la terminal.
+        if (terminalModule.capturing) terminalModule.mirror(message, state);
         if (!this.statusEl) return;
         this.statusEl.textContent = message;
         if (state === 'idle') {
@@ -73,22 +75,16 @@ const adminModule = {
         this.statusEl.dataset.state = state;
     },
 
+    // La terminal pública (terminal.js) recibe lo que se escribe: sus comandos públicos se
+    // resuelven allí y el resto llega a runCommand() de este módulo, sin cambios.
     submitCommand() {
         const rawValue = this.inputEl?.value?.trim();
-        const value = rawValue?.toLowerCase();
-        if (!value) {
+        if (!rawValue) {
             this.setStatus('Escribe un comando para continuar.', 'warning');
             return;
         }
-
-        const handled = this.runCommand(value);
         this.inputEl.value = '';
-        if (!handled) {
-            this.setStatus('Comando no reconocido. Usa godmode, help o addcode 100000.', 'warning');
-            return;
-        }
-
-        this.syncAdminUIState();
+        terminalModule.submit(rawValue);
     },
 
     syncAdminUIState() {

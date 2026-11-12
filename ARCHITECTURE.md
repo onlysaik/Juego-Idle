@@ -43,6 +43,11 @@ src/
     ├── game-logic.js
     ├── golden-commit.js
     ├── onboarding.js
+    ├── ticker.js        ← ticker de noticias dev
+    ├── gitlog.js        ← git log vivo (50 entradas, en memoria)
+    ├── nerdstats.js     ← tooltips de fórmulas y ROI
+    ├── terminal.js      ← terminal pública (comandos públicos)
+    ├── shortcuts.js     ← atajos y paleta Ctrl+K
     └── admin.js
 ```
 
@@ -154,9 +159,18 @@ src/
 
 - Temas visuales; editor tipo IDE con animaciones GSAP.
 
+### Contenido para programadores (opcional)
+
+- [src/modules/ticker.js](src/modules/ticker.js): franja de noticias (`NEWS_TICKER`/`NEWS_CONTEXT`). Filtra por `gameState.totalCode`, pondera los últimos niveles, evita repeticiones y mezcla titulares contextuales (deuda, release inestable —`noteRelease()` desde `publishRelease`—, racha, tendencia, mantenimiento). Estado en `gameState.devSettings.ticker` (`running`/`paused`/`hidden`).
+- [src/modules/gitlog.js](src/modules/gitlog.js): `gitLogModule.add(kind, texto, { refs })` con hash aleatorio de 7 caracteres, límite `GIT_LOG.MAX_ENTRIES`, panel flotante colapsable. Lo alimentan `processCommits`, `purchaseFeedback` (compras e hitos), `publishRelease`, `chooseSpecialization` y `finishPrestige`. No se serializa.
+- [src/modules/nerdstats.js](src/modules/nerdstats.js): tooltip delegado sobre `[data-nerd]` (ratón y pulsación larga) y ROI en tarjetas (`getPurchaseRoi`, throttled). `isNerdStatsEnabled()`: `devSettings.nerdStats` o, si es `null`, `prestigeLevel > 0`.
+- [src/modules/terminal.js](src/modules/terminal.js): comandos públicos (`help`, `man`, `status`, `buy`, `git log`, `clear`), historial y Tab. `adminModule.submitCommand()` delega en `terminalModule.submit()`; lo que no es público pasa tal cual a `adminModule.runCommand()` y lo que este escribe en su línea de estado se copia a la salida (`mirror`). `man` filtra por `gameState.isFeatureUnlocked` y trata un sistema bloqueado igual que uno inexistente. `buy` usa `gameLogic.buyItem()` y respeta las mismas features que la UI.
+- [src/modules/shortcuts.js](src/modules/shortcuts.js): Ctrl+K (paleta con búsqueda por subsecuencia), 1–9 (pestañas visibles) y R. Corre **después** de `adminModule.handleKeydown` y se bloquea con modal, terminal, paleta o foco en un input.
+- Datos: `gameState.getGenerationBreakdown()` y `getClickBreakdown()` calculan el desglose; `calculateGeneration()` y `calculateClickPower()` devuelven su total (coinciden por construcción). `getMarginalGeneration()`/`getPurchaseRoi()` calculan el ROI. `devSettings` se guarda (con valores por defecto en partidas anteriores) y se conserva en el prestige.
+
 ### [src/modules/admin.js](src/modules/admin.js)
 
-- Consola oculta, `godmode`, creative mode, hotkeys y comandos de debug, incluidos `fx <id>`, `fx list`, `sound <id>` y `sound list`.
+- Consola (la terminal pública se apoya en ella), `godmode`, creative mode, hotkeys y comandos de debug, incluidos `fx <id>`, `fx list`, `sound <id>` y `sound list`.
 
 ### [src/game.js](src/game.js)
 
@@ -218,7 +232,7 @@ El orden importa y está definido en [index.html](index.html):
 2. `src/config.js`
 3. `assets/audio/sounds.js` (`SOUND_MANIFEST`, antes de `audio.js`)
 4. `src/state.js`
-5. Módulos: `audio.js` → `music.js` → `fx.js` → `fx-scene.js` → `feedback.js` → `settings.js` → `events.js` → `achievements.js` → `themes.js` → `editor.js` → `ui.js` → `game-logic.js` → `golden-commit.js` → `onboarding.js` → `admin.js`
+5. Módulos: `audio.js` → `music.js` → `fx.js` → `fx-scene.js` → `feedback.js` → `settings.js` → `events.js` → `achievements.js` → `themes.js` → `editor.js` → `ui.js` → `game-logic.js` → `golden-commit.js` → `onboarding.js` → `ticker.js` → `gitlog.js` → `nerdstats.js` → `terminal.js` → `shortcuts.js` → `admin.js`
 6. `src/game.js`
 7. `src/main.js`
 

@@ -81,6 +81,8 @@ class GameState {
         this.seenChoreographies = {};
         // Mayor potencia de 10 de código total ya celebrada (récord: se conserva en el prestige)
         this.codePowerRecord = 0;
+        // Contenido para programadores: ticker y nerd stats (se guardan y se conservan en el prestige)
+        this.devSettings = { ...CONFIG.DEV_SETTINGS_DEFAULTS };
 
         // Eventos
         this.eventCooldown = 0;
@@ -202,6 +204,21 @@ class GameState {
     recordChoreographyView(id) {
         this.seenChoreographies[id] = (this.seenChoreographies[id] || 0) + 1;
         return this.seenChoreographies[id];
+    }
+
+    sanitizeDevSettings(raw) {
+        const source = raw && typeof raw === 'object' ? raw : {};
+        const defaults = CONFIG.DEV_SETTINGS_DEFAULTS;
+        return {
+            ticker: ['running', 'paused', 'hidden'].includes(source.ticker) ? source.ticker : defaults.ticker,
+            nerdStats: typeof source.nerdStats === 'boolean' ? source.nerdStats : defaults.nerdStats
+        };
+    }
+
+    // Nerd stats: sin elección del jugador se activan solos tras el primer prestige.
+    isNerdStatsEnabled() {
+        const setting = this.devSettings?.nerdStats;
+        return setting === null || setting === undefined ? this.prestigeLevel > 0 : !!setting;
     }
 
     // Potencia de 10 del código total de la run (1M → 6). 0 sin código.
@@ -1467,14 +1484,35 @@ class GameState {
 
     // Potencia propia del click: upgrades, prestige, bonus, racha, efectos y mantenimiento.
     calculateBaseClickPower() {
+        return this.getClickBreakdown().baseClick;
+    }
+
+    // Desglose del poder de click (para "nerd stats"). calculateClickPower() devuelve su total.
+    getClickBreakdown() {
         const specialization = this.getSpecialization();
-        const clickBonus = (specialization?.clickBoost || 0) + this.getTeamClickBonus() + this.getArtifactBonus('clickBoost');
-        const streakBonus = Math.min(
-            CONFIG.STREAK_CLICK_BONUS_CAP,
-            this.streak * CONFIG.STREAK_CLICK_BONUS_PER_STACK
-        );
-        const maintenanceMultiplier = this.getMaintenanceStatus().clickMultiplier;
-        return this.codePerClick * this.getPrestigeMultiplier() * (1 + clickBonus + streakBonus) * this.getEffectMultiplier('clickMultiplier') * maintenanceMultiplier;
+        const bonus = {
+            specialization: specialization?.clickBoost || 0,
+            team: this.getTeamClickBonus(),
+            artifacts: this.getArtifactBonus('clickBoost'),
+            streak: Math.min(CONFIG.STREAK_CLICK_BONUS_CAP, this.streak * CONFIG.STREAK_CLICK_BONUS_PER_STACK)
+        };
+        const clickBonus = bonus.specialization + bonus.team + bonus.artifacts;
+        const prestige = this.getPrestigeMultiplier();
+        const effects = this.getEffectMultiplier('clickMultiplier');
+        const maintenance = this.getMaintenanceStatus().clickMultiplier;
+        const baseClick = this.codePerClick * prestige * (1 + clickBonus + bonus.streak) * effects * maintenance;
+        const passiveShare = this.calculateClickPassiveBonus();
+        return {
+            base: this.codePerClick,
+            bonus,
+            bonusMultiplier: 1 + clickBonus + bonus.streak,
+            prestige,
+            effects,
+            maintenance,
+            baseClick,
+            passiveShare,
+            total: baseClick + passiveShare
+        };
     }
 
     // Parte del click que viene de la producción pasiva (CLICK_PASSIVE_SHARE).
@@ -1490,20 +1528,74 @@ class GameState {
 
     // === CÁLCULOS ===
     calculateGeneration(options = {}) {
-        const { includeTimedEffects = true, includeMaintenance = true } = options;
-        const specialization = this.getSpecialization();
-        const passiveBonus = (specialization?.passiveBoost || 0) + this.getTeamPassiveBonus() + this.getArtifactBonus('passiveBoost');
-        const base = this.getBasePassiveGeneration()
-            + this.getTeamGeneration()
-            + this.getSpecializationLanguageBonus()
-            + this.getFrameworkSynergyBonus()
-            + this.getTrendLanguageBonus()
-            + this.getTrendFrameworkBonus();
-        this.passiveGeneration = base;
+        const breakdown = this.getGenerationBreakdown(options);
+        this.passiveGeneration = breakdown.base;
+        return breakdown.total;
+    }
 
-        const maintenanceMultiplier = includeMaintenance ? this.getMaintenanceStatus().passiveMultiplier : 1;
-        const effectMultiplier = includeTimedEffects ? this.getEffectMultiplier('passiveMultiplier') : 1;
-        return base * this.getPrestigeMultiplier() * (1 + passiveBonus) * effectMultiplier * maintenanceMultiplier;
+    // Desglose de la producción por segundo (para "nerd stats"). calculateGeneration()
+    // devuelve su total, así que lo que se muestra coincide por construcción.
+    getGenerationBreakdown(options = {}) {
+        const { includeTimedEffects = true, includeMaintenance = true, detail = false } = options;
+        const specialization = this.getSpecialization();
+        const bonus = {
+            specialization: specialization?.passiveBoost || 0,
+            team: this.getTeamPassiveBonus(),
+            artifacts: this.getArtifactBonus('passiveBoost')
+        };
+        const passiveBonus = bonus.specialization + bonus.team + bonus.artifacts;
+        const sources = {
+            languages: this.getBasePassiveGeneration(),
+            team: this.getTeamGeneration(),
+            specialization: this.getSpecializationLanguageBonus(),
+            frameworks: this.getFrameworkSynergyBonus(),
+            trendLanguage: this.getTrendLanguageBonus(),
+            trendFramework: this.getTrendFrameworkBonus()
+        };
+        const base = sources.languages + sources.team + sources.specialization + sources.frameworks + sources.trendLanguage + sources.trendFramework;
+
+        // Lo que aportan los hitos (ya está dentro de languages y team). Solo con { detail: true }:
+        // calculateGeneration() corre muchas veces por segundo y no lo necesita.
+        let milestoneExtra = null;
+        if (detail) {
+            const languagesWithoutMilestones = Object.values(this.languages).reduce((sum, language) => sum + (language.generation * language.owned), 0);
+            milestoneExtra = (sources.languages - languagesWithoutMilestones) + (sources.team - this.sumTeamStat('generation'));
+        }
+
+        const prestige = this.getPrestigeMultiplier();
+        const effects = includeTimedEffects ? this.getEffectMultiplier('passiveMultiplier') : 1;
+        const maintenance = includeMaintenance ? this.getMaintenanceStatus().passiveMultiplier : 1;
+        return {
+            sources,
+            milestoneExtra,
+            base,
+            bonus,
+            bonusMultiplier: 1 + passiveBonus,
+            prestige,
+            effects,
+            maintenance,
+            total: base * prestige * (1 + passiveBonus) * effects * maintenance
+        };
+    }
+
+    // Producción por segundo que añadiría comprar una unidad más (languages o team). ROI = coste / esto.
+    getMarginalGeneration(collection, key) {
+        const item = this[collection]?.[key];
+        if (!item) return 0;
+        const before = this.calculateGeneration();
+        item.owned++;
+        const after = this.calculateGeneration();
+        item.owned--;
+        this.calculateGeneration(); // restaura passiveGeneration
+        return after - before;
+    }
+
+    // Segundos de producción que tarda en amortizarse una compra (Infinity si no produce).
+    getPurchaseRoi(collection, key) {
+        const item = this[collection]?.[key];
+        const delta = this.getMarginalGeneration(collection, key);
+        if (!item || !(delta > 1e-9)) return Infinity;
+        return item.cost / delta;
     }
 
     recalculateCodePerClick() {
@@ -1625,7 +1717,8 @@ class GameState {
             audioSettings: this.audioSettings,
             visualSettings: this.visualSettings,
             seenChoreographies: this.seenChoreographies,
-            codePowerRecord: this.codePowerRecord
+            codePowerRecord: this.codePowerRecord,
+            devSettings: this.devSettings
         };
 
         this.reset();
@@ -1643,6 +1736,7 @@ class GameState {
         this.visualSettings = preserved.visualSettings;
         this.seenChoreographies = preserved.seenChoreographies;
         this.codePowerRecord = preserved.codePowerRecord;
+        this.devSettings = preserved.devSettings;
         this.responsibility.value = this.getResponsibilityBaselineValue();
         this.responsibility.lastState = this.getResponsibilityState().key;
         this.lastUpdate = Date.now();
@@ -1912,6 +2006,7 @@ class GameState {
             visualSettings: this.visualSettings,
             seenChoreographies: this.seenChoreographies,
             codePowerRecord: this.codePowerRecord,
+            devSettings: this.devSettings,
             lastSavedAt: now
         };
     }
@@ -2016,6 +2111,8 @@ class GameState {
         this.codePowerRecord = Number.isFinite(data.codePowerRecord) && data.codePowerRecord >= 0
             ? Math.floor(data.codePowerRecord)
             : this.getCodePower(this.totalCode);
+        // Partidas anteriores no tienen devSettings: valores por defecto.
+        this.devSettings = this.sanitizeDevSettings(data.devSettings);
         this.lastSavedAt = num(data.lastSavedAt, this.lastSavedAt);
         this.lastPersistAt = 0;
         this.admin = { ...this.admin, ...obj(data.admin) };

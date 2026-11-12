@@ -41,6 +41,7 @@
                 </button>
             </div>
             <p class="admin-console-copy">Escribe <strong>godmode</strong> y presiona Enter para habilitar admin. Tambien acepta comandos como <strong>addcode 100000</strong>, <strong>creative on</strong>, <strong>decision</strong> o <strong>missions</strong>.</p>
+            <div id="adminConsoleOutput" class="admin-console-output" role="log" aria-live="polite"></div>
             <label class="admin-console-input-wrap" for="adminConsoleInput">
                 <span>&gt;</span>
                 <input id="adminConsoleInput" class="admin-console-input" type="text" autocomplete="off" spellcheck="false" placeholder="godmode" />
@@ -109,6 +110,9 @@
                                     <button id="soundToggle" class="control-btn" title="Toggle sonido">
                                         <i class="fas fa-volume-up"></i>
                                     </button>
+                                    <button id="gitLogToggle" class="control-btn" type="button" title="git log" aria-controls="gitLogPanel" aria-expanded="false">
+                                        <i class="fas fa-code-branch"></i>
+                                    </button>
                                     <button id="settingsToggle" class="control-btn" type="button" title="Sonido y efectos" aria-controls="settingsPanel" aria-expanded="false">
                                         <i class="fas fa-sliders"></i>
                                     </button>
@@ -125,6 +129,12 @@
                 </div>
             </div>
         </header>
+        <!-- Ticker de noticias dev (opcional: click = pausar, × = ocultar) -->
+        <div id="newsTicker" class="news-ticker" hidden>
+            <span class="news-ticker-tag">dev.news</span>
+            <button id="newsTickerText" class="news-ticker-text" type="button" title="Click: pausar"></button>
+            <button id="newsTickerClose" class="news-ticker-close" type="button" aria-label="Ocultar ticker de noticias"><i class="fas fa-xmark"></i></button>
+        </div>
 
         <div class="mobile-view-switcher app-shell-mobile-switcher" role="tablist" aria-label="Cambiar vista principal">
             <button class="mobile-view-btn active" id="clicker-view-tab" type="button">
@@ -154,7 +164,7 @@
                                             </span>
                                         </button> -->
                                         <div class="click-info">
-                                            <p id="codePerClick">+<span id="cpv">10</span> líneas por click</p>
+                                            <p id="codePerClick" data-nerd="click">+<span id="cpv">10</span> líneas por click</p>
                                             <p id="clickPassiveShare" class="click-passive-share" hidden></p>
                                         </div>
                                         <button id="clickBtn" class="click-button">
@@ -173,6 +183,7 @@
                                 <div class="progress-label">
                                     <span>Código disponible</span>
                                     <span id="codeDisplay">0</span>
+                                    <span id="codeRate" class="code-rate" data-nerd="generation">+0/s</span>
                                 </div>
                                 <div class="progress" role="progressbar">
                                     <div class="progress-bar progress-bar-animated" id="codeBar" style="width: 0%"></div>
@@ -296,7 +307,7 @@
                                 </div>
                                 <div class="stat-card">
                                     <h4><i class="fas fa-zap"></i> Velocidad Actual</h4>
-                                    <p id="currentSpeed">0 líneas/seg</p>
+                                    <p id="currentSpeed" data-nerd="generation">0 líneas/seg</p>
                                 </div>
                                 <div class="stat-card">
                                     <h4><i class="fas fa-code-branch"></i> Commits</h4>
@@ -309,6 +320,11 @@
                                 <div class="stat-card">
                                     <h4><i class="fas fa-fire"></i> Racha Máxima</h4>
                                     <p id="maxStreak">0</p>
+                                </div>
+                                <div class="stat-card dev-card">
+                                    <h4><i class="fas fa-terminal"></i> Para programadores</h4>
+                                    <label class="dev-toggle"><input type="checkbox" id="nerdStatsToggle"><span>Nerd stats <small>fórmulas al pasar el mouse y ROI en las tarjetas</small></span></label>
+                                    <label class="dev-toggle"><input type="checkbox" id="newsTickerToggle"><span>Ticker de noticias <small>click en el titular lo pausa</small></span></label>
                                 </div>
                                 <div class="stat-card save-card">
                                     <h4><i class="fas fa-floppy-disk"></i> Partida</h4>
@@ -470,6 +486,17 @@
     <div id="notificationsContainer" class="notifications-container"></div>
 
     <!-- Panel de sonido y efectos (lo rellena settings.js) -->
+    <div id="gitLogPanel" class="git-log-panel" role="dialog" aria-label="git log" hidden>
+        <div class="git-log-header">
+            <span class="git-log-title"><i class="fas fa-code-branch"></i> git log --oneline</span>
+            <span class="git-log-actions">
+                <button class="git-log-collapse" type="button" aria-label="Contraer"><i class="fas fa-chevron-down"></i></button>
+                <button class="git-log-close" type="button" aria-label="Cerrar"><i class="fas fa-xmark"></i></button>
+            </span>
+        </div>
+        <ol id="gitLogList" class="git-log-list"></ol>
+    </div>
+
     <div id="settingsPanel" class="settings-panel" role="dialog" aria-modal="false" aria-labelledby="settingsPanelTitle" hidden></div>
 
     <!-- ==================== LIBRERÍAS (CDN) ==================== -->
@@ -519,6 +546,11 @@
     <script src="src/modules/game-logic.js"></script>
     <script src="src/modules/golden-commit.js"></script>
     <script src="src/modules/onboarding.js"></script>
+    <script src="src/modules/ticker.js"></script>
+    <script src="src/modules/gitlog.js"></script>
+    <script src="src/modules/nerdstats.js"></script>
+    <script src="src/modules/terminal.js"></script>
+    <script src="src/modules/shortcuts.js"></script>
     <script src="src/modules/admin.js"></script>
     
     <!-- 5. ENGINE - Game loop -->

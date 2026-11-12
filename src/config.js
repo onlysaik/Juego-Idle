@@ -1744,6 +1744,279 @@ const CONFIG = {
     // mínimas y se quita el blur.
     PERF: { MIN_CORES: 4, MIN_FPS: 45, FPS_MIN_SAMPLES: 24 },
 
+    // === CONTENIDO PARA PROGRAMADORES (todo opcional) ===
+    DEV_SETTINGS_DEFAULTS: {
+        ticker: 'running',  // 'running' | 'paused' | 'hidden' (un click en el ticker lo pausa; la × lo oculta)
+        nerdStats: null     // null = se activa solo tras el primer prestige; true/false = elección del jugador
+    },
+
+    // Ticker de noticias: un titular nuevo cada INTERVAL_MS. Solo salen los titulares con
+    // minTotalCode <= código total de la run; los más recientes pesan más.
+    NEWS: {
+        INTERVAL_MS: 12000,
+        RECENT_WEIGHT: 4,        // peso de los titulares de los últimos RECENT_COUNT niveles
+        RECENT_COUNT: 10,
+        NO_REPEAT: 6,            // no repite los últimos N titulares
+        CONTEXT_CHANCE: 0.45,    // probabilidad de preferir un titular contextual si hay alguno activo
+        DEBT_HIGH: 70,           // deuda técnica a partir de la cual sale "deuda alta"
+        LONG_STREAK: 50          // racha a partir de la cual sale "racha larga"
+    },
+    NEWS_TICKER: [
+        { text: 'Junior pregunta si HTML es un lenguaje de programación', minTotalCode: 0 },
+        { text: 'Funciona en mi máquina', minTotalCode: 0 },
+        { text: 'Era la caché. Siempre es la caché', minTotalCode: 0 },
+        { text: 'Es DNS. Siempre es DNS', minTotalCode: 0 },
+        { text: 'Nadie despliega los viernes. Nadie', minTotalCode: 0 },
+        { text: 'Alguien pegó una contraseña en el chat del equipo', minTotalCode: 0 },
+        { text: 'Stack Overflow: pregunta cerrada por duplicada (no lo era)', minTotalCode: 0 },
+        { text: 'Un desarrollador escribe "TODO: arreglar esto luego". Es el commit más antiguo del repo', minTotalCode: 0 },
+        { text: 'El linter encuentra 400 advertencias. Las ignoras todas', minTotalCode: 100 },
+        { text: 'Reunión de una hora que pudo ser un correo. El correo pudo ser un commit', minTotalCode: 100 },
+        { text: 'Alguien sube node_modules al repositorio. La nube suspira', minTotalCode: 100 },
+        { text: 'Se descubre que los tabuladores y los espacios son la misma cosa. Nadie lo acepta', minTotalCode: 250 },
+        { text: 'Tu primer pull request recibe un LGTM sin que nadie lo lea', minTotalCode: 1000 },
+        { text: 'Nueva librería de tres líneas rompe medio internet (otra vez)', minTotalCode: 1000 },
+        { text: 'El café de la oficina alcanza el 99,9 % de uptime', minTotalCode: 1000 },
+        { text: 'Un bug desaparece al añadir un console.log. Nadie pregunta por qué', minTotalCode: 2500 },
+        { text: 'Tu código compila al primer intento. Nadie te cree', minTotalCode: 10000 },
+        { text: 'Expertos recomiendan reiniciar el servidor, el router y la carrera', minTotalCode: 10000 },
+        { text: 'Un regex escrito en 2014 sigue funcionando. Nadie sabe cómo', minTotalCode: 10000 },
+        { text: 'La documentación está al día. Sospechosamente al día', minTotalCode: 20000 },
+        { text: 'Un becario borra la base de datos de producción. La culpa es del proceso', minTotalCode: 50000 },
+        { text: 'Tu equipo celebra el primer despliegue sin rollback. El segundo, no tanto', minTotalCode: 100000 },
+        { text: 'Aparece un nuevo framework JavaScript. Ya tiene tres competidores', minTotalCode: 100000 },
+        { text: 'El cliente pide "un cambio pequeño" que toca toda la arquitectura', minTotalCode: 100000 },
+        { text: 'Se publica un parche para el parche del parche', minTotalCode: 250000 },
+        { text: 'Un microservicio se comunica por fin con otro microservicio', minTotalCode: 500000 },
+        { text: 'Tu repo supera a un framework famoso en estrellas', minTotalCode: 1000000 },
+        { text: 'Una startup te ofrece equity a cambio de arreglar "un pequeño bug"', minTotalCode: 1000000 },
+        { text: 'Conferencia de desarrolladores: la charla estrella trata de tu bug', minTotalCode: 2000000 },
+        { text: 'Un influencer tech aprende a programar con tu repositorio', minTotalCode: 5000000 },
+        { text: 'Los tests pasan en local, en CI y en producción. Algo huele raro', minTotalCode: 5000000 },
+        { text: 'Tu IDE se actualiza e instala 14 extensiones nuevas sin preguntar', minTotalCode: 10000000 },
+        { text: 'Un unicornio contrata a todo tu equipo por teléfono', minTotalCode: 25000000 },
+        { text: 'Tu mensaje de commit "fix" se enseña en una universidad', minTotalCode: 50000000 },
+        { text: 'Se descubre un bug de 2038 en tu código. Llegó antes de lo esperado', minTotalCode: 100000000 },
+        { text: 'Una gran tecnológica compra tu proyecto y lo apaga seis meses después', minTotalCode: 250000000 },
+        { text: 'Tu stack trace es declarado patrimonio cultural', minTotalCode: 500000000 },
+        { text: 'La ONU adopta tu framework como estándar', minTotalCode: 1000000000 },
+        { text: 'Tu API deprecada sigue recibiendo mil millones de peticiones al día', minTotalCode: 2000000000 },
+        { text: 'Un satélite ejecuta tu código. Ya no se le puede hacer un git revert', minTotalCode: 5000000000 },
+        { text: 'Tu IA de autocompletado empieza a completar las frases de tus reuniones', minTotalCode: 10000000000 },
+        { text: 'Un tribunal internacional debate si tu código es un monopolio o un hobby', minTotalCode: 25000000000 },
+        { text: 'Tu repo se vuelve dependencia de otras dependencias de dependencias', minTotalCode: 50000000000 },
+        { text: 'Una civilización lejana descubre tu README y lo confunde con una religión', minTotalCode: 100000000000 },
+        { text: 'Tu código pasa la prueba de Turing. Lo único que te pide es un code review', minTotalCode: 500000000000 },
+        { text: 'Se agota la numeración de las versiones. Tu release es la v∞.0.0-beta', minTotalCode: 1000000000000 }
+    ],
+    // Titulares contextuales según el estado del juego. {language} = lenguaje en tendencia.
+    NEWS_CONTEXT: {
+        debtHigh: [
+            'La deuda técnica cotiza en bolsa y sube',
+            'Alguien escribió "TODO: arreglar esto" en 2019. Sigue ahí, con intereses',
+            'Los analistas advierten: tu repositorio acumula más deuda que un país'
+        ],
+        releaseBad: [
+            'Rollback exitoso: el único despliegue que salió bien',
+            'Postmortem sin culpables (pero con culpable)',
+            'La última release fue "una oportunidad de aprendizaje"'
+        ],
+        streakLong: [
+            'Tu teclado pide vacaciones y un abrazo',
+            'Detectan un nivel peligroso de flow en el edificio',
+            'Alguien te pregunta algo y respondes en pseudocódigo'
+        ],
+        trend: [
+            'Todos migran a {language}',
+            'Medio mundo reescribe todo en {language}. El otro medio, lo mantiene en lo de antes',
+            '{language} es el nuevo mejor lenguaje. Hasta el mes que viene'
+        ],
+        maintenance: [
+            'Refactor en curso: no toques nada, no respires fuerte'
+        ]
+    },
+
+    // Git log vivo: las últimas MAX_ENTRIES entradas, solo en memoria (no se guardan).
+    GIT_LOG: {
+        MAX_ENTRIES: 50,
+        COMMIT_MIN_GAP_MS: 3000, // los commits automáticos se agrupan: como mucho uno cada 3 s
+        PREFIXES: { purchase: 'feat', milestone: 'feat', specialization: 'feat', artifact: 'feat', release: 'release', prestige: '' }
+    },
+    // Mensajes de los commits automáticos del git log.
+    COMMIT_MESSAGES: [
+        'fix: arreglar el fix del fix',
+        'refactor: renombrar variables x, xx y xxx',
+        'chore: actualizar dependencias (rompió todo)',
+        'feat: añadir botón que nadie pidió',
+        'fix: quitar el console.log que olvidé quitar',
+        'docs: actualizar el README (mentira)',
+        'wip: no mirar este commit',
+        'fix: funciona en mi máquina',
+        'refactor: mover código de un archivo a otro para que parezca trabajo',
+        'test: añadir test que siempre pasa',
+        'chore: ejecutar prettier y discutir 40 minutos',
+        'fix: era la caché',
+        'fix: era DNS',
+        'feat: modo oscuro (por fin)',
+        'perf: hacerlo más rápido (cambié un 100 por un 10)',
+        'revert: revert "revert: revert la reversión"',
+        'chore: borrar código comentado de 2017',
+        'fix: typo en el nombre de la función (y en las 40 llamadas)',
+        'style: tabuladores por espacios (otra vez)',
+        'feat: nueva pantalla de carga para esconder la lentitud',
+        'fix: por favor, que funcione',
+        'refactor: simplificar la función de 900 líneas',
+        'chore: bump version sin motivo aparente',
+        'fix: cerrar la issue abierta desde 2021',
+        'feat: guardar automáticamente (por fin)',
+        'fix: condición de carrera (creo)',
+        'docs: añadir comentario "no tocar"',
+        'test: saltar el test que falla',
+        'build: arreglar el build que arreglé ayer',
+        'fix: off-by-one (la tercera vez es la vencida)',
+        'chore: eliminar dependencia que ya no usamos (la usábamos)',
+        'feat: algo que parece IA pero es un if',
+        'fix: aquí falta un punto y coma',
+        'refactor: extraer helper llamado utils2'
+    ],
+
+    // Terminal pública: textos de la consola (comandos públicos; los de admin viven en admin.js).
+    TERMINAL: {
+        TITLE: 'Terminal',
+        TAG: 'codeidle@dev',
+        COPY: 'Escribe <strong>help</strong> para ver los comandos. Atajo: <kbd>`</kbd> abre y cierra la terminal.',
+        PLACEHOLDER: 'help',
+        PROMPT: '$ ',
+        UNKNOWN: 'Comando no reconocido: {command}. Prueba con help.',
+        HELP_PUBLIC: [
+            'help                 lista los comandos y atajos',
+            'man <sistema>        explica un sistema del juego',
+            'status               producción, multiplicadores y próximo objetivo',
+            'buy <item> [n]       compra un item (n veces)',
+            'git log              abre el panel git log --oneline',
+            'clear                limpia la terminal'
+        ],
+        HELP_ADMIN: 'admin: godmode (activa el modo admin) · addcode N, addrep N, creative on|off, decision, event, golden, missions, release, resources, unlockall, fx <id>, sound <id>',
+        MAN_UNKNOWN: "man: no hay entrada para '{name}'",
+        MAN_USAGE: 'uso: man <sistema>. Sistemas disponibles: {list}',
+        BUY_USAGE: 'uso: buy <item> [n]. Prueba con: {list}',
+        BUY_UNKNOWN: "buy: no existe '{name}'",
+        BUY_LOCKED: "buy: '{name}' aún no está disponible",
+        BUY_FAIL: "buy: no se pudo comprar '{name}' ({reason})",
+        BUY_OK: 'compraste {count}× {name} · coste {cost}',
+        GIT_USAGE: 'uso: git log',
+        GIT_OPEN: 'git log --oneline: panel abierto',
+        HISTORY_MAX: 60
+    },
+    // Páginas de man (3–5 líneas). `feature` = clave de FEATURE_UNLOCKS que debe estar
+    // desbloqueada (null = siempre). Tokens: {CODE_PER_COMMIT}, {RELEASE_CHARGE_REQUIRED},
+    // {PRESTIGE_PERCENT}, {STREAK_SECONDS}, {STREAK_CAP}, {MILESTONES}, {CLICK_SHARE}.
+    MAN_PAGES: {
+        click: {
+            aliases: ['clicks', 'teclear'],
+            feature: null,
+            lines: [
+                'Cada click (o Espacio/Enter) escribe líneas de código.',
+                'Poder de click = upgrades × prestige × (1 + bonus + racha) + {CLICK_SHARE}% de tu producción.',
+                'La racha sube +1 por click si no pasan {STREAK_SECONDS} s entre clicks (tope +{STREAK_CAP}%).'
+            ]
+        },
+        commits: {
+            aliases: ['commit'],
+            feature: null,
+            lines: [
+                'Cada {CODE_PER_COMMIT} líneas de código hacen un commit automático.',
+                'Los commits cargan la release: hacen falta {RELEASE_CHARGE_REQUIRED} para publicarla.',
+                'También cuentan para logros y misiones.'
+            ]
+        },
+        lenguajes: {
+            aliases: ['lenguaje', 'languages', 'language', 'tienda', 'shop'],
+            feature: 'shop',
+            lines: [
+                'Los lenguajes producen líneas por segundo sin que hagas nada.',
+                'Cada copia cuesta más que la anterior; con {MILESTONES} copias su producción se duplica (hito).',
+                'Los frameworks refuerzan al lenguaje del que dependen; la tendencia premia a uno cada cierto tiempo.'
+            ]
+        },
+        equipo: {
+            aliases: ['team', 'equipos'],
+            feature: 'team',
+            lines: [
+                'Cada miembro del equipo aporta producción, bonus de click o bonus pasivo.',
+                'Su rendimiento depende de tu responsabilidad: prometer y cumplir te da bonus.',
+                'También tienen hitos de x2 con {MILESTONES} miembros.'
+            ]
+        },
+        releases: {
+            aliases: ['release', 'lab'],
+            feature: 'releases',
+            lines: [
+                'Con {RELEASE_CHARGE_REQUIRED} commits de carga puedes publicar una release (tecla R).',
+                'La salud del proyecto decide la banda: limpia, sólida, arriesgada o inestable.',
+                'Una release limpia da más código y reputación; una inestable castiga la calidad y suma deuda.'
+            ]
+        },
+        salud: {
+            aliases: ['health', 'deuda', 'calidad', 'mantenimiento'],
+            feature: 'health',
+            lines: [
+                'La calidad sube con buenas decisiones y baja con prisas; la deuda técnica hace lo contrario.',
+                'Con deuda alta tu producción y tus releases sufren.',
+                'El refactor (mantenimiento) restaura calidad y baja deuda a cambio de código.'
+            ]
+        },
+        prestige: {
+            aliases: ['reputacion', 'reputación', 'rep'],
+            feature: 'prestige',
+            lines: [
+                'Prestige reinicia la run a cambio de reputación permanente.',
+                'La reputación es la raíz cúbica de (código total / coste) y cada punto da +{PRESTIGE_PERCENT}% de producción.',
+                'Se conservan artefactos, logros y lo que ya aprendiste; cada run avanza la tonalidad de la música.'
+            ]
+        },
+        artefactos: {
+            aliases: ['artefacto', 'artifacts', 'artifact'],
+            feature: 'releases',
+            lines: [
+                'Los artefactos se compran con reputación y duran para siempre.',
+                'Cada uno da un bonus permanente de click, producción o release.',
+                'Están en la pestaña Lab.'
+            ]
+        },
+        misiones: {
+            aliases: ['mision', 'misión', 'missions', 'mission'],
+            feature: 'missions',
+            lines: [
+                'Hay una misión corta y una larga activas a la vez.',
+                'La recompensa se calcula en segundos de tu producción, así que escala contigo.',
+                'Puedes cambiar una misión por otra pagando código.'
+            ]
+        }
+    },
+
+    // Nerd stats: desglose de fórmulas en tooltips y ROI en tarjetas.
+    NERD_STATS: {
+        HOLD_MS: 450,          // en móvil: mantener pulsado este tiempo
+        ROI_REFRESH_MS: 1000,
+        ROI_COLLECTIONS: ['languages', 'team']
+    },
+
+    // Atajos de teclado (se listan en help y en README).
+    SHORTCUTS: [
+        { keys: '`', desc: 'abre/cierra la terminal' },
+        { keys: 'Ctrl+K', desc: 'paleta de comandos (comprar, pestañas, release, refactor, tema)' },
+        { keys: '1–9', desc: 'cambia de pestaña (solo las desbloqueadas)' },
+        { keys: 'R', desc: 'publica una release si está disponible' },
+        { keys: 'Espacio / Enter', desc: 'click' },
+        { keys: 'Esc', desc: 'cierra paneles o salta la celebración' }
+    ],
+    PALETTE: {
+        PLACEHOLDER: 'Escribe para buscar: comprar, ir a, release, tema…',
+        EMPTY: 'Sin resultados',
+        MAX_RESULTS: 9
+    },
+
     // === COMMIT DORADO ===
     GOLDEN_COMMIT: {
         MIN_INTERVAL_MS: 60000,

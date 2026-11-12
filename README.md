@@ -53,13 +53,40 @@ Juego incremental sobre programación con click manual, automatización, release
 | Sonido y efectos (volúmenes, reducir movimiento, celebraciones cortas) | Botón de sliders en header |
 | Saltar una celebración en curso | `Esc` |
 | Cambiar tema | Selector del header |
-| Abrir consola admin | Tecla configurada en el flujo actual y luego escribir `godmode` |
+| Abrir la terminal | `` ` `` (backtick). Para admin, escribir `godmode` dentro |
+| Paleta de comandos | `Ctrl+K` |
+| Cambiar de pestaña | `1`–`9` (solo las desbloqueadas) |
+| Publicar release | `R` (si hay una lista; con admin activo `R` es la release instantánea de admin) |
+
+## Para programadores
+
+Todo es opcional y se apaga desde Estadísticas. Los textos y umbrales viven en [src/config.js](src/config.js).
+
+- **Ticker de noticias dev** (`NEWS_TICKER`, `NEWS_CONTEXT`, `NEWS`): una franja bajo el header con un titular nuevo cada 12 s (46 titulares, de "Junior pregunta si HTML es un lenguaje de programación" a "La ONU adopta tu framework como estándar"). Solo salen los que tu código total de la run ya permite, y los más recientes pesan más. Hay titulares contextuales: deuda alta, release inestable, racha larga, tendencia ("Todos migran a Python") y refactor en curso. Un click en el titular lo pausa, la × lo oculta; se guarda en la partida.
+- **Git log vivo** (`GIT_LOG`, `COMMIT_MESSAGES`): botón de rama en el header (o `git log` en la terminal) abre un panel estilo `git log --oneline` con hash de 7 caracteres, mensaje y tiempo relativo. Registra commits (con mensajes como "fix: arreglar el fix del fix"), compras importantes, hitos, releases (como tags `v1.2.0`) y prestige (`git checkout -b run-3`). Solo las últimas 50 entradas, en memoria: no se guardan.
+- **Nerd stats** (`NERD_STATS`): al pasar el mouse (o mantener pulsado en móvil) sobre el código/s o el poder de click, un tooltip monospace desglosa la fórmula: base, bonus de especialización, equipo y artefactos, prestige, eventos activos, mantenimiento, hitos y tendencia, y el total. Los valores salen de `getGenerationBreakdown()` / `getClickBreakdown()`, de donde `calculateGeneration()` y `calculateClickPower()` toman su total, así que coinciden exactamente. Las tarjetas de lenguajes y equipo muestran `ROI: X s` (coste ÷ producción que añade una unidad) y la compra más eficiente lleva un borde sutil. Se activa solo tras el primer prestige; el toggle de Estadísticas lo cambia.
+- **Terminal pública** (`TERMINAL`, `MAN_PAGES`): la tecla `` ` `` abre la misma consola de admin, que ahora separa los comandos públicos de los de admin (`godmode` y compañía siguen igual).
+  - `help`: comandos y atajos · `man <sistema>`: explica click, commits, lenguajes, equipo, releases, salud, prestige, artefactos o misiones (3–5 líneas; **solo los sistemas ya desbloqueados**, uno bloqueado responde igual que uno inexistente)
+  - `status`: producción, multiplicadores y próximo objetivo · `buy <item> [n]`: compra desde la terminal · `git log` · `clear`
+  - Historial con ↑/↓ y autocompletado con `Tab` (comandos, sistemas de `man`, items de `buy`).
+- **Atajos** (`SHORTCUTS`):
+
+  | Tecla | Acción |
+  | --- | --- |
+  | `` ` `` | abre/cierra la terminal |
+  | `Ctrl+K` | paleta de comandos con búsqueda difusa (comprar, ir a una pestaña, publicar release, refactorizar, cambiar tema, terminal, git log, nerd stats, ticker) |
+  | `1`–`9` | cambia de pestaña (solo las desbloqueadas) |
+  | `R` | publica una release si está disponible |
+  | `Espacio` / `Enter` | click |
+  | `Esc` | cierra paneles o salta la celebración |
+
+  No se activan mientras se escribe en un input, con un modal abierto ni con la terminal abierta, y no interfieren con los hotkeys de admin (con admin activo, `R` sigue siendo la release instantánea).
 
 ## Comandos admin
 
-Una vez activado `godmode`, la consola soporta:
+Una vez activado `godmode` en la terminal, soporta:
 
-- `help`
+- `help admin` (la lista de comandos de admin)
 - `addcode N`
 - `addrep N`
 - `creative on|off`
@@ -103,12 +130,17 @@ Juego-Idle/
         ├── feedback.js        (coreografías audio + visual)
         ├── settings.js        (panel de sonido y efectos)
         ├── achievements.js
-        ├── admin.js
+        ├── admin.js             (consola admin; la terminal pública la usa)
         ├── editor.js
         ├── events.js
         ├── game-logic.js
         ├── golden-commit.js
         ├── onboarding.js
+        ├── ticker.js            (ticker de noticias dev)
+        ├── gitlog.js            (git log vivo)
+        ├── nerdstats.js         (desglose de fórmulas y ROI)
+        ├── terminal.js          (terminal pública: help, man, status, buy, git log)
+        ├── shortcuts.js         (atajos y paleta Ctrl+K)
         ├── themes.js
         └── ui.js
 ```

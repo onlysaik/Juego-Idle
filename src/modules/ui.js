@@ -264,7 +264,7 @@ const uiModule = {
                 <i class="passive-icon fas fa-wave-square"></i>
                 <div class="passive-info">
                     <h4>Ritmo total</h4>
-                    <p data-passive-total></p>
+                    <p data-passive-total data-nerd="generation"></p>
                 </div>
             `;
             container.prepend(total);
@@ -670,6 +670,7 @@ const uiModule = {
         this.updateMetaUI();
         this.updateShopAffordability();
         onboardingModule.updateNextGoal();
+        nerdStatsModule.update();
     },
 
     // Mantiene al día el indicador "se puede comprar" de upgrades, frameworks
@@ -776,6 +777,7 @@ const uiModule = {
                     ${this.formatCodeCost(lang.cost)}
                 </div>
                 <div style="font-size: 0.75rem; color: var(--accent);">x${lang.owned}</div>
+                <div class="roi-label" data-roi-collection="languages" data-roi-key="${key}"></div>
                 ${this.renderMilestoneBar()}
             `;
             card.addEventListener('click', () => gameLogic.buyLanguage(key));
@@ -1026,6 +1028,7 @@ const uiModule = {
                 <span class="team-desc shell-tier-secondary">${member.desc}</span>
                 <span class="team-cost">${this.formatCodeCost(member.cost)}</span>
                 <span class="team-owned">x${member.owned}</span>
+                <span class="roi-label" data-roi-collection="team" data-roi-key="${key}"></span>
                 ${this.renderMilestoneBar()}
             </button>
         `).join('');

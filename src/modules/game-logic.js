@@ -19,6 +19,7 @@ const gameLogic = {
         }
 
         if (commitsProcessed === 0) return 0;
+        gitLogModule.logCommits(commitsProcessed);
 
         if (showFeedback) {
             const label = commitsProcessed === 1 ? '¡Commit realizado!' : `¡${commitsProcessed} commits realizados!`;
@@ -142,6 +143,7 @@ const gameLogic = {
     },
 
     purchaseFeedback(collection, key, milestone = null, walletBefore = null) {
+        gitLogModule.logPurchase(collection, key, milestone);
         const element = this.findCard(collection, key);
         if (milestone) {
             feedbackModule.play('milestone', this.buildMilestoneContext(element, milestone));
@@ -155,6 +157,42 @@ const gameLogic = {
 
     purchaseFailFeedback(collection, key) {
         feedbackModule.play('purchase_fail', { element: this.findCard(collection, key) });
+    },
+
+    // === COMPRA DESDE LA TERMINAL / PALETA ===
+    // Compra `count` unidades de golpe y hace el feedback una sola vez.
+    // Devuelve { bought, spent, reason } (reason explica por qué se detuvo o no se pudo).
+    buyItem(collection, key, count = 1) {
+        const methods = { languages: 'buyLanguage', upgrades: 'buyUpgrade', frameworks: 'buyFramework', team: 'buyTeamMember', artifacts: 'buyArtifact' };
+        const method = methods[collection];
+        const item = gameState[collection]?.[key];
+        if (!method || !item) return { bought: 0, spent: '', reason: 'item desconocido' };
+
+        const wallet = this.getWallet();
+        const ownedBefore = item.owned;
+        let bought = 0;
+        for (let i = 0; i < count; i++) {
+            if (!gameState[method](key)) break;
+            bought++;
+        }
+
+        const reason = collection === 'artifacts'
+            ? (item.owned > 0 ? 'ya lo tienes' : 'reputación insuficiente')
+            : (collection === 'upgrades' && item.owned >= CONFIG.UPGRADE_MAX_OWNED ? 'límite alcanzado' : 'código insuficiente');
+        if (bought === 0) return { bought: 0, spent: '', reason };
+
+        const spent = collection === 'artifacts'
+            ? `${wallet.rep - gameState.prestigePoints} rep`
+            : uiModule.formatCompactNumber(Math.floor(wallet.code - gameState.code));
+        const milestone = ['languages', 'team'].includes(collection) ? this.checkMilestone(item.name, ownedBefore, item.owned) : null;
+        uiModule.rebuildCommerceUI();
+        if (collection === 'languages') uiModule.setPreviewLanguage(key);
+        achievementsModule.checkAll();
+        this.afterProgressAction();
+        uiModule.update();
+        this.purchaseFeedback(collection, key, milestone, wallet);
+        gameState.save(true);
+        return { bought, spent, reason };
     },
 
     // === COMPRAR UPGRADE ===
@@ -291,6 +329,7 @@ const gameLogic = {
         }
 
         uiModule.showNotification(`Ruta ${specialization.name} activada`, 'success');
+        gitLogModule.logSpecialization(specialization.name);
         uiModule.update();
         achievementsModule.checkAll();
         this.afterProgressAction();
@@ -465,6 +504,8 @@ const gameLogic = {
         this.afterProgressAction();
         // Pipeline Build → Test → Deploy y desenlace según la banda de calidad:
         // limpia (cohete + fuegos), sólida (cohete), arriesgada/inestable (glitch, en tono menor).
+        gitLogModule.logRelease(result);
+        tickerModule.noteRelease(result);
         feedbackModule.play(this.getReleaseChoreography(result.band.key), this.buildReleaseContext(result));
         gameState.save(true);
     },
@@ -613,6 +654,8 @@ const gameLogic = {
         achievementsModule.checkAll();
         onboardingModule.applyVisibility(); // lo desbloqueado se conserva tras el reset
         this.afterProgressAction();
+
+        gitLogModule.logPrestige(gameState.prestigeLevel + 1);
 
         // 4) La escena. El aviso sale al final (o al saltarla con Esc), no encima de ella.
         feedbackModule.play('prestige', {

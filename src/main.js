@@ -33,6 +33,12 @@ const app = {
         uiModule.createMetaUI();
         editorModule.init();
         onboardingModule.init(); // ocultar lo bloqueado antes del primer render
+        // Contenido para programadores (todo opcional)
+        tickerModule.init();
+        gitLogModule.init();
+        nerdStatsModule.init();
+        terminalModule.init();
+        shortcutsModule.init();
         this.applyVisualPerformanceProfile();
         this.applyShellDensityProfile();
         this.applyViewportEnvironmentProfile({ resetBaseline: true });
@@ -431,9 +437,17 @@ const app = {
                 // Primero cierra el panel de sonido; si no hay, salta la coreografía en curso.
                 if (settingsModule.isOpen()) {
                     settingsModule.close();
+                } else if (gitLogModule.isOpen()) {
+                    gitLogModule.close();
                 } else if (!eventsModule.isModalOpen() && feedbackModule.skip()) {
                     e.preventDefault();
                 }
+                return;
+            }
+
+            // Atajos de programador: Ctrl+K (paleta), 1–9 (pestañas) y R (release). Van después
+            // de los de admin y nunca se activan escribiendo en un input.
+            if (shortcutsModule.handleKeydown(e)) {
                 return;
             }
 
@@ -454,7 +468,7 @@ const app = {
     
     isFormControl(target) {
         if (!target || typeof target.closest !== 'function') return false;
-        return !!target.closest('input, textarea, select, [contenteditable="true"], .swal2-container, #adminConsole, #settingsPanel');
+        return !!target.closest('input, textarea, select, [contenteditable="true"], .swal2-container, #adminConsole, #settingsPanel, #commandPalette, #gitLogPanel');
     },
 
     // === INICIALIZAR PARTÍCULAS DE FONDO ===
