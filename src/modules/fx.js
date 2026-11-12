@@ -1,6 +1,7 @@
 /**
  * MODULES/FX.JS - Efectos visuales sobre GSAP (+ tsParticles)
- * shake, flash, crack (DrawSVG), burst (tsParticles), shards (Physics2D),
+ * shake, flash, crack (DrawSVG), burst (tsParticles), shatter (Voronoi + clones
+ * recortados + Physics2D),
  * scramble (ScrambleText), banner (SplitText), odometer, pulse, glow,
  * charge (carga antes del impacto), stamp (sello con rebote), floater (número
  * flotante), sparks/setAura (racha), coins (monedas al contador), encrypt/reveal
@@ -30,6 +31,10 @@ const fxModule = window.fxModule = {
     burstCounter: 0,
     encrypted: new Set(),      // pestañas mostradas como bloque cifrado (unlock)
     glitched: new Map(),       // elemento → temporizador del glitch RGB
+    shatterRestores: new Set(), // shatters en curso con el original oculto
+    liteMode: false,            // equipo lento: piezas mínimas y sin blur
+    fpsRunning: false,
+    fpsFrames: [],
     auraLevel: 0,
     auraTimer: null,
     auraSparks: 0,
@@ -58,6 +63,7 @@ const fxModule = window.fxModule = {
         this.layer.append(this.flashEl, this.crackSvg);
         document.body.appendChild(this.layer);
         this.ready = true;
+        this.applyLiteMode();
     },
 
     // Precalentamiento (en tiempo libre, tras la primera interacción): el primer
@@ -83,7 +89,7 @@ const fxModule = window.fxModule = {
             if (window.DrawSVGPlugin) gsap.set(path, { drawSVG: '0% 50%' });
 
             const shard = document.createElement('div');
-            shard.className = 'fx-shard';
+            shard.className = 'fx-fragment';
             shard.style.cssText = 'left:-100px;top:-100px;width:10px;height:10px;opacity:0.001';
             const banner = document.createElement('div');
             banner.className = 'fx-banner fx-banner-gold';
@@ -128,6 +134,8 @@ const fxModule = window.fxModule = {
     },
 
     resolvePoint(point, context = {}) {
+        // Ya es un punto { x, y } (p. ej. context.impact resuelto por la coreografía).
+        if (point && Number.isFinite(point.x) && Number.isFinite(point.y)) return { x: point.x, y: point.y };
         if (point === 'context' && Number.isFinite(context.x) && Number.isFinite(context.y)) {
             return { x: context.x, y: context.y };
         }
@@ -177,7 +185,9 @@ const fxModule = window.fxModule = {
     },
 
     // crack(elemento, puntoDeImpacto): grietas SVG que se dibujan (DrawSVG) desde el impacto.
-    crack(target, point = null, context = {}) {
+    // options.persist: las grietas no se desvanecen (las retira quien las lanzó);
+    // options.reach: multiplicador de su alcance.
+    crack(target, point = null, context = {}, options = {}) {
         if (!this.ready || this.isReducedMotion()) return null;
         const element = this.resolveElement(target, context);
         if (!element) return null;
@@ -196,7 +206,7 @@ const fxModule = window.fxModule = {
         group.appendChild(clip);
         group.setAttribute('clip-path', `url(#${clipId})`);
 
-        const reach = Math.max(rect.width, rect.height) * 0.75;
+        const reach = Math.max(rect.width, rect.height) * 0.75 * (Number(options.reach) || 1);
         const branches = 5 + Math.floor(Math.random() * 3);
         const paths = [];
         for (let b = 0; b < branches; b++) {
@@ -230,9 +240,16 @@ const fxModule = window.fxModule = {
         this.transient.add(group);
 
         gsap.set(paths, { drawSVG: '0%' });
-        return gsap.timeline({ onComplete: () => this.removeTransient(group) })
-            .to(paths, { drawSVG: '100%', duration: 0.28, stagger: 0.03, ease: 'power3.out' })
-            .to(group, { opacity: 0, duration: 0.5 }, '+=0.55');
+        group.dataset.persist = options.persist ? '1' : '';
+        const timeline = gsap.timeline({ onComplete: () => { if (!options.persist) this.removeTransient(group); } })
+            .to(paths, { drawSVG: '100%', duration: 0.28, stagger: 0.03, ease: 'power3.out' });
+        if (!options.persist) timeline.to(group, { opacity: 0, duration: 0.5 }, '+=0.55');
+        return timeline;
+    },
+
+    // Retira las grietas persistentes (cuando lo que agrietaban se rompe).
+    clearCracks() {
+        [...this.transient].filter(node => node.dataset?.persist === '1').forEach(node => this.removeTransient(node));
     },
 
     // burst(x, y, preset): partículas tsParticles ('fireworks' o 'confettiExplosions').
@@ -291,39 +308,6 @@ const fxModule = window.fxModule = {
         this.particleContainers.delete(record);
     },
 
-    // shards(punto, n, { size }): fragmentos que salen despedidos con Physics2D.
-    // size < 1 = versión simple y pequeña (el candado del desbloqueo).
-    shards(point = 'center', count = 20, context = {}, options = {}) {
-        if (!this.ready || this.isReducedMotion() || !window.Physics2DPlugin) return null;
-        const origin = this.resolvePoint(point, context);
-        const scale = Number.isFinite(options.size) ? options.size : 1;
-        const pieces = [];
-        for (let i = 0; i < count; i++) {
-            const piece = document.createElement('div');
-            piece.className = 'fx-shard';
-            piece.style.left = `${origin.x}px`;
-            piece.style.top = `${origin.y}px`;
-            const size = (6 + Math.random() * 16) * scale;
-            piece.style.width = `${size}px`;
-            piece.style.height = `${size * (0.6 + Math.random())}px`;
-            this.layer.appendChild(piece);
-            this.transient.add(piece);
-            pieces.push(piece);
-        }
-        return gsap.timeline({ onComplete: () => pieces.forEach(piece => this.removeTransient(piece)) })
-            .to(pieces, {
-                physics2D: {
-                    velocity: () => (350 + Math.random() * 650) * Math.sqrt(scale),
-                    angle: () => Math.random() * 360,
-                    gravity: 1100
-                },
-                rotation: () => (Math.random() - 0.5) * 900,
-                opacity: 0,
-                duration: 1.3,
-                ease: 'none'
-            });
-    },
-
     // scramble(elemento, textoFinal): el texto se descifra hasta el valor final.
     scramble(target, text, options = {}, context = {}) {
         const element = this.resolveElement(target, context);
@@ -354,7 +338,7 @@ const fxModule = window.fxModule = {
     odometer(target, from, to, options = {}, context = {}) {
         const element = this.resolveElement(target, context);
         if (!element || !Number.isFinite(from) || !Number.isFinite(to)) return null;
-        const { ms = 900, tick = false } = options;
+        const { ms = 900, tick = false, pitchStep = 0 } = options;
         const format = options.format || (value => Math.floor(value).toLocaleString());
         if (!this.ready) {
             element.textContent = format(to);
@@ -364,6 +348,8 @@ const fxModule = window.fxModule = {
         this.lock(element);
         const counter = { value: from };
         let lastTickAt = 0;
+        let lastWhole = Math.floor(from);
+        let ticks = 0;
         element.textContent = format(from);
         const tween = gsap.to(counter, {
             value: to,
@@ -372,7 +358,16 @@ const fxModule = window.fxModule = {
             onUpdate: () => {
                 element.textContent = format(counter.value);
                 const now = performance.now();
-                if (tick && now - lastTickAt > 70) {
+                if (tick === 'step') {
+                    // Un tick por cada unidad que sube, cada vez más agudo (tope: una octava).
+                    const whole = Math.floor(counter.value);
+                    if (whole !== lastWhole && now - lastTickAt > 28) {
+                        lastWhole = whole;
+                        lastTickAt = now;
+                        audioModule.play('ui_tick', { volume: 0.5, pitch: Math.min(12, ticks * pitchStep) });
+                        ticks++;
+                    }
+                } else if (tick && now - lastTickAt > 70) {
                     lastTickAt = now;
                     audioModule.play('ui_tick', { volume: 0.35 });
                 }
@@ -712,6 +707,8 @@ const fxModule = window.fxModule = {
         context.lock = lock;
         const visible = this.isVisible(element);
         context.lockPoint = visible ? lock : (context.anchor || element);
+        // Lo que se rompe: la pestaña cifrada o, si no se ve, el botón que lleva a ellas.
+        context.shatterTarget = visible ? element : (context.anchor || element);
         if (this.ready && visible && !this.isReducedMotion()) {
             gsap.fromTo(element, { opacity: 0, scale: 0.86 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'back.out(2.2)', immediateRender: true, clearProps: 'opacity,scale' });
         }
@@ -847,6 +844,337 @@ const fxModule = window.fxModule = {
         }
     },
 
+    // === RENDIMIENTO ===
+    // Equipo lento: menos de PERF.MIN_CORES núcleos, o una animación por debajo de MIN_FPS.
+    // En ese caso: piezas mínimas en el shatter y sin blur (body[data-fx-lite]).
+    isLite() {
+        if (this.liteMode) return true;
+        const cores = navigator.hardwareConcurrency;
+        return Number.isFinite(cores) && cores < CONFIG.PERF.MIN_CORES;
+    },
+
+    applyLiteMode() {
+        document.body.dataset.fxLite = this.isLite() ? 'true' : 'false';
+    },
+
+    // Medidor de fps (rAF) mientras dura una coreografía grande.
+    fpsStart() {
+        if (this.fpsRunning) return;
+        this.fpsRunning = true;
+        this.fpsFrames = [];
+        let last = performance.now();
+        const loop = now => {
+            if (!this.fpsRunning) return;
+            this.fpsFrames.push(now - last);
+            if (this.fpsFrames.length > 90) this.fpsFrames.shift();
+            last = now;
+            requestAnimationFrame(loop);
+        };
+        requestAnimationFrame(loop);
+    },
+
+    fpsStop() {
+        this.fpsRunning = false;
+    },
+
+    // Media de fps de las últimas muestras (o null si aún hay pocas). Los frames con la
+    // pestaña oculta o tras un freeze largo no cuentan (> 250 ms).
+    fpsAverage(last = null) {
+        const recent = last ? (this.fpsFrames || []).slice(-last) : (this.fpsFrames || []);
+        const frames = recent.filter(ms => ms < 250);
+        if (last) return frames.length >= Math.min(last, 8) ? 1000 / (frames.reduce((sum, ms) => sum + ms, 0) / frames.length) : null;
+        if (frames.length < CONFIG.PERF.FPS_MIN_SAMPLES) return null;
+        return 1000 / (frames.reduce((sum, ms) => sum + ms, 0) / frames.length);
+    },
+
+    // Si la animación va por debajo de MIN_FPS se pasa a modo ligero para el resto de la sesión.
+    checkFps() {
+        const fps = this.fpsAverage();
+        if (fps !== null && fps < CONFIG.PERF.MIN_FPS && !this.liteMode) {
+            this.liteMode = true;
+            this.applyLiteMode();
+        }
+        return fps;
+    },
+
+    // Piezas del shatter: entre MIN y MAX según el área de la pantalla; MIN en modo ligero.
+    getShatterPieces(requested = null) {
+        const { MIN, MAX, AREA_PER_PIECE } = CONFIG.PRESTIGE_SCENE.PIECES;
+        if (this.isLite()) return MIN;
+        const wanted = Number.isFinite(requested) ? requested : Math.round((window.innerWidth * window.innerHeight) / AREA_PER_PIECE);
+        return Math.max(MIN, Math.min(MAX, wanted));
+    },
+
+    // === ROMPER LO VIEJO: SHATTER ===
+    // Recorta un polígono por el semiplano n·p <= c (Sutherland–Hodgman).
+    clipPolygon(polygon, nx, ny, c) {
+        const result = [];
+        for (let i = 0; i < polygon.length; i++) {
+            const a = polygon[i];
+            const b = polygon[(i + 1) % polygon.length];
+            const da = (nx * a.x) + (ny * a.y) - c;
+            const db = (nx * b.x) + (ny * b.y) - c;
+            if (da <= 0) result.push(a);
+            if ((da < 0 && db > 0) || (da > 0 && db < 0)) {
+                const t = da / (da - db);
+                result.push({ x: a.x + ((b.x - a.x) * t), y: a.y + ((b.y - a.y) * t) });
+            }
+        }
+        return result;
+    },
+
+    // Voronoi simple: `count` semillas con más densidad cerca del impacto (las celdas
+    // salen más chicas allí) y cada celda = el rectángulo recortado por las mediatrices.
+    voronoiCells(width, height, impact, count) {
+        const seeds = [{ x: impact.x, y: impact.y }];
+        const reach = Math.hypot(width, height);
+        const minGap = Math.max(4, Math.sqrt((width * height) / count) * 0.18);
+        let guard = 0;
+        while (seeds.length < count && guard++ < count * 40) {
+            const radius = reach * Math.pow(Math.random(), 1.9);
+            const angle = Math.random() * Math.PI * 2;
+            const x = impact.x + (Math.cos(angle) * radius);
+            const y = impact.y + (Math.sin(angle) * radius);
+            if (x < 0 || y < 0 || x > width || y > height) continue;
+            if (seeds.some(seed => Math.hypot(seed.x - x, seed.y - y) < minGap)) continue;
+            seeds.push({ x, y });
+        }
+
+        const box = [{ x: 0, y: 0 }, { x: width, y: 0 }, { x: width, y: height }, { x: 0, y: height }];
+        return seeds.map((seed, i) => {
+            let cell = box;
+            for (let j = 0; j < seeds.length && cell.length >= 3; j++) {
+                if (j === i) continue;
+                const nx = seeds[j].x - seed.x;
+                const ny = seeds[j].y - seed.y;
+                const c = (nx * (seed.x + seeds[j].x) / 2) + (ny * (seed.y + seeds[j].y) / 2);
+                cell = this.clipPolygon(cell, nx, ny, c);
+            }
+            return cell;
+        }).filter(cell => cell.length >= 3);
+    },
+
+    // Copia los estilos calculados al clon (un clon suelto en la capa de efectos ya no
+    // hereda reglas del DOM original). Solo para elementos chicos; la foto de la UI
+    // (clase fx-ghost) vive en el mismo documento y no lo necesita.
+    bakeStyles(source, clone) {
+        clone.style.cssText = getComputedStyle(source).cssText;
+        const sourceChildren = source.children;
+        const cloneChildren = clone.children;
+        for (let i = 0; i < sourceChildren.length; i++) {
+            if (cloneChildren[i]) this.bakeStyles(sourceChildren[i], cloneChildren[i]);
+        }
+    },
+
+    // shatter(elemento, puntoDeImpacto, contexto, { pieces, restoreMs, onRestore, prepare }):
+    //   rompe el elemento en 30–60 polígonos irregulares (más chicos cerca del impacto). Cada
+    //   fragmento es un clon visual del elemento recortado con clip-path (sin html2canvas) y
+    //   el original se oculta. Físicas con Physics2D; solo transform y opacity (will-change).
+    //   restoreMs: el original reaparece (con un fundido) a los N ms; si no, al terminar.
+    //   prepare: construye los clones ya, invisibles, y devuelve un handle con fire() para
+    //   soltarlos más tarde (así el coste de clonar no cae en el frame del impacto).
+    // Devuelve { fire(), cancel(), timeline }.
+    shatter(target, point = null, context = {}, options = {}) {
+        if (!this.ready) return null;
+        const element = this.resolveElement(target, context);
+        if (!element || !this.isVisible(element)) {
+            // Sin nada que romper: al menos el estado final (p. ej. revelar la pestaña).
+            options.onRestore?.();
+            return null;
+        }
+
+        const rect = element.getBoundingClientRect();
+        const handle = { fired: false, cancelled: false, timeline: null, wrappers: [], element, restoreTimer: null };
+        const isGhost = element.classList.contains('fx-ghost');
+        const previousVisibility = element.style.visibility;
+
+        const restore = () => {
+            clearTimeout(handle.restoreTimer);
+            if (!handle.restorePending) return;
+            handle.restorePending = false;
+            this.shatterRestores.delete(handle);
+            options.onRestore?.();
+            if (!isGhost) {
+                element.style.visibility = previousVisibility;
+                if (!this.isReducedMotion()) gsap.fromTo(element, { opacity: 0 }, { opacity: 1, duration: 0.3, clearProps: 'opacity' });
+            }
+        };
+        handle.restore = restore;
+
+        // Con "Reducir movimiento": sin fragmentos; el original se desvanece y vuelve.
+        if (this.isReducedMotion()) {
+            handle.fire = () => {
+                if (handle.fired) return handle;
+                handle.fired = true;
+                handle.restorePending = true;
+                this.shatterRestores.add(handle);
+                if (isGhost) gsap.to(element, { opacity: 0, duration: 0.5 });
+                handle.restoreTimer = setTimeout(restore, options.restoreMs ?? 400);
+                return handle;
+            };
+            handle.cancel = () => restore();
+            return options.prepare ? handle : handle.fire();
+        }
+
+        const pieces = this.getShatterPieces(options.pieces);
+        const local = {
+            x: Math.max(0, Math.min(rect.width, (this.resolvePoint(point || 'center', context).x) - rect.left)),
+            y: Math.max(0, Math.min(rect.height, (this.resolvePoint(point || 'center', context).y) - rect.top))
+        };
+        const cells = this.voronoiCells(rect.width, rect.height, local, pieces);
+
+        // Plantilla del clon, una sola vez; cada fragmento es una copia suya.
+        const template = element.cloneNode(true);
+        if (!isGhost) {
+            this.bakeStyles(element, template);
+            template.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
+            template.removeAttribute('id');
+        }
+        template.classList.add('fx-ghost');
+        template.removeAttribute('inert');
+        Object.assign(template.style, {
+            position: 'absolute', margin: '0', transform: 'none', translate: 'none',
+            width: `${rect.width}px`, height: `${rect.height}px`, visibility: 'visible', opacity: '1', boxSizing: 'border-box'
+        });
+
+        const maxDistance = Math.hypot(rect.width, rect.height);
+        const sizeFactor = Math.max(0.3, Math.min(1.2, Math.max(rect.width, rect.height) / 700));
+        // Geometría de cada fragmento (barata); los clones se construyen aparte, por trozos.
+        const plans = cells.map(cell => {
+            // Centro de la celda y caja envolvente.
+            let cx = 0, cy = 0, minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            cell.forEach(p => {
+                cx += p.x; cy += p.y;
+                minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+                maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+            });
+            cx /= cell.length; cy /= cell.length;
+            // Se ensancha 0,6 px para que no queden líneas finas entre fragmentos.
+            const points = cell.map(p => {
+                const dx = p.x - cx, dy = p.y - cy, len = Math.hypot(dx, dy) || 1;
+                return { x: p.x + (dx / len) * 0.6, y: p.y + (dy / len) * 0.6 };
+            });
+            const bx = Math.max(0, minX - 1), by = Math.max(0, minY - 1);
+            const bw = Math.min(rect.width, maxX + 1) - bx, bh = Math.min(rect.height, maxY + 1) - by;
+
+            return {
+                cx, cy,
+                css: `left:${(rect.left + bx).toFixed(1)}px;top:${(rect.top + by).toFixed(1)}px;width:${bw.toFixed(1)}px;height:${bh.toFixed(1)}px;opacity:0.01;`,
+                clip: `polygon(${points.map(p => `${(p.x - bx).toFixed(1)}px ${(p.y - by).toFixed(1)}px`).join(',')})`,
+                offsetX: -bx,
+                offsetY: -by
+            };
+        });
+
+        // Construye los siguientes `limit` fragmentos: clon recortado, invisible (0,01) para que
+        // el navegador lo rasterice antes de que haga falta.
+        const fragments = [];
+        const buildSome = limit => {
+            const end = Math.min(plans.length, fragments.length + limit);
+            while (fragments.length < end) {
+                const plan = plans[fragments.length];
+                const wrapper = document.createElement('div');
+                wrapper.className = 'fx-fragment';
+                wrapper.style.cssText = plan.css;
+                // El clip-path va en un hijo estático: el elemento que se anima (transform y
+                // opacity) no lo lleva, así el navegador no crea una capa de máscara por fragmento.
+                const clipper = document.createElement('div');
+                clipper.className = 'fx-fragment-clip';
+                clipper.style.clipPath = plan.clip;
+                const inner = template.cloneNode(true);
+                inner.style.left = `${plan.offsetX}px`;
+                inner.style.top = `${plan.offsetY}px`;
+                clipper.appendChild(inner);
+                wrapper.appendChild(clipper);
+                this.layer.appendChild(wrapper);
+                this.transient.add(wrapper);
+                handle.wrappers.push(wrapper);
+                fragments.push({ wrapper, cx: plan.cx, cy: plan.cy });
+            }
+        };
+
+        const finish = () => {
+            clearTimeout(handle.watchdog);
+            handle.wrappers.forEach(wrapper => this.removeTransient(wrapper));
+            handle.wrappers = [];
+            restore();
+        };
+
+        handle.fire = () => {
+            if (handle.fired || handle.cancelled) return handle;
+            handle.fired = true;
+            handle.restorePending = true;
+            this.shatterRestores.add(handle);
+
+            // Mismo frame: el original se oculta y los fragmentos aparecen (lo que falte por
+            // construir se construye ahora). Opacidad directa: no depende del reloj de GSAP,
+            // que puede estar en freeze.
+            buildSome(Infinity);
+            element.style.visibility = 'hidden';
+            handle.wrappers.forEach(wrapper => { wrapper.style.opacity = '1'; });
+
+            const timeline = gsap.timeline({ onComplete: finish });
+            fragments.forEach(({ wrapper, cx, cy }) => {
+                const dx = cx - local.x;
+                const dy = cy - local.y;
+                const distance = Math.hypot(dx, dy);
+                const proximity = 1 - Math.min(1, distance / maxDistance);
+                const angle = (Math.atan2(dy, dx) * 180 / Math.PI) + ((Math.random() - 0.5) * 36);
+                const duration = 1.3 + (Math.random() * 0.7);
+                const delay = (distance / maxDistance) * 0.12;
+                timeline.to(wrapper, {
+                    physics2D: {
+                        velocity: (230 + (proximity * 720) + (Math.random() * 240)) * Math.max(0.45, sizeFactor),
+                        angle,
+                        gravity: (700 + (900 * sizeFactor))
+                    },
+                    rotation: (Math.random() < 0.5 ? -1 : 1) * (120 + (Math.random() * 480)),
+                    duration,
+                    ease: 'none'
+                }, delay);
+                timeline.to(wrapper, { opacity: 0, duration: duration * 0.55, ease: 'power2.in' }, delay + (duration * 0.4));
+            });
+            handle.timeline = timeline;
+
+            // Vigilante de fps durante el vuelo (solo si hay medidor, es decir, en momentos
+            // grandes): si va por debajo de MIN_FPS, los fragmentos se desvanecen enseguida y
+            // el resto de la sesión usa piezas mínimas y sin blur.
+            if (this.fpsRunning) {
+                handle.watchdog = setTimeout(() => {
+                    const fps = this.fpsAverage(12);
+                    if (fps === null || fps >= CONFIG.PERF.MIN_FPS || handle.cancelled || !handle.wrappers.length) return;
+                    this.liteMode = true;
+                    this.applyLiteMode();
+                    timeline.kill();
+                    handle.wrappers.forEach(wrapper => gsap.to(wrapper, { opacity: 0, duration: 0.25, ease: 'power1.in' }));
+                    setTimeout(finish, 300);
+                }, 350);
+            }
+            const restoreMs = options.restoreMs;
+            if (Number.isFinite(restoreMs)) {
+                // Temporizador real: el original no debe esperar a un slowmo.
+                handle.restoreTimer = setTimeout(restore, restoreMs);
+            }
+            return handle;
+        };
+        handle.cancel = () => {
+            handle.cancelled = true;
+            finish();
+        };
+
+        if (options.prepare) {
+            // Se prepara en trozos de 3 fragmentos por frame (p. ej. durante el freeze).
+            const pump = () => {
+                if (handle.cancelled || handle.fired) return;
+                buildSome(3);
+                if (fragments.length < plans.length) requestAnimationFrame(pump);
+            };
+            requestAnimationFrame(pump);
+            return handle;
+        }
+        return handle.fire();
+    },
+
     // === TIEMPO VISUAL ===
     // freeze(ms): congela lo visual. slowmo(factor, ms): lo ralentiza.
     // Solo gsap.globalTimeline, animaciones CSS/WAAPI y partículas; nunca la economía.
@@ -912,6 +1240,9 @@ const fxModule = window.fxModule = {
         if (!this.ready) return;
         [...this.statefulTweens].forEach(tween => tween.progress(1));
         this.statefulTweens.clear();
+        // Escena del prestige y shatters en curso: se devuelven a su estado final.
+        this.sceneEnd?.();
+        [...this.shatterRestores].forEach(handle => handle.restore());
         [...this.transient].forEach(node => this.removeTransient(node));
         [...this.particleContainers].forEach(record => this.destroyParticles(record));
         [...this.encrypted].forEach(element => this.reveal(element, {}, true));
@@ -938,6 +1269,8 @@ const fxModule = window.fxModule = {
             if (element && Number.isFinite(spec.to)) element.textContent = Math.floor(spec.to).toLocaleString();
         }
         if (spec.type === 'reveal') this.reveal(spec.target, context, true);
+        if (spec.type === 'shatter' && spec.reveal) this.reveal(context.element, context, true);
+        if (spec.type === 'sceneEnd') this.sceneEnd?.(context);
         if (spec.type === 'tier') uiModule.setCodeTier(spec.power);
         if (spec.type === 'callback') this.runCallback(spec.name, context);
     }

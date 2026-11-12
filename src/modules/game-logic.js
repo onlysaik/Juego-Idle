@@ -39,6 +39,8 @@ const gameLogic = {
     },
 
     handleClick() {
+        // Durante la escena del prestige no hay UI donde pulsar (la economía sigue corriendo).
+        if (fxModule.isSceneActive?.()) return;
         onboardingModule.dismissWelcomeHint();
 
         // Animación: rebote del botón
@@ -587,23 +589,42 @@ const gameLogic = {
         this.finishPrestige();
     },
 
+    // Estado seguro: el prestige se aplica y se guarda ANTES de animar. La animación trabaja
+    // sobre una copia visual de la UI vieja (fxModule.captureSnapshot), así que cerrar o
+    // recargar la pestaña a mitad de la escena no pierde ni duplica nada.
     finishPrestige() {
+        // 1) Foto de la UI vieja y datos previos (el DOM aún no cambió: todo es síncrono).
+        const snapshot = fxModule.captureSnapshot?.() || null;
+        const impact = fxModule.getImpactPoint?.('#prestigeActionBtn') || null;
+        const fromRep = gameState.prestigePoints;
+
+        // 2) Estado nuevo + guardado inmediato.
         const reward = gameState.performPrestige();
         if (reward <= 0) return;
+        gameState.save(true);
 
         const releaseBias = Math.min(CONFIG.PRESTIGE_RELEASE_SCORE_CAP, gameState.prestigePoints * CONFIG.PRESTIGE_RELEASE_SCORE_PER_POINT);
         const responsibilityFloor = Math.round(gameState.getResponsibilityBaselineValue());
 
+        // 3) UI nueva, detrás de la escena.
         uiModule.rebuildAllPrimaryUI();
         achievementsModule.checkAll();
         onboardingModule.applyVisibility(); // lo desbloqueado se conserva tras el reset
         this.afterProgressAction();
+
+        // 4) La escena. El aviso sale al final (o al saltarla con Esc), no encima de ella.
         feedbackModule.play('prestige', {
-            banner: `PRESTIGE · +${reward} rep`,
-            points: String(gameState.prestigePoints)
+            snapshot,
+            impact,
+            fromRep,
+            toRep: gameState.prestigePoints,
+            runNumber: gameState.prestigeLevel + 1,
+            onSceneEnd: () => this.notifyPrestige(reward, releaseBias, responsibilityFloor)
         });
         gameState.save(true);
+    },
 
+    notifyPrestige(reward, releaseBias, responsibilityFloor) {
         uiModule.showNotification(`🌟 Prestige completado: +${reward} reputación · bonus global x${gameState.getPrestigeMultiplier().toFixed(2)} · disciplina permanente +${Math.round(releaseBias)} score de release · piso de responsabilidad ${responsibilityFloor}`, 'success');
     }
 };

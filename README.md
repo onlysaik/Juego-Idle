@@ -70,7 +70,7 @@ Una vez activado `godmode`, la consola soporta:
 - `release`
 - `resources`
 - `unlockall` (logros y todas las pestañas)
-- `fx <id> [n]` reproduce una coreografía (n = nivel de racha 1–3 o potencia de 10) · `fx list` las lista
+- `fx <id> [n]` reproduce una coreografía (n = nivel de racha 1–3 o potencia de 10; `fx prestige` ensaya la escena sin tocar la partida) · `fx list` las lista
 - `sound <id>` reproduce un sonido (indica bus, duración y si usó el respaldo ZzFX) · `sound list` los lista
 
 Hotkeys activas en admin: `D`, `E`, `C`, `M`, `R`, `K`, `U`.
@@ -97,7 +97,8 @@ Juego-Idle/
     ├── main.js
     └── modules/
         ├── audio.js           (motor de audio, Howler)
-        ├── fx.js              (efectos visuales, GSAP + tsParticles)
+        ├── fx.js              (efectos visuales, GSAP + tsParticles, shatter)
+        ├── fx-scene.js        (escena del prestige: romper lo viejo)
         ├── feedback.js        (coreografías audio + visual)
         ├── settings.js        (panel de sonido y efectos)
         ├── achievements.js
@@ -134,6 +135,16 @@ El orden de carga de los scripts está en [ARCHITECTURE.md](ARCHITECTURE.md#orde
   - **Desbloqueo de sistema**: la pestaña aparece cifrada con candado, se descifra con clicks ascendentes, el candado se agrieta y se rompe; después sale el aviso tipo commit.
   - **Commit dorado**: 150 ms de cámara lenta, explosión y monedas que vuelan al contador (cada una más aguda) y campana final.
   - **Release** (`release_clean`/`normal`/`risky`/`unstable`): pipeline Build → Test → Deploy con tick ascendente; limpia con cohete y fuegos artificiales, sólida sin fuegos, arriesgada/inestable con glitch RGB y zumbido, sin sacudida.
+  - **Prestige: "romper lo viejo"** (`prestige`, ~8 s la primera vez y ~3 s desde la segunda):
+    - 0,0–2,5 s anticipación: la pantalla se desatura, el editor escribe cada vez más rápido con glitch, las tarjetas tiemblan y crecen grietas desde el botón de prestige (drone grave y riser de 2,5 s; la música baja con `duck()`).
+    - 2,5–2,8 s tensión: freeze visual y silencio total.
+    - 2,8 s impacto: `shatter()` sobre el contenedor principal desde el botón, con cristal, boom y sub drop en el mismo frame.
+    - 3,0–4,0 s vacío: fondo negro y una terminal que escribe sola `git checkout -b run-N`.
+    - 4,0–5,5 s reconstrucción: los paneles vuelan a su lugar en cascada (un whoosh cada uno) y la reputación cuenta hacia arriba con ticks ascendentes hasta un acorde mayor.
+    - 5,5–8,0 s calma: partículas flotando, el multiplicador brilla y aparece "Run N" en el header.
+    - **Estado seguro:** `performPrestige()` se aplica y se guarda *antes* de animar; la escena anima una copia visual de la UI vieja (`captureSnapshot`), así que cerrar o recargar a mitad no pierde ni duplica nada. Mientras dura la escena no se puede clicar.
+    - Con "Reducir movimiento": fundido a negro, terminal y fundido de entrada, sin fragmentos ni sacudidas, con el mismo sonido. `Esc` salta al estado final.
+    - Con menos de 4 núcleos (`navigator.hardwareConcurrency`) o si los fps caen por debajo de 45 se usan 30 fragmentos y se quita el blur (`PERF` en config).
   - **Potencia de 10 del código total desde 1M** (`code_power`): riser, silencio, impacto con sub drop y sacudida proporcional, contador tipo odómetro y color de tier (`CODE_POWER`).
   - Los commits automáticos (producción pasiva) nunca pasan del nivel pequeño y sin sonido. Prueba cualquiera con `fx <id>` (`fx streak 3`, `fx code_power 8`).
 - Prioridades: un momento grande (release, prestige, potencia de 10) cancela los pequeños; dos medianos no se superponen (uno cada 1,5 s). `Esc` salta la celebración en curso y la deja en su estado final.
@@ -184,7 +195,7 @@ El orden de carga de los scripts está en [ARCHITECTURE.md](ARCHITECTURE.md#orde
 - Flujo visual y render: [src/modules/ui.js](src/modules/ui.js)
 - Eventos y decisiones: [src/modules/events.js](src/modules/events.js)
 - Audio: [src/modules/audio.js](src/modules/audio.js) · sonidos: [assets/audio/sounds.js](assets/audio/sounds.js)
-- Efectos visuales: [src/modules/fx.js](src/modules/fx.js) · coreografías: [src/modules/feedback.js](src/modules/feedback.js)
+- Efectos visuales: [src/modules/fx.js](src/modules/fx.js) (incluye `shatter`) · escena del prestige: [src/modules/fx-scene.js](src/modules/fx-scene.js) · coreografías: [src/modules/feedback.js](src/modules/feedback.js)
 - Layout y look & feel: [styles.css](styles.css)
 
 ## Documentación técnica

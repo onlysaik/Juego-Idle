@@ -299,6 +299,7 @@ const adminModule = {
         // Cerrar la consola para ver el efecto (y no tapar el destello).
         this.closeConsole();
         const result = feedbackModule.play(id, context);
+        if (id === 'prestige') return true; // la escena cubre la pantalla: sin aviso encima
         uiModule.showNotification(`fx ${id}: ${result === 'queued' ? 'en cola' : result ? 'reproduciendo' : 'descartada por prioridad'}`, 'info', { duration: 1500 });
         return true;
     },
@@ -332,6 +333,18 @@ const adminModule = {
             case 'code_power': {
                 const power = Number.isFinite(number) ? Math.max(CONFIG.CODE_POWER.MIN_POWER, number) : Math.max(CONFIG.CODE_POWER.MIN_POWER, gameState.codePowerRecord);
                 return gameLogic.buildCodePowerContext(power);
+            }
+            case 'prestige': {
+                // Prueba sin tocar la partida: foto de la UI actual y una ganancia de ejemplo.
+                const toRep = gameState.prestigePoints;
+                return {
+                    snapshot: fxModule.captureSnapshot(),
+                    impact: fxModule.getImpactPoint('#prestigeActionBtn'),
+                    fromRep: Math.max(0, toRep - 3),
+                    toRep,
+                    runNumber: gameState.prestigeLevel + 1,
+                    onSceneEnd: () => uiModule.showNotification('fx prestige: fin de la escena', 'info', { duration: 1500 })
+                };
             }
             case 'unlock': {
                 const feature = CONFIG.FEATURE_UNLOCKS.find(item => (item.tabIds || []).some(tabId => fxModule.isVisible(document.getElementById(tabId))))

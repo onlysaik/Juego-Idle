@@ -130,7 +130,7 @@ const feedbackModule = window.feedbackModule = {
         const previousViews = gameState.seenChoreographies[id] || 0;
         if (!context.auto) gameState.recordChoreographyView(id);
         const useShort = Boolean(definition.short)
-            && (gameState.visualSettings.shortCelebrations || previousViews >= CONFIG.FEEDBACK.SHORT_AFTER_VIEWS);
+            && (gameState.visualSettings.shortCelebrations || previousViews >= (definition.shortAfterViews ?? CONFIG.FEEDBACK.SHORT_AFTER_VIEWS));
         const steps = this.pickSteps(definition, context, useShort);
 
         const run = {
@@ -148,6 +148,8 @@ const feedbackModule = window.feedbackModule = {
         run.tl.call(() => {}, [], run.duration / 1000);
 
         if (priority === CONFIG.FEEDBACK.PRIORITIES.medium) this.lastMediumStart = run.startedAt;
+        // Momentos grandes: se vigilan los fps para pasar a modo ligero si hace falta.
+        if (priority >= CONFIG.FEEDBACK.PRIORITIES.big) fxModule.fpsStart?.();
         this.runs.push(run);
         // Los pasos en t=0 se lanzan ya, en el mismo frame que la acción que los dispara.
         run.tl.totalTime(0.0001);
@@ -196,6 +198,7 @@ const feedbackModule = window.feedbackModule = {
     endRun(run) {
         this.runs = this.runs.filter(item => item !== run);
         run.tl.kill();
+        if (!this.runs.some(item => item.priority >= CONFIG.FEEDBACK.PRIORITIES.big)) fxModule.fpsStop?.();
     },
 
     // === PASOS ===
@@ -222,7 +225,7 @@ const feedbackModule = window.feedbackModule = {
         const frame = gsap.ticker.frame;
         const startedAt = performance.now();
         const sound = this.resolveValue(step.sound, run.context);
-        if (step.duck) audioModule.duck(step.duck.bus, step.duck.amount, step.duck.ms);
+        [].concat(step.duck || []).forEach(duck => audioModule.duck(duck.bus, duck.amount, duck.ms));
         if (sound) this.playStepSound(run, sound, step);
         const fxTypes = specs.map(spec => {
             const resolved = this.resolveSpec(spec, run.context);
@@ -285,15 +288,19 @@ const feedbackModule = window.feedbackModule = {
             case 'flash':
                 return fxModule.flash(spec.color, spec.ms);
             case 'crack':
-                return fxModule.crack(spec.target, spec.point, context);
+                return fxModule.crack(spec.target, spec.point, context, { persist: spec.persist, reach: spec.reach });
             case 'burst': {
                 const point = fxModule.resolvePoint(spec.point || 'center', context);
                 // La cantidad respeta el perfil de rendimiento visual (móvil/equipos lentos).
                 const quantity = uiModule.scaleCelebrationCount(Number.isFinite(spec.quantity) ? spec.quantity : 60);
                 return fxModule.burst(point.x, point.y, spec.preset, { ms: spec.ms, quantity, colors: spec.colors });
             }
-            case 'shards':
-                return fxModule.shards(spec.point, spec.count, context, { size: spec.size });
+            case 'shatter':
+                return fxModule.shatter(spec.target, spec.point, context, {
+                    pieces: spec.pieces,
+                    restoreMs: spec.restoreMs,
+                    onRestore: spec.reveal ? () => fxModule.reveal(context.element, context) : null
+                });
             case 'charge':
                 return fxModule.charge(spec.target, spec.ms, spec.color, context);
             case 'stamp':
@@ -335,6 +342,8 @@ const feedbackModule = window.feedbackModule = {
             case 'slowmo':
                 return fxModule.slowmo(spec.factor, spec.ms);
             default:
+                // Efectos de la escena del prestige (fx-scene.js).
+                if (fxModule.runSceneFx?.(spec, context) !== false) return null;
                 console.warn(`⚠️ Efecto desconocido: ${spec.type}`);
                 return null;
         }

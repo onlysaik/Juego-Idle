@@ -1293,14 +1293,14 @@ const CONFIG = {
                 { at: 860, fx: { type: 'shake', target: 'context.lock', intensity: 0.25, ms: 220 } },
                 // Silencio (≈ 900–1100 ms) e impacto: el candado se agrieta y se rompe.
                 { at: 1100, sound: 'crack', soundOptions: { volume: 0.6, cutAt: 650 }, fx: { type: 'crack', target: 'context.anchor', point: 'context.lockPoint' } },
+                // shatter(): la pestaña cifrada se rompe desde el candado y, al recomponerse, ya es la real.
                 { at: 1360, sound: 'glass_small', fx: [
-                    { type: 'shards', point: 'context.lockPoint', count: 12, size: 0.5 },
-                    { type: 'reveal', target: 'context' },
+                    { type: 'shatter', target: 'context.shatterTarget', point: 'context.lockPoint', pieces: 30, restoreMs: 420, reveal: true, ms: 1500 },
                     { type: 'flash', color: 'rgba(0, 255, 136, 0.14)', ms: 380 }
                 ] },
                 // Calma: acorde de revelación y, después, el aviso tipo commit.
                 { at: 1360, sound: 'reveal_arp', soundOptions: { volume: 0.85 }, fx: { type: 'glow', target: 'context.anchor', color: 'rgba(0, 255, 136, 0.9)', ms: 900 } },
-                { at: 1750, fx: { type: 'callback', name: 'onDone' } }
+                { at: 2000, fx: { type: 'callback', name: 'onDone' } }
             ],
             short: [
                 { at: 0, sound: 'ui_click', soundRepeat: { count: 4, every: 60, pitchStep: 3, volume: 0.6 }, fx: [
@@ -1308,12 +1308,11 @@ const CONFIG = {
                     { type: 'scramble', target: 'context.label', text: 'context.text', ms: 280 }
                 ] },
                 { at: 320, sound: 'glass_small', fx: [
-                    { type: 'shards', point: 'context.lockPoint', count: 6, size: 0.4 },
-                    { type: 'reveal', target: 'context' },
+                    { type: 'shatter', target: 'context.shatterTarget', point: 'context.lockPoint', pieces: 30, restoreMs: 300, reveal: true, ms: 1300 },
                     { type: 'glow', target: 'context.anchor', color: 'rgba(0, 255, 136, 0.8)', ms: 600 }
                 ] },
                 { at: 320, sound: 'reveal_arp', soundOptions: { volume: 0.6 } },
-                { at: 450, fx: { type: 'callback', name: 'onDone' } }
+                { at: 700, fx: { type: 'callback', name: 'onDone' } }
             ]
         },
         // Aviso tipo commit que sigue al desbloqueo: el texto se descifra.
@@ -1576,33 +1575,123 @@ const CONFIG = {
                 { at: 80, fx: { type: 'banner', text: 'context.banner', tone: 'gold', ms: 1200 } }
             ]
         },
+        // --- Prestige: "romper lo viejo" (grande) ---
+        // La primera vez dura ~8 s; desde el segundo prestige, una versión de ~3 s.
+        // El estado ya está aplicado y guardado cuando empieza: la escena trabaja sobre una
+        // copia visual de la UI vieja (context.snapshot) mientras la nueva se arma detrás.
+        // Contexto: snapshot, impact {x,y} (botón de prestige), fromRep, toRep, runNumber, onSceneEnd.
         prestige: {
             priority: 'big',
+            shortAfterViews: 1,
             steps: [
-                { at: 0, sound: 'riser_long', duck: { bus: 'ambient', amount: 0.1, ms: 5200 }, fx: { type: 'slowmo', factor: 0.35, ms: 1100 } },
-                { at: 0, sound: 'drone_low', soundOptions: { volume: 0.6 } },
-                { at: 1200, sound: 'braam', fx: [
-                    { type: 'freeze', ms: 140 },
-                    { type: 'flash', color: 'rgba(255, 255, 255, 0.55)', ms: 500 },
-                    { type: 'shake', intensity: 1, ms: 520 }
+                // 0,0–2,5 s Anticipación: la pantalla se desatura, el editor escribe cada vez más
+                // rápido con glitch, las tarjetas tiemblan y crecen grietas desde el botón.
+                { at: 0, sound: 'drone_low', soundOptions: { volume: 0.75, cutAt: 2450 },
+                    duck: [{ bus: 'music', amount: 0.08, ms: 8200 }, { bus: 'ambient', amount: 0.08, ms: 8200 }],
+                    fx: [
+                        { type: 'sceneStart', ms: 2500 },
+                        { type: 'crack', target: 'context.frame', point: 'context.impact', persist: true, reach: 0.3 }
+                    ] },
+                { at: 0, sound: 'riser_long', soundOptions: { cutAt: 2450 } },
+                { at: 650, fx: { type: 'crack', target: 'context.frame', point: 'context.impact', persist: true, reach: 0.5 } },
+                { at: 1300, fx: { type: 'crack', target: 'context.frame', point: 'context.impact', persist: true, reach: 0.75 } },
+                { at: 1950, fx: { type: 'crack', target: 'context.frame', point: 'context.impact', persist: true, reach: 1.05 } },
+                // 2,5–2,8 s Tensión: freeze visual y silencio total (los sonidos se cortan en 2,45 s).
+                // Los fragmentos se preparan antes (desde 2,2 s, en trozos de 3 por frame) para que el impacto no cueste frame.
+                { at: 2200, fx: { type: 'shatterPrep' } },
+                { at: 2500, fx: { type: 'freeze', ms: 300 } },
+                // 2,8 s Impacto: shatter + cristal + boom + sub drop en el mismo frame.
+                { at: 2800, sound: 'shatter', fx: [
+                    { type: 'shatterFire' },
+                    { type: 'void', ms: 220 },
+                    { type: 'flash', color: 'rgba(255, 255, 255, 0.5)', ms: 380 }
                 ] },
-                { at: 1200, sound: 'sub_drop' },
-                { at: 1250, sound: 'shatter', fx: { type: 'shards', point: 'center', count: 26 } },
-                { at: 1450, sound: 'fireworks', fx: { type: 'burst', preset: 'fireworks', point: 'center', ms: 3000 } },
-                { at: 1500, sound: 'fanfare', fx: { type: 'banner', text: 'context.banner', tone: 'gold', ms: 2200 } },
-                { at: 1600, fx: { type: 'scramble', target: '#prestigePoints', text: 'context.points', ms: 900 } },
-                { at: 3200, sound: 'reveal_chord', soundOptions: { volume: 0.7 } }
+                { at: 2800, sound: 'impact_heavy' },
+                { at: 2800, sound: 'sub_drop' },
+                // 3,0–4,0 s Vacío: fondo negro y una terminal que escribe sola.
+                { at: 3000, fx: { type: 'terminal', ms: 1000 } },
+                // 4,0–5,5 s Reconstrucción: los paneles vuelan a su lugar en cascada y la
+                // reputación cuenta hacia arriba con ticks ascendentes hasta un acorde mayor.
+                { at: 4000, fx: [
+                    { type: 'voidOff', ms: 450 },
+                    { type: 'assemble', ms: 1500, stagger: 0.22, duration: 0.6 }
+                ] },
+                { at: 4150, fx: { type: 'odometer', target: '#prestigePoints', from: 'context.fromRep', to: 'context.toRep', ms: 1000, tick: 'step', pitchStep: 2 } },
+                { at: 5200, sound: 'reveal_chord', soundOptions: { volume: 0.8 } },
+                // 5,5–8,0 s Calma: partículas flotando, el multiplicador brilla, "Run N" y la cola de reverb.
+                { at: 5500, sound: 'bell', soundOptions: { volume: 0.35, pitch: -5 }, fx: [
+                    { type: 'ambient', ms: 2500 },
+                    { type: 'glow', target: '#metaPrestigeBoost', color: 'rgba(255, 215, 0, 0.9)', ms: 1800 },
+                    { type: 'glow', target: '#prestigePoints', color: 'rgba(255, 215, 0, 0.9)', ms: 1800 },
+                    { type: 'runBadge' }
+                ] },
+                { at: 8000, fx: { type: 'sceneEnd', ms: 0 } }
             ],
+            // Desde el segundo prestige (~3 s): anticipación corta, impacto, reconstrucción rápida.
             short: [
-                { at: 0, sound: 'braam', soundOptions: { volume: 0.8 }, fx: [
-                    { type: 'flash', color: 'rgba(255, 255, 255, 0.4)', ms: 420 },
-                    { type: 'shake', intensity: 0.6, ms: 300 }
+                { at: 0, sound: 'riser_short', soundOptions: { volume: 0.9, cutAt: 720 },
+                    duck: [{ bus: 'music', amount: 0.1, ms: 3200 }, { bus: 'ambient', amount: 0.1, ms: 3200 }],
+                    fx: [
+                        { type: 'sceneStart', ms: 800 },
+                        { type: 'crack', target: 'context.frame', point: 'context.impact', persist: true, reach: 0.6 }
+                    ] },
+                { at: 100, fx: { type: 'shatterPrep' } },
+                { at: 800, sound: 'shatter', fx: [
+                    { type: 'shatterFire' },
+                    { type: 'void', ms: 150 },
+                    { type: 'flash', color: 'rgba(255, 255, 255, 0.45)', ms: 300 }
                 ] },
-                { at: 100, sound: 'fanfare_small', fx: { type: 'banner', text: 'context.banner', tone: 'gold', ms: 1500 } },
-                { at: 150, fx: { type: 'scramble', target: '#prestigePoints', text: 'context.points', ms: 500 } }
+                { at: 800, sound: 'impact_heavy', soundOptions: { volume: 0.85 } },
+                { at: 800, sound: 'sub_drop', soundOptions: { volume: 0.8 } },
+                { at: 900, fx: { type: 'terminal', ms: 650, fast: true } },
+                { at: 1550, fx: [
+                    { type: 'voidOff', ms: 250 },
+                    { type: 'assemble', ms: 900, stagger: 0.1, duration: 0.4 }
+                ] },
+                { at: 1600, fx: { type: 'odometer', target: '#prestigePoints', from: 'context.fromRep', to: 'context.toRep', ms: 600, tick: 'step', pitchStep: 2 } },
+                { at: 2250, sound: 'reveal_chord', soundOptions: { volume: 0.7 }, fx: [
+                    { type: 'glow', target: '#metaPrestigeBoost', color: 'rgba(255, 215, 0, 0.9)', ms: 750 },
+                    { type: 'glow', target: '#prestigePoints', color: 'rgba(255, 215, 0, 0.9)', ms: 750 },
+                    { type: 'runBadge' },
+                    { type: 'ambient', ms: 750 }
+                ] },
+                { at: 3000, fx: { type: 'sceneEnd', ms: 0 } }
             ]
         }
     },
+    // Escena del prestige: textos, paneles que se arman y piezas del shatter.
+    PRESTIGE_SCENE: {
+        // Piezas del shatter: entre MIN y MAX según el área de la pantalla; MIN en equipos lentos.
+        PIECES: { MIN: 30, MAX: 60, AREA_PER_PIECE: 25000 },
+        // Paneles que vuelan a su lugar en la reconstrucción (solo los visibles).
+        PANELS: ['.header-bar', '#clicker-view-panel', '#management-view-panel'],
+        // Tarjetas que tiemblan en la anticipación.
+        TREMBLE_SELECTOR: '.upgrade-card, .language-card, .team-card, .artifact-card, .meta-card, .mission-card, .achievement-card, .shell-compact-card',
+        TREMBLE_MAX: 70,
+        // El editor "escribe solo" en la anticipación: caracteres por segundo al inicio y al final.
+        TYPING_RATE: { FROM: 18, TO: 520 },
+        TYPING_LINES: [
+            'const run = await ship(release);',
+            'if (debt > quality) panic();',
+            'git commit -m "wip"',
+            'for (const bug of backlog) fix(bug);',
+            'deploy({ env: "prod", yolo: true });',
+            'export default function legacy() {}',
+            'try { rebuild(); } catch (e) { retry(); }',
+            'TODO: borrar todo y empezar de cero'
+        ],
+        DESATURATE: 0.9, // grayscale máximo de la pantalla vieja
+        TERMINAL: {
+            COMMAND: 'git checkout -b run-{n}',
+            OUTPUT: "Switched to a new branch 'run-{n}'",
+            PROMPT: '$ '
+        },
+        RUN_BADGE: 'Run {n}',
+        MOTES: 26 // partículas flotantes de la calma
+    },
+    // Rendimiento visual: con menos núcleos o por debajo de MIN_FPS se usan las piezas
+    // mínimas y se quita el blur.
+    PERF: { MIN_CORES: 4, MIN_FPS: 45, FPS_MIN_SAMPLES: 24 },
 
     // === COMMIT DORADO ===
     GOLDEN_COMMIT: {

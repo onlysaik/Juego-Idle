@@ -30,7 +30,8 @@ src/
 ├── main.js
 └── modules/
     ├── audio.js         ← motor de audio (Howler)
-    ├── fx.js            ← efectos visuales (GSAP + tsParticles)
+    ├── fx.js            ← efectos visuales (GSAP + tsParticles) y shatter()
+    ├── fx-scene.js      ← escena del prestige (extiende fxModule)
     ├── feedback.js      ← coreografías audio + visual
     ├── settings.js      ← panel de sonido y efectos
     ├── events.js
@@ -78,12 +79,21 @@ src/
 
 ### [src/modules/fx.js](src/modules/fx.js)
 
-- Efectos sobre GSAP y sus plugins: `shake`, `flash`, `crack` (grietas SVG con DrawSVG), `burst` (tsParticles: `fireworks` y `confettiExplosions`), `shards` (Physics2D), `scramble` (ScrambleText), `banner` (SplitText + CustomEase), `odometer`, `pulse` y `glow`.
+- Efectos sobre GSAP y sus plugins: `shake`, `flash`, `crack` (grietas SVG con DrawSVG), `burst` (tsParticles: `fireworks` y `confettiExplosions`), `shatter` (ver abajo), `scramble` (ScrambleText), `banner` (SplitText + CustomEase), `odometer`, `pulse` y `glow`.
 - `freeze(ms)` y `slowmo(factor, ms)` solo tocan lo visual: `gsap.globalTimeline.timeScale`, las animaciones CSS/WAAPI y las partículas. La economía usa `Date.now()` y sigue corriendo.
 - Cada efecto aplica su primer estado de forma síncrona, así se pinta en el mismo frame que su sonido.
 - Mientras anima un texto (scramble/odómetro) lo marca con `data-fx-lock` y `uiModule.setText()` no lo sobrescribe.
 - "Reducir movimiento": sin sacudidas, cámara lenta, congelados, grietas, fragmentos ni partículas; solo destellos suaves, fundidos y sonido.
 - `warmUp()` paga en tiempo libre el primer pintado caro de los efectos.
+
+- `shatter(elemento, punto, contexto, { pieces, restoreMs, onRestore, prepare })`: rompe un elemento en 30–60 polígonos irregulares. Voronoi simple (semillas más densas cerca del impacto, celdas recortadas por mediatrices); cada fragmento es un clon visual del elemento recortado con `clip-path: polygon(...)` (sin html2canvas) y el original se oculta. Physics2D (velocidad hacia afuera, gravedad, rotación) y fundido; solo `transform` y `opacity` con `will-change`; el `clip-path` va en un hijo estático y `contain: strict` aísla cada clon. Con `prepare` devuelve un handle `fire()` y construye los clones por trozos (3 por frame) para que el impacto no cueste frame. Con "Reducir movimiento" no hay fragmentos: el original se desvanece. Lo usan el candado del desbloqueo y el prestige.
+- Rendimiento: `isLite()` (menos de `PERF.MIN_CORES` núcleos o fps bajo `PERF.MIN_FPS`) usa 30 piezas y quita el blur (`body[data-fx-lite]`); un medidor de fps corre mientras dura un momento grande y un vigilante apaga los fragmentos si el vuelo va por debajo de 45 fps.
+
+### [src/modules/fx-scene.js](src/modules/fx-scene.js)
+
+- Extiende `fxModule` con los efectos de la coreografía `prestige`: `sceneStart`, `shatterPrep`/`shatterFire`, `void`/`voidOff`, `terminal`, `assemble`, `runBadge`, `ambient` y `sceneEnd`.
+- `captureSnapshot()` clona el contenedor principal (podando lo que no se ve) *antes* de tocar el estado; esa foto vieja es lo que se desatura, tiembla, se agrieta y se rompe, mientras la UI nueva ya está armada detrás (oculta con `opacity: 0`).
+- `sceneEnd()` (fin normal, Esc o coreografía descartada) quita foto, fondo y fragmentos, devuelve el contenedor real, suelta los textos retenidos (`data-fx-lock` en reputación y "Run N") y llama a `context.onSceneEnd` una sola vez.
 
 ### [src/modules/feedback.js](src/modules/feedback.js)
 
@@ -105,6 +115,7 @@ src/
 ### [src/modules/game-logic.js](src/modules/game-logic.js)
 
 - Orquestación de acciones del jugador: click, compras, misiones, release, mantenimiento, prestige, partida.
+- `finishPrestige()`: foto de la UI vieja → `performPrestige()` + guardado inmediato → UI nueva → coreografía `prestige` (el aviso final sale en `onSceneEnd`).
 - Dispara las coreografías (`feedbackModule.play`) con su contexto (tarjeta, posiciones, código antes/después…).
 
 ### [src/modules/ui.js](src/modules/ui.js)
@@ -196,7 +207,7 @@ El orden importa y está definido en [index.html](index.html):
 2. `src/config.js`
 3. `assets/audio/sounds.js` (`SOUND_MANIFEST`, antes de `audio.js`)
 4. `src/state.js`
-5. Módulos: `audio.js` → `fx.js` → `feedback.js` → `settings.js` → `events.js` → `achievements.js` → `themes.js` → `editor.js` → `ui.js` → `game-logic.js` → `golden-commit.js` → `onboarding.js` → `admin.js`
+5. Módulos: `audio.js` → `fx.js` → `fx-scene.js` → `feedback.js` → `settings.js` → `events.js` → `achievements.js` → `themes.js` → `editor.js` → `ui.js` → `game-logic.js` → `golden-commit.js` → `onboarding.js` → `admin.js`
 6. `src/game.js`
 7. `src/main.js`
 

@@ -2724,12 +2724,136 @@ body .click-info p.click-passive-share {
     height: 100% !important;
 }
 
-.fx-shard {
+/* shatter(): cada fragmento es un clon del elemento recortado con clip-path (en línea).
+   Solo se animan transform y opacity. */
+/* contain: strict (tamaño explícito) aísla el clon de cada fragmento: sin él, los ~17 000
+   nodos de los fragmentos entran en cada recálculo de estilo/layout de la página. */
+.fx-fragment {
     position: absolute;
-    margin: -8px 0 0 -8px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(0, 212, 255, 0.7));
-    clip-path: polygon(50% 0, 100% 70%, 20% 100%);
+    pointer-events: none;
     will-change: transform, opacity;
+    contain: strict;
+}
+
+.fx-fragment-clip {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    contain: strict;
+}
+
+/* Foto de la UI vieja (prestige) y su copia dentro de cada fragmento: congelada, sin
+   animaciones CSS ni backdrop-filter (60 copias con blur no caben en un frame). */
+.fx-ghost,
+.fx-ghost * {
+    animation: none !important;
+    transition: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* El glitch del editor de la foto sí se anima (más específico que la regla anterior). */
+.fx-ghost .fx-glitch {
+    animation: fx-glitch 0.16s steps(2, end) infinite !important;
+}
+
+/* Fondo negro del prestige: entre la foto vieja y los efectos */
+.fx-void {
+    position: absolute;
+    inset: 0;
+    background: #000;
+    opacity: 0;
+    will-change: opacity;
+}
+
+/* Terminal que escribe sola durante el vacío */
+.fx-terminal {
+    position: absolute;
+    top: 42%;
+    left: 50%;
+    width: min(520px, calc(100vw - 32px));
+    transform: translate(-50%, -50%);
+    border-radius: 10px;
+    border: 1px solid rgba(0, 255, 136, 0.35);
+    background: #05070f;
+    box-shadow: 0 0 40px rgba(0, 255, 136, 0.12);
+    font-family: 'Fira Code', monospace;
+    overflow: hidden;
+}
+
+.fx-terminal-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary, #8a93b5);
+    font-size: 0.72rem;
+}
+
+.fx-terminal-bar i {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #ff5f56;
+}
+
+.fx-terminal-bar i:nth-child(2) { background: #ffbd2e; }
+.fx-terminal-bar i:nth-child(3) { background: #27c93f; margin-right: 6px; }
+
+.fx-terminal-body {
+    min-height: 4.2rem;
+    padding: 14px 16px;
+    font-size: clamp(0.8rem, 2.6vw, 1rem);
+    color: #d6ffe9;
+    word-break: break-all;
+}
+
+.fx-term-prompt {
+    color: #00ff88;
+}
+
+.fx-term-cursor {
+    display: inline-block;
+    width: 0.55em;
+    height: 1.05em;
+    margin-left: 1px;
+    vertical-align: text-bottom;
+    background: #00ff88;
+}
+
+.fx-term-out {
+    margin-top: 6px;
+    color: #8fb9a4;
+}
+
+/* Partículas de la calma */
+.fx-mote {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, #ffffff, rgba(0, 212, 255, 0.5));
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.7);
+    will-change: transform, opacity;
+}
+
+/* Insignia "Run N" del header */
+.run-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.18), rgba(255, 0, 110, 0.14));
+    border: 1px solid rgba(255, 215, 0, 0.4);
+    color: #ffe58a;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+}
+
+.run-badge[hidden] {
+    display: none;
 }
 
 .fx-banner {

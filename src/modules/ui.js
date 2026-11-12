@@ -114,6 +114,17 @@ const uiModule = {
         document.getElementById('streak').textContent = gameState.streak;
         document.getElementById('achievementCount').textContent = achievementsModule.getCount();
         this.setText('prestigePoints', gameState.prestigePoints);
+        this.updateRunBadge();
+    },
+
+    // Insignia "Run N" del header: aparece desde el primer prestige. La escena del prestige
+    // la retiene (data-fx-lock) hasta su momento.
+    updateRunBadge() {
+        const badge = document.getElementById('runBadge');
+        if (!badge || badge.dataset.fxLock) return;
+        const reached = gameState.prestigeLevel > 0;
+        badge.hidden = !reached;
+        if (reached) this.setText(badge, CONFIG.PRESTIGE_SCENE.RUN_BADGE.replace('{n}', gameState.prestigeLevel + 1));
     },
 
     // === TIER DEL CONTADOR (potencias de 10 del código total) ===
