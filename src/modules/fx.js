@@ -1271,6 +1271,7 @@ const fxModule = window.fxModule = {
         if (spec.type === 'reveal') this.reveal(spec.target, context, true);
         if (spec.type === 'shatter' && spec.reveal) this.reveal(context.element, context, true);
         if (spec.type === 'sceneEnd') this.sceneEnd?.(context);
+        if (spec.type === 'music') musicModule.handle(spec);
         if (spec.type === 'tier') uiModule.setCodeTier(spec.power);
         if (spec.type === 'callback') this.runCallback(spec.name, context);
     }

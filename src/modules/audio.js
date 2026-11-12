@@ -63,6 +63,7 @@ const audioModule = window.audioModule = {
         const rest = Object.keys(this.buses).filter(bus => bus !== 'master' && !CONFIG.AUDIO.PRELOAD_BUSES_ON_INIT.includes(bus));
         this.preloadBuses(rest);
         window.fxModule?.warmUp(); // mismo momento: el primer frame caro de los efectos, en tiempo libre
+        window.musicModule?.requestLoad(); // y la descarga diferida de Tone.js (música adaptativa)
     },
 
     preloadBuses(buses) {
@@ -266,9 +267,11 @@ const audioModule = window.audioModule = {
         this.buses[bus].volume = Math.max(0, Math.min(1, volume));
         if (bus === 'master' && this.available) Howler.volume(this.buses.master.volume);
         this.refreshBus(bus);
+        if (bus === 'music') window.musicModule?.syncPlayback(); // a 0 el Transport se pausa: Tone.js no procesa
     },
 
     refreshBus(bus) {
+        if (bus === 'music') window.musicModule?.applyBus(); // la música (Tone.js) sigue el bus: slider × duck
         this.active.forEach(instance => {
             if (instance.bus === bus) instance.howl.volume(instance.baseVolume * this.getBusGain(bus), instance.sid);
         });
@@ -389,6 +392,7 @@ const audioModule = window.audioModule = {
             this.aura?.stop(0);
             this.aura = null;
         }
+        window.musicModule?.syncPlayback(); // sin sonido, la música se pausa
         return this.enabled;
     },
 

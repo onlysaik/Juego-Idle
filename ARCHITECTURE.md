@@ -30,6 +30,7 @@ src/
 ├── main.js
 └── modules/
     ├── audio.js         ← motor de audio (Howler)
+    ├── music.js         ← música adaptativa (Tone.js, carga diferida)
     ├── fx.js            ← efectos visuales (GSAP + tsParticles) y shatter()
     ├── fx-scene.js      ← escena del prestige (extiende fxModule)
     ├── feedback.js      ← coreografías audio + visual
@@ -65,6 +66,16 @@ src/
 - Estado central y reglas: click power, generación, costes, prestige, misiones, onboarding.
 - Persistencia en `localStorage` (formato versionado). Las partidas antiguas se migran al cargar con valores por defecto.
 - Preferencias del jugador: `audioSettings` (0–100 por slider), `visualSettings` (`reduceMotion`, `shortCelebrations`) y `seenChoreographies` (vistas de cada coreografía). Se conservan en el prestige.
+
+### [src/modules/music.js](src/modules/music.js)
+
+- `musicModule`: cuatro capas (pad, ritmo, arpegio, melodía) a 90 BPM. Sintetizadas con Tone.js o, si existen, desde `assets/audio/music/` (detección por `HEAD`; no en `file://`).
+- Carga diferida: `audioModule.unlock()` (primera interacción) llama a `requestLoad()`, que inyecta el script de Tone.js en tiempo libre. Si falla, `status = 'failed'` y el juego sigue sin música.
+- **Contexto:** `Tone.setContext(Howler.ctx, true)` y salida por `Howler.masterGain` (mismo limitador y mute). Con un contexto propio hay que usar `Tone.getTransport()`: `Tone.Transport` queda ligado al contexto por defecto del import y no dispara `Sequence`/`Loop`.
+- `update(generación)` (desde el game loop, 1 vez por segundo) decide `desired` por capa con histéresis; `onBar(time)` (agendado con `scheduleRepeat('1m')`) aplica los fundidos, así que toda entrada/salida cae al inicio de un compás. Los eventos de cada capa solo disparan notas mientras `active[capa]`.
+- El nivel lo marca el bus `music` de `audio.js` (`refreshBus('music')` → `applyBus()`), incluido `duck()`. `syncPlayback()` pausa el `Transport` con el bus en 0, sin sonido, con la pestaña oculta o con la música cortada.
+- Tonalidad: `rootMidi()` = `BASE_MIDI` + (run × 7) mod 12. Coreografía `prestige`: pasos `music` con `cut` (impacto) y `resume` (reconstrucción), que también se aplican al saltar con Esc.
+- `setStreak()` (desde `gameLogic.updateStreakFeedback`) abre el filtro del arpegio.
 
 ### [src/modules/audio.js](src/modules/audio.js)
 
@@ -207,7 +218,7 @@ El orden importa y está definido en [index.html](index.html):
 2. `src/config.js`
 3. `assets/audio/sounds.js` (`SOUND_MANIFEST`, antes de `audio.js`)
 4. `src/state.js`
-5. Módulos: `audio.js` → `fx.js` → `fx-scene.js` → `feedback.js` → `settings.js` → `events.js` → `achievements.js` → `themes.js` → `editor.js` → `ui.js` → `game-logic.js` → `golden-commit.js` → `onboarding.js` → `admin.js`
+5. Módulos: `audio.js` → `music.js` → `fx.js` → `fx-scene.js` → `feedback.js` → `settings.js` → `events.js` → `achievements.js` → `themes.js` → `editor.js` → `ui.js` → `game-logic.js` → `golden-commit.js` → `onboarding.js` → `admin.js`
 6. `src/game.js`
 7. `src/main.js`
 
@@ -221,7 +232,7 @@ Si cambias este orden, rompes bindings globales entre módulos.
 - Reglas y persistencia: [src/state.js](src/state.js)
 - Acciones del jugador: [src/modules/game-logic.js](src/modules/game-logic.js)
 - Efectos visuales: [src/modules/fx.js](src/modules/fx.js), [styles.css](styles.css)
-- Audio: [src/modules/audio.js](src/modules/audio.js)
+- Audio: [src/modules/audio.js](src/modules/audio.js) · música: [src/modules/music.js](src/modules/music.js)
 - Eventos y decisiones: [src/modules/events.js](src/modules/events.js)
 - Admin y debug: [src/modules/admin.js](src/modules/admin.js)
 

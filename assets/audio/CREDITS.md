@@ -3,6 +3,8 @@
 Todos los sonidos fueron recortados, nivelados y convertidos a .ogg y .mp3. Ninguno requiere atribución, pero se listan por transparencia.
 
 - **Kenney** (kenney.nl): licencia CC0 (dominio público).
+- **Tone.js** (tonejs.github.io, Yotam Mann): licencia MIT. Se carga por CDN después de la primera interacción y sintetiza la música adaptativa.
+- **Música adaptativa:** las cuatro capas (pad, ritmo, arpegio, melodía) se sintetizan en tiempo real con Tone.js; no usa muestras ni archivos de terceros. Si se añaden loops propios en `assets/audio/music/`, deben listarse aquí.
 - **Sonniss GDC 2026 Game Audio Bundle** (sonniss.com/gameaudiogdc): royalty-free para uso comercial, sin atribución. No permite usar los sonidos para entrenar IA ni redistribuirlos como librería de sonidos.
 
 | ID | Uso | Origen | Licencia |

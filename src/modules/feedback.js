@@ -148,8 +148,12 @@ const feedbackModule = window.feedbackModule = {
         run.tl.call(() => {}, [], run.duration / 1000);
 
         if (priority === CONFIG.FEEDBACK.PRIORITIES.medium) this.lastMediumStart = run.startedAt;
-        // Momentos grandes: se vigilan los fps para pasar a modo ligero si hace falta.
-        if (priority >= CONFIG.FEEDBACK.PRIORITIES.big) fxModule.fpsStart?.();
+        // Momentos grandes: se vigilan los fps para pasar a modo ligero si hace falta, y la
+        // música baja hasta la calma (el prestige la corta y la devuelve él mismo).
+        if (priority >= CONFIG.FEEDBACK.PRIORITIES.big) {
+            fxModule.fpsStart?.();
+            if (!definition.noAutoDuck) audioModule.duck('music', CONFIG.MUSIC.BIG_DUCK, run.duration);
+        }
         this.runs.push(run);
         // Los pasos en t=0 se lanzan ya, en el mismo frame que la acción que los dispara.
         run.tl.totalTime(0.0001);
@@ -327,6 +331,8 @@ const feedbackModule = window.feedbackModule = {
                 return uiModule.setCodeTier(spec.power);
             case 'callback':
                 return fxModule.runCallback(spec.name, context);
+            case 'music':
+                return musicModule.handle(spec);
             case 'scramble':
                 return fxModule.scramble(spec.target, spec.text, { ms: spec.ms, chars: spec.chars }, context);
             case 'odometer':

@@ -97,6 +97,7 @@ Juego-Idle/
     ├── main.js
     └── modules/
         ├── audio.js           (motor de audio, Howler)
+        ├── music.js           (música adaptativa, Tone.js)
         ├── fx.js              (efectos visuales, GSAP + tsParticles, shatter)
         ├── fx-scene.js        (escena del prestige: romper lo viejo)
         ├── feedback.js        (coreografías audio + visual)
@@ -124,8 +125,22 @@ El orden de carga de los scripts está en [ARCHITECTURE.md](ARCHITECTURE.md#orde
 - GSAP 3.15.0 con ScrambleTextPlugin, SplitText, Physics2DPlugin, CustomEase y DrawSVGPlugin (gratuitos desde 3.13, también para uso comercial)
 - tsParticles 4.5.0: presets `fireworks` y `confettiExplosions`
 - ZzFX 1.4.0 (versión micro), respaldo si falla un archivo de audio
+- Tone.js 14.8.49 (música adaptativa): **se descarga después de la primera interacción**, no al abrir el juego. Si falla, el juego sigue sin música.
 
 ## Audio y efectos
+
+### Música adaptativa
+
+- Cuatro capas sincronizadas a 90 BPM (lo-fi / synthwave suave, progresión Am7 – Fmaj7 – Cmaj7 – G6): **pad**, **ritmo**, **arpegio** y **melodía**. Se sintetizan con Tone.js; si existen los loops `assets/audio/music/{pad,rhythm,arp,melody}.{ogg,mp3}` (4 compases a 90 BPM, misma duración) se usan en su lugar.
+- Las capas se suman según la producción (`MUSIC_LAYERS` en [src/config.js](src/config.js)): pad desde el inicio, ritmo desde 1K código/s, arpegio desde 100K/s y melodía desde 10M/s. Entran y salen con fundido, siempre al inicio de un compás (`Tone.Transport`); una capa sale cuando la producción baja a un 60 % de su umbral.
+- **Reacciones:**
+  - Con racha activa, el filtro del arpegio se abre poco a poco (380 → 6500 Hz a los 100 clicks) y se cierra al cortarse.
+  - En los momentos grandes (releases, potencias de 10) la música baja con `duck()` y vuelve al terminar, en la calma.
+  - En el prestige se corta en el impacto y vuelve en la reconstrucción una quinta más arriba (La → Mi → Si…, +7 semitonos por run) y solo con el pad; las demás capas se vuelven a ganar en el run nuevo. Con loops, la tonalidad nueva se logra transponiendo con `Tone.PitchShift`.
+- **Control:** el slider Música controla el bus `music` (también el aura de racha). En 0, con el sonido apagado o con la pestaña oculta, el `Transport` se pausa y Tone.js no procesa nada. Comparte el `AudioContext` de Howler y pasa por su limitador.
+- Coste medido: renderizar las 4 capas a tiempo real cuesta ~7 % de un núcleo en el hilo de audio, y el hilo principal casi no cambia (+0,1–0,3 puntos).
+
+### Efectos y coreografías
 
 - Cada momento del juego (compra, commit, logro, misión, hito, release, prestige, commit dorado, eventos, desbloqueos) es una **coreografía** en `CHOREOGRAPHIES` ([src/config.js](src/config.js)). Cada paso lanza en el mismo instante su sonido y sus efectos.
 - Catálogo de momentos (arco anticipación → tensión → silencio → impacto → calma, escalado por nivel):
@@ -194,7 +209,7 @@ El orden de carga de los scripts está en [ARCHITECTURE.md](ARCHITECTURE.md#orde
 - Estado y persistencia: [src/state.js](src/state.js)
 - Flujo visual y render: [src/modules/ui.js](src/modules/ui.js)
 - Eventos y decisiones: [src/modules/events.js](src/modules/events.js)
-- Audio: [src/modules/audio.js](src/modules/audio.js) · sonidos: [assets/audio/sounds.js](assets/audio/sounds.js)
+- Audio: [src/modules/audio.js](src/modules/audio.js) · música: [src/modules/music.js](src/modules/music.js) · sonidos: [assets/audio/sounds.js](assets/audio/sounds.js)
 - Efectos visuales: [src/modules/fx.js](src/modules/fx.js) (incluye `shatter`) · escena del prestige: [src/modules/fx-scene.js](src/modules/fx-scene.js) · coreografías: [src/modules/feedback.js](src/modules/feedback.js)
 - Layout y look & feel: [styles.css](styles.css)
 

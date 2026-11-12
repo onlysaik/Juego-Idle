@@ -16,6 +16,7 @@ const app = {
         // 1. Cargar partida antes que nada: tema y audio dependen de ella
         gameState.load();
         audioModule.init(); // aplica los volúmenes guardados en gameState.audioSettings
+        musicModule.init(); // la música (Tone.js) se descarga tras la primera interacción
         audioModule.setEnabled(gameState.soundEnabled); // respetar el silencio guardado
         fxModule.init();
         feedbackModule.init();

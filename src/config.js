@@ -1112,6 +1112,51 @@ const CONFIG = {
         STREAK_AURA: { SOUND: 'aura_loop', VOLUME_BY_LEVEL: [0.3, 0.45, 0.6], FADE_MS: 600 },
         STREAK_CHORDS: [25, 50, 100] // escalones de racha: acorde + aura de un nivel más
     },
+    // === MÚSICA ADAPTATIVA (Tone.js, módulo music.js) ===
+    // Cuatro capas al mismo tempo que se suman según la producción (código/s). Entran y salen
+    // con fundido, siempre al inicio de un compás (Tone.Transport). Salen por el bus "music".
+    MUSIC_LAYERS: {
+        pad: { threshold: 0, gain: 0.5, label: 'Pad' },        // desde el inicio
+        rhythm: { threshold: 1e3, gain: 0.55, label: 'Ritmo' }, // 1K código/s
+        arp: { threshold: 1e5, gain: 0.32, label: 'Arpegio' },  // 100K código/s
+        melody: { threshold: 1e7, gain: 0.4, label: 'Melodía' } // 10M código/s
+    },
+    MUSIC: {
+        ENABLED: true,
+        TONE_URL: 'https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js', // se carga tras la primera interacción
+        BPM: 90,
+        SWING: 0.22,
+        MASTER_GAIN: 0.9,          // por encima del volumen del bus "music"
+        FADE_SECONDS: 1.6,         // fundido de entrada/salida de una capa
+        HYSTERESIS: 0.6,           // una capa sale cuando la producción baja a threshold × 0.6
+        UPDATE_MS: 1000,           // cada cuánto se reevalúan las capas
+        // Tonalidad: tónica menor en BASE_MIDI (45 = La2); cada run avanza una quinta (7 semitonos mod 12).
+        BASE_MIDI: 45,
+        FIFTH_STEP: 7,
+        // Progresión de 4 compases (i – VI – III – VII): desplazamiento de la fundamental y notas del acorde.
+        PROGRESSION: [
+            { offset: 0, notes: [0, 3, 7, 10] },   // m7
+            { offset: -4, notes: [0, 4, 7, 11] },  // maj7
+            { offset: 3, notes: [0, 4, 7, 11] },   // maj7
+            { offset: -2, notes: [0, 4, 7, 9] }    // 6
+        ],
+        RHYTHM: { KICK: [0, 7, 10], SNARE: [4, 12], HAT: [0, 2, 4, 6, 8, 10, 12, 14], GHOST_HAT: [14] },
+        ARP_PATTERN: [0, 1, 2, 3, 2, 1, 3, 2], // índices sobre las 4 notas del acorde (4+ = octava arriba)
+        // Melodía: una frase por compás; [paso de 16 (0–15), grado de la pentatónica menor, duración en pasos]
+        MELODY: [
+            [[0, 4, 3], [6, 2, 2], [10, 3, 5]],
+            [[0, 2, 4], [8, 1, 2], [12, 0, 4]],
+            [[0, 3, 3], [4, 5, 3], [10, 4, 2], [13, 2, 3]],
+            [[0, 1, 4], [6, 0, 2], [10, 2, 6]]
+        ],
+        PENTATONIC: [0, 3, 5, 7, 10],
+        // Racha: abre poco a poco el filtro del arpegio (Hz) hasta STREAK_FOR_FULL_OPEN clicks de racha.
+        ARP_FILTER: { CLOSED: 380, OPEN: 6500, STREAK_FOR_FULL_OPEN: 100, RAMP_UP_S: 1.4, RAMP_DOWN_S: 3 },
+        // Momentos grandes: la música baja y vuelve en la calma (al terminar la coreografía).
+        BIG_DUCK: 0.22,
+        // Loops opcionales (4 compases a BPM, misma duración); si los cuatro existen se usan en vez de sintetizar.
+        LOOPS: { DIR: 'assets/audio/music/', EXTENSIONS: ['ogg', 'mp3'], KEY_SEMITONE: 0 }
+    },
     // Respaldo con ZzFX (parámetros de zzfx()). Se usa si los archivos de un sonido
     // fallan, o para sonidos que no existen en SOUND_MANIFEST. Los ids sin entrada
     // usan el respaldo de su bus.
@@ -1583,11 +1628,12 @@ const CONFIG = {
         prestige: {
             priority: 'big',
             shortAfterViews: 1,
+            noAutoDuck: true, // la música del prestige la corta y la devuelve la propia coreografía
             steps: [
                 // 0,0–2,5 s Anticipación: la pantalla se desatura, el editor escribe cada vez más
                 // rápido con glitch, las tarjetas tiemblan y crecen grietas desde el botón.
                 { at: 0, sound: 'drone_low', soundOptions: { volume: 0.75, cutAt: 2450 },
-                    duck: [{ bus: 'music', amount: 0.08, ms: 8200 }, { bus: 'ambient', amount: 0.08, ms: 8200 }],
+                    duck: [{ bus: 'music', amount: 0.08, ms: 2900 }, { bus: 'ambient', amount: 0.08, ms: 8200 }],
                     fx: [
                         { type: 'sceneStart', ms: 2500 },
                         { type: 'crack', target: 'context.frame', point: 'context.impact', persist: true, reach: 0.3 }
@@ -1607,6 +1653,8 @@ const CONFIG = {
                     { type: 'flash', color: 'rgba(255, 255, 255, 0.5)', ms: 380 }
                 ] },
                 { at: 2800, sound: 'impact_heavy' },
+                // La música se corta en el impacto y vuelve en la reconstrucción (otra tonalidad, solo el pad).
+                { at: 2800, fx: { type: 'music', action: 'cut', ms: 0 } },
                 { at: 2800, sound: 'sub_drop' },
                 // 3,0–4,0 s Vacío: fondo negro y una terminal que escribe sola.
                 { at: 3000, fx: { type: 'terminal', ms: 1000 } },
@@ -1614,7 +1662,8 @@ const CONFIG = {
                 // reputación cuenta hacia arriba con ticks ascendentes hasta un acorde mayor.
                 { at: 4000, fx: [
                     { type: 'voidOff', ms: 450 },
-                    { type: 'assemble', ms: 1500, stagger: 0.22, duration: 0.6 }
+                    { type: 'assemble', ms: 1500, stagger: 0.22, duration: 0.6 },
+                    { type: 'music', action: 'resume', ms: 0 }
                 ] },
                 { at: 4150, fx: { type: 'odometer', target: '#prestigePoints', from: 'context.fromRep', to: 'context.toRep', ms: 1000, tick: 'step', pitchStep: 2 } },
                 { at: 5200, sound: 'reveal_chord', soundOptions: { volume: 0.8 } },
@@ -1630,7 +1679,7 @@ const CONFIG = {
             // Desde el segundo prestige (~3 s): anticipación corta, impacto, reconstrucción rápida.
             short: [
                 { at: 0, sound: 'riser_short', soundOptions: { volume: 0.9, cutAt: 720 },
-                    duck: [{ bus: 'music', amount: 0.1, ms: 3200 }, { bus: 'ambient', amount: 0.1, ms: 3200 }],
+                    duck: [{ bus: 'music', amount: 0.1, ms: 900 }, { bus: 'ambient', amount: 0.1, ms: 3200 }],
                     fx: [
                         { type: 'sceneStart', ms: 800 },
                         { type: 'crack', target: 'context.frame', point: 'context.impact', persist: true, reach: 0.6 }
@@ -1643,10 +1692,12 @@ const CONFIG = {
                 ] },
                 { at: 800, sound: 'impact_heavy', soundOptions: { volume: 0.85 } },
                 { at: 800, sound: 'sub_drop', soundOptions: { volume: 0.8 } },
+                { at: 800, fx: { type: 'music', action: 'cut', ms: 0 } },
                 { at: 900, fx: { type: 'terminal', ms: 650, fast: true } },
                 { at: 1550, fx: [
                     { type: 'voidOff', ms: 250 },
-                    { type: 'assemble', ms: 900, stagger: 0.1, duration: 0.4 }
+                    { type: 'assemble', ms: 900, stagger: 0.1, duration: 0.4 },
+                    { type: 'music', action: 'resume', ms: 0 }
                 ] },
                 { at: 1600, fx: { type: 'odometer', target: '#prestigePoints', from: 'context.fromRep', to: 'context.toRep', ms: 600, tick: 'step', pitchStep: 2 } },
                 { at: 2250, sound: 'reveal_chord', soundOptions: { volume: 0.7 }, fx: [

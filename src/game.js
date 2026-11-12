@@ -34,6 +34,7 @@ const gameEngine = {
                 deltaTime = 0;
             } else {
                 const generation = gameState.calculateGeneration();
+                musicModule.update(generation); // las capas de la música siguen la producción
                 const passiveEarned = generation * deltaTime;
                 if (passiveEarned > 0) {
                     gameState.earnCode(passiveEarned);

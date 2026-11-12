@@ -93,6 +93,8 @@ const gameLogic = {
         const level = this.getStreakLevel(now);
         audioModule.updateStreakAura(level);
         fxModule.setAura(level);
+        // La racha abre poco a poco el filtro del arpegio.
+        musicModule.setStreak(now - gameState.lastClickTime < CONFIG.STREAK_TIMEOUT ? gameState.streak : 0);
     },
 
     buildStreakContext(level) {
