@@ -1102,11 +1102,15 @@ const CONFIG = {
             BASE: { volume: 0.55, rate: 1.06 }, // sin Teclado Mecánico
             PER_LEVEL: { volume: 0.05, rate: -0.025 }, // cada nivel: más cuerpo y tono más grave
             LIMITS: { volume: 0.9, rate: 0.9 },
-            JITTER: 0.06 // ± variación de tono por pulsación
+            JITTER: 0.06, // ± variación de tono por pulsación
+            // La tecla sube 1 semitono cada EVERY clicks de racha (tope MAX_SEMITONES)
+            // y vuelve al tono base cuando la racha se corta.
+            STREAK_PITCH: { EVERY: 5, MAX_SEMITONES: 12 }
         },
-        // Racha: aura en bucle (bus ambient) mientras la racha supera el umbral.
-        STREAK_AURA: { SOUND: 'aura_loop', MIN_STREAK: 50, VOLUME: 0.5, FADE_MS: 600 },
-        STREAK_CHORDS: [25, 50, 100] // coreografía 'streak' al alcanzar estas rachas
+        // Racha: capa de chisporroteo en bucle (bus ambient) mientras la racha dure
+        // desde el primer escalón. El volumen crece con cada escalón de STREAK_CHORDS.
+        STREAK_AURA: { SOUND: 'aura_loop', VOLUME_BY_LEVEL: [0.3, 0.45, 0.6], FADE_MS: 600 },
+        STREAK_CHORDS: [25, 50, 100] // escalones de racha: acorde + aura de un nivel más
     },
     // Respaldo con ZzFX (parámetros de zzfx()). Se usa si los archivos de un sonido
     // fallan, o para sonidos que no existen en SOUND_MANIFEST. Los ids sin entrada
@@ -1132,22 +1136,64 @@ const CONFIG = {
         PRIORITIES: { small: 1, medium: 2, big: 3 },
         MEDIUM_MIN_GAP_MS: 1500, // dos medianos nunca se superponen: uno cada 1,5 s como mínimo
         MEDIUM_QUEUE_MAX: 2, // medianos en espera; el resto se descarta
-        SHORT_AFTER_VIEWS: 3 // a partir de la 4.ª vez se usa la versión corta (si existe)
+        SHORT_AFTER_VIEWS: 3, // a partir de la 4.ª vez se usa la versión corta (si existe)
+        // Lo que dispara el juego solo (commits automáticos por producción pasiva) nunca
+        // pasa del nivel pequeño, y como mucho una vez cada AUTO_MIN_GAP_MS.
+        AUTO_MAX_PRIORITY: 'small',
+        AUTO_MIN_GAP_MS: 4000
     },
+    // Aura de la racha (CSS + chispas) sobre el contador y el botón de commit.
+    // Un nivel por escalón de AUDIO.STREAK_CHORDS; las chispas por segundo crecen con el nivel.
+    STREAK_AURA_FX: {
+        TARGETS: ['#streak', '#clickBtn'],
+        SPARKS_PER_SECOND: [5, 11, 20],
+        MAX_SPARKS: 36,
+        COLORS: [
+            ['#00d4ff', '#7df9ff'],
+            ['#ffb703', '#ff7b00'],
+            ['#ff3d00', '#ffe066']
+        ]
+    },
+    // Potencias de 10 del código total (récord histórico, se conserva en el prestige).
+    // Cada potencia desde MIN_POWER es un momento alto; el contador cambia de color de tier.
+    CODE_POWER: {
+        MIN_POWER: 6, // 1M
+        TIER_COLORS: ['#00d4ff', '#00ff88', '#ffd700', '#ff9f1c', '#ff2d95', '#b388ff', '#ffffff'],
+        SHAKE_BASE: 0.35, // sacudida en 1M; cada potencia más suma SHAKE_PER_POWER (tope 1)
+        SHAKE_PER_POWER: 0.13,
+        PARTICLES_BASE: 50,
+        PARTICLES_PER_POWER: 18,
+        HEAVY_FROM_POWER: 8, // desde 100M el impacto es el boom pesado
+        BANNER: '{value} de código total'
+    },
+    // Etapas del pipeline que aparece al publicar una release.
+    RELEASE_PIPELINE_STAGES: ['Build', 'Test', 'Deploy'],
     VISUAL_SETTINGS_DEFAULTS: {
         reduceMotion: null, // null = seguir prefers-reduced-motion del sistema
         shortCelebrations: false
     },
 
-    // Coreografías: pasos { at (ms), sound, soundOptions, fx (objeto o lista), duck }.
+    // Coreografías: pasos { at (ms), sound, soundOptions, soundRepeat, fx (objeto o lista), duck }.
     // Valores 'context.x' se leen del contexto que pasa quien la dispara
-    // (x, y, element, text, from, to, banner...). Destinos: 'context', '#id', '.clase'.
-    // Puntos: 'context' (x,y o centro del elemento), 'center' o un selector.
+    // (x, y, element, text, from, to, banner...), también el id del sonido.
+    // Destinos: 'context', 'context.x', '#id', '.clase'. Puntos: 'context' (x,y o
+    // centro del elemento), 'center', un selector o un elemento del contexto.
+    // soundOptions.cutAt (ms) corta el sonido con un fundido breve; soundRepeat
+    // { count, every, pitchStep, volume } repite el sonido subiendo de tono.
+    //
+    // Los momentos medianos y grandes siguen el arco anticipación → tensión →
+    // silencio → impacto → calma. `short` es la versión sin anticipación larga
+    // (desde la 4.ª vista o con "Celebraciones cortas"); `auto`, la de lo que
+    // dispara el juego solo (nunca pasa del nivel pequeño).
     CHOREOGRAPHIES: {
+        // --- Pequeños, sin arco: número flotante y rebote ---
         purchase: {
             priority: 'small',
             steps: [
-                { at: 0, sound: 'ui_confirm', fx: { type: 'pulse', target: 'context', scale: 1.06, ms: 220 } }
+                { at: 0, sound: 'ui_confirm', fx: [
+                    { type: 'pulse', target: 'context', scale: 1.07, ms: 420, ease: 'bounce' },
+                    { type: 'floater', target: 'context', text: 'context.spent' }
+                ] }
             ]
         },
         purchase_fail: {
@@ -1161,7 +1207,10 @@ const CONFIG = {
             steps: [
                 { at: 0, sound: 'ui_click', soundOptions: { pitch: -2 } },
                 { at: 45, sound: 'ui_click', soundOptions: { pitch: 2 } },
-                { at: 90, sound: 'ui_confirm', fx: { type: 'pulse', target: 'context', scale: 1.06, ms: 220 } }
+                { at: 90, sound: 'ui_confirm', fx: [
+                    { type: 'pulse', target: 'context', scale: 1.07, ms: 420, ease: 'bounce' },
+                    { type: 'floater', target: 'context', text: 'context.spent' }
+                ] }
             ]
         },
         commit: {
@@ -1171,6 +1220,10 @@ const CONFIG = {
                     { type: 'pulse', target: '#clickBtn', scale: 1.12, ms: 300 },
                     { type: 'glow', target: '.progress-section .progress', color: 'rgba(0, 255, 136, 0.9)', ms: 400 }
                 ] }
+            ],
+            // Commit automático (producción pasiva): solo un brillo, sin sonido.
+            auto: [
+                { at: 0, fx: { type: 'glow', target: '.progress-section .progress', color: 'rgba(0, 255, 136, 0.55)', ms: 360 } }
             ]
         },
         event_good: {
@@ -1222,38 +1275,101 @@ const CONFIG = {
                 { at: 80, fx: { type: 'odometer', target: '#currentCodeHeader', from: 'context.from', to: 'context.to', ms: 900 } }
             ]
         },
+        // --- Desbloqueo de sistema (medio-alto) ---
+        // Contexto: element (pestaña), anchor (lo visible: la pestaña o el botón que
+        // lleva a ellas en móvil), text (nombre de la pestaña), onDone (muestra el tip).
+        // encrypt deja en el contexto label (texto cifrado), lock y lockPoint (candado).
         unlock: {
             priority: 'medium',
             steps: [
-                { at: 0, sound: 'reveal_arp', fx: { type: 'flash', color: 'rgba(0, 255, 136, 0.12)', ms: 420 } },
-                { at: 40, sound: 'ui_decode', soundOptions: { volume: 0.6 }, fx: { type: 'scramble', target: 'context', text: 'context.text', ms: 900 } }
+                // Anticipación: la pestaña aparece como bloque cifrado con candado.
+                { at: 0, sound: 'ui_whoosh', fx: [
+                    { type: 'encrypt', target: 'context' },
+                    { type: 'glow', target: 'context.anchor', color: 'rgba(0, 255, 136, 0.45)', ms: 700 }
+                ] },
+                // Tensión: el texto se descifra con clicks ascendentes.
+                { at: 140, sound: 'ui_click', soundRepeat: { count: 8, every: 85, pitchStep: 1.5, volume: 0.75 },
+                    fx: { type: 'scramble', target: 'context.label', text: 'context.text', ms: 760, chars: '01#$%&*<>/\\' } },
+                { at: 860, fx: { type: 'shake', target: 'context.lock', intensity: 0.25, ms: 220 } },
+                // Silencio (≈ 900–1100 ms) e impacto: el candado se agrieta y se rompe.
+                { at: 1100, sound: 'crack', soundOptions: { volume: 0.6, cutAt: 650 }, fx: { type: 'crack', target: 'context.anchor', point: 'context.lockPoint' } },
+                { at: 1360, sound: 'glass_small', fx: [
+                    { type: 'shards', point: 'context.lockPoint', count: 12, size: 0.5 },
+                    { type: 'reveal', target: 'context' },
+                    { type: 'flash', color: 'rgba(0, 255, 136, 0.14)', ms: 380 }
+                ] },
+                // Calma: acorde de revelación y, después, el aviso tipo commit.
+                { at: 1360, sound: 'reveal_arp', soundOptions: { volume: 0.85 }, fx: { type: 'glow', target: 'context.anchor', color: 'rgba(0, 255, 136, 0.9)', ms: 900 } },
+                { at: 1750, fx: { type: 'callback', name: 'onDone' } }
             ],
             short: [
-                { at: 0, sound: 'reveal_arp', fx: { type: 'scramble', target: 'context', text: 'context.text', ms: 500 } }
+                { at: 0, sound: 'ui_click', soundRepeat: { count: 4, every: 60, pitchStep: 3, volume: 0.6 }, fx: [
+                    { type: 'encrypt', target: 'context' },
+                    { type: 'scramble', target: 'context.label', text: 'context.text', ms: 280 }
+                ] },
+                { at: 320, sound: 'glass_small', fx: [
+                    { type: 'shards', point: 'context.lockPoint', count: 6, size: 0.4 },
+                    { type: 'reveal', target: 'context' },
+                    { type: 'glow', target: 'context.anchor', color: 'rgba(0, 255, 136, 0.8)', ms: 600 }
+                ] },
+                { at: 320, sound: 'reveal_arp', soundOptions: { volume: 0.6 } },
+                { at: 450, fx: { type: 'callback', name: 'onDone' } }
             ]
         },
+        // Aviso tipo commit que sigue al desbloqueo: el texto se descifra.
+        tip: {
+            priority: 'small',
+            steps: [
+                { at: 0, sound: 'ui_decode', soundOptions: { volume: 0.45, cutAt: 650 }, fx: { type: 'scramble', target: 'context', text: 'context.text', ms: 650 } }
+            ]
+        },
+        // --- Hito x2 (medio) ---
+        // Contexto: element (tarjeta), label/labelText (texto del hito), stamp ('x2'), banner.
         milestone: {
             priority: 'medium',
             steps: [
-                { at: 0, sound: 'metal_hit', fx: [
-                    { type: 'shake', intensity: 0.45, ms: 160 },
-                    { type: 'flash', color: 'rgba(0, 212, 255, 0.2)', ms: 300 }
+                // Anticipación + tensión: la tarjeta se carga 0,6 s con un riser corto.
+                { at: 0, sound: 'riser_short', soundOptions: { cutAt: 600, volume: 0.8 },
+                    fx: { type: 'charge', target: 'context', ms: 600, color: 'rgba(0, 212, 255, 0.85)' } },
+                // 600–680 ms: silencio. Cae el sello (80 ms) y golpea.
+                { at: 680, fx: { type: 'stamp', target: 'context', text: 'context.stamp', ms: 1400 } },
+                { at: 760, sound: 'metal_hit', fx: [
+                    { type: 'shake', target: 'context', intensity: 0.3, ms: 180 },
+                    { type: 'flash', color: 'rgba(0, 212, 255, 0.18)', ms: 280 },
+                    { type: 'scramble', target: 'context.label', text: 'context.labelText', ms: 600 }
                 ] },
-                { at: 0, sound: 'crack', soundOptions: { volume: 0.5 }, fx: { type: 'crack', target: 'context', point: 'context' } },
-                { at: 90, sound: 'confetti_whoosh', fx: { type: 'burst', preset: 'confettiExplosions', point: 'context', ms: 1500 } },
-                { at: 90, fx: { type: 'banner', text: 'context.banner', tone: 'accent', ms: 1300 } }
+                { at: 760, sound: 'crack', soundOptions: { volume: 0.4, cutAt: 600 }, fx: { type: 'crack', target: 'context', point: 'context' } },
+                // Calma
+                { at: 860, sound: 'confetti_whoosh', soundOptions: { volume: 0.7 }, fx: [
+                    { type: 'burst', preset: 'confettiExplosions', point: 'context', ms: 1400 },
+                    { type: 'banner', text: 'context.banner', tone: 'accent', ms: 1300 }
+                ] }
             ],
             short: [
-                { at: 0, sound: 'metal_hit', fx: [
-                    { type: 'flash', color: 'rgba(0, 212, 255, 0.16)', ms: 280 },
-                    { type: 'pulse', target: 'context', scale: 1.08, ms: 260 }
+                { at: 0, fx: { type: 'stamp', target: 'context', text: 'context.stamp', ms: 900 } },
+                { at: 80, sound: 'metal_hit', fx: [
+                    { type: 'pulse', target: 'context', scale: 1.06, ms: 360, ease: 'bounce' },
+                    { type: 'scramble', target: 'context.label', text: 'context.labelText', ms: 400 }
                 ] }
             ]
         },
+        // --- Racha 25/50/100 (medio) ---
+        // Contexto: level (1–3), pitch (semitonos del acorde), sparks, flashColor.
+        // El aura persistente y la capa de chisporroteo los lleva gameLogic.updateStreakFeedback().
         streak: {
-            priority: 'small',
+            priority: 'medium',
             steps: [
-                { at: 0, sound: 'streak_chord', soundOptions: { pitch: 'context.pitch' }, fx: { type: 'pulse', target: '#streak', scale: 1.4, ms: 320 } }
+                { at: 0, sound: 'streak_chord', soundOptions: { pitch: 'context.pitch' }, fx: [
+                    { type: 'pulse', target: '#streak', scale: 1.5, ms: 480, ease: 'bounce' },
+                    { type: 'sparks', target: '#clickBtn', count: 'context.sparks', level: 'context.level' },
+                    { type: 'flash', color: 'context.flashColor', ms: 260 }
+                ] }
+            ],
+            short: [
+                { at: 0, sound: 'streak_chord', soundOptions: { pitch: 'context.pitch' }, fx: [
+                    { type: 'pulse', target: '#streak', scale: 1.4, ms: 360, ease: 'bounce' },
+                    { type: 'sparks', target: '#clickBtn', count: 'context.sparksShort', level: 'context.level' }
+                ] }
             ]
         },
         golden_spawn: {
@@ -1262,65 +1378,202 @@ const CONFIG = {
                 { at: 0, sound: 'coin', soundOptions: { volume: 0.6 } }
             ]
         },
+        // --- Commit dorado (medio-alto) ---
+        // Contexto: x, y (botón), counter (contador visible), count/countShort (monedas),
+        // quantity (partículas), from/to (código), odometerMs.
         golden_claim: {
             priority: 'medium',
             steps: [
-                { at: 0, sound: 'coin', soundOptions: { pitch: 0 }, fx: { type: 'flash', color: 'rgba(255, 215, 0, 0.2)', ms: 260 } },
-                { at: 90, sound: 'coin', soundOptions: { pitch: 4 } },
-                { at: 180, sound: 'coin', soundOptions: { pitch: 7 } },
-                { at: 260, sound: 'coin_burst', fx: { type: 'burst', preset: 'confettiExplosions', point: 'context', ms: 1300, colors: ['#ffd700', '#ffb703', '#fff3b0'] } },
-                { at: 260, fx: { type: 'odometer', target: '#codeDisplay', from: 'context.from', to: 'context.to', ms: 800, tick: true } },
-                { at: 260, fx: { type: 'odometer', target: '#currentCodeHeader', from: 'context.from', to: 'context.to', ms: 800 } }
+                // Impacto inmediato (el clic es la anticipación): 150 ms de cámara lenta y explosión dorada.
+                { at: 0, sound: 'coin_burst', fx: [
+                    { type: 'slowmo', factor: 0.3, ms: 150 },
+                    { type: 'flash', color: 'rgba(255, 215, 0, 0.22)', ms: 320 },
+                    { type: 'burst', preset: 'confettiExplosions', point: 'context', ms: 1200, quantity: 'context.quantity', colors: ['#ffd700', '#ffb703', '#fff3b0'] }
+                ] },
+                // Las monedas vuelan al contador: cada una suena un poco más aguda al llegar
+                // y la última cierra con la campana.
+                { at: 60, fx: { type: 'coins', point: 'context', target: 'context.counter', count: 'context.count', landSound: 'coin', pitchStep: 1, endSound: 'bell', ms: 1400 } },
+                { at: 560, fx: [
+                    { type: 'odometer', target: '#codeDisplay', from: 'context.from', to: 'context.to', ms: 'context.odometerMs' },
+                    { type: 'odometer', target: '#currentCodeHeader', from: 'context.from', to: 'context.to', ms: 'context.odometerMs' }
+                ] }
             ],
             short: [
-                { at: 0, sound: 'coin_burst', fx: { type: 'flash', color: 'rgba(255, 215, 0, 0.18)', ms: 260 } }
+                { at: 0, sound: 'coin_burst', soundOptions: { volume: 0.7 }, fx: [
+                    { type: 'flash', color: 'rgba(255, 215, 0, 0.18)', ms: 260 },
+                    { type: 'coins', point: 'context', target: 'context.counter', count: 'context.countShort', landSound: 'coin', pitchStep: 2, endSound: 'bell', endVolume: 0.6, ms: 900 }
+                ] },
+                { at: 480, fx: [
+                    { type: 'odometer', target: '#codeDisplay', from: 'context.from', to: 'context.to', ms: 500 },
+                    { type: 'odometer', target: '#currentCodeHeader', from: 'context.from', to: 'context.to', ms: 500 }
+                ] }
             ]
         },
+        // --- Release (alto, según la banda de calidad) ---
+        // Contexto: anchor (tarjeta de release), version, banner. pipeline deja
+        // pipelineEl en el contexto; las etapas avanzan con un tick ascendente.
         release_clean: {
             priority: 'big',
             steps: [
-                { at: 0, sound: 'riser_short', duck: { bus: 'ambient', amount: 0.3, ms: 2600 } },
-                { at: 0, fx: { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 700 } },
-                { at: 700, sound: 'rocket', soundOptions: { volume: 0.7 } },
-                { at: 1100, sound: 'impact_light', fx: [
-                    { type: 'flash', color: 'rgba(255, 255, 255, 0.35)', ms: 300 },
-                    { type: 'shake', intensity: 0.4, ms: 200 }
+                { at: 0, sound: 'ui_whoosh', duck: { bus: 'ambient', amount: 0.3, ms: 3400 }, fx: { type: 'pipeline', target: 'context.anchor', ms: 2700 } },
+                { at: 260, sound: 'ui_pop', soundOptions: { pitch: 0 }, fx: { type: 'pipelineStage', index: 0, status: 'ok' } },
+                { at: 520, sound: 'ui_pop', soundOptions: { pitch: 4 }, fx: { type: 'pipelineStage', index: 1, status: 'ok' } },
+                { at: 780, sound: 'ui_pop', soundOptions: { pitch: 7 }, fx: { type: 'pipelineStage', index: 2, status: 'ok' } },
+                // Tensión: riser mientras el pipeline se carga.
+                { at: 820, sound: 'riser_short', soundOptions: { cutAt: 780 }, fx: { type: 'charge', target: 'context.pipelineEl', ms: 780, color: 'rgba(0, 255, 136, 0.8)' } },
+                // 1600–1700 ms: silencio. Impacto: el cohete sale del pipeline.
+                { at: 1700, sound: 'impact_light', fx: [
+                    { type: 'flash', color: 'rgba(255, 255, 255, 0.35)', ms: 320 },
+                    { type: 'shake', intensity: 0.4, ms: 220 },
+                    { type: 'rocket', point: 'context.pipelineEl' },
+                    { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 500 }
                 ] },
-                { at: 1100, sound: 'fireworks', fx: { type: 'burst', preset: 'fireworks', point: 'center', ms: 2600 } },
-                { at: 1250, sound: 'fanfare_small', fx: { type: 'banner', text: 'context.banner', tone: 'accent', ms: 1500 } }
+                { at: 1700, sound: 'rocket', soundOptions: { volume: 0.7, cutAt: 2200 } },
+                { at: 2100, sound: 'fireworks', soundOptions: { cutAt: 2800 }, fx: { type: 'burst', preset: 'fireworks', point: 'center', ms: 2600 } },
+                // Calma
+                { at: 2150, sound: 'fanfare_small', fx: { type: 'banner', text: 'context.banner', tone: 'accent', ms: 1500 } }
             ],
             short: [
-                { at: 0, sound: 'fanfare_small', fx: [
+                { at: 0, sound: 'ui_pop', soundOptions: { pitch: 0 }, fx: [
+                    { type: 'pipeline', target: 'context.anchor', ms: 1300 },
+                    { type: 'pipelineStage', index: 0, status: 'ok' }
+                ] },
+                { at: 110, sound: 'ui_pop', soundOptions: { pitch: 4 }, fx: { type: 'pipelineStage', index: 1, status: 'ok' } },
+                { at: 220, sound: 'ui_pop', soundOptions: { pitch: 7 }, fx: { type: 'pipelineStage', index: 2, status: 'ok' } },
+                { at: 360, sound: 'impact_light', soundOptions: { volume: 0.8 }, fx: [
                     { type: 'flash', color: 'rgba(0, 255, 136, 0.16)', ms: 320 },
+                    { type: 'rocket', point: 'context.pipelineEl' },
+                    { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 400 }
+                ] },
+                { at: 420, sound: 'fireworks', soundOptions: { volume: 0.6, cutAt: 1800 }, fx: { type: 'burst', preset: 'fireworks', point: 'center', ms: 1800 } },
+                { at: 450, sound: 'fanfare_small', soundOptions: { volume: 0.8 }, fx: { type: 'banner', text: 'context.banner', tone: 'accent', ms: 1100 } }
+            ]
+        },
+        // Sólida: el mismo arco, sin fuegos artificiales.
+        release_normal: {
+            priority: 'big',
+            steps: [
+                { at: 0, sound: 'ui_whoosh', duck: { bus: 'ambient', amount: 0.4, ms: 3000 }, fx: { type: 'pipeline', target: 'context.anchor', ms: 2500 } },
+                { at: 260, sound: 'ui_pop', soundOptions: { pitch: 0 }, fx: { type: 'pipelineStage', index: 0, status: 'ok' } },
+                { at: 520, sound: 'ui_pop', soundOptions: { pitch: 4 }, fx: { type: 'pipelineStage', index: 1, status: 'ok' } },
+                { at: 780, sound: 'ui_pop', soundOptions: { pitch: 7 }, fx: { type: 'pipelineStage', index: 2, status: 'ok' } },
+                { at: 820, sound: 'riser_short', soundOptions: { cutAt: 780, volume: 0.8 }, fx: { type: 'charge', target: 'context.pipelineEl', ms: 780, color: 'rgba(0, 212, 255, 0.75)' } },
+                { at: 1700, sound: 'impact_light', soundOptions: { volume: 0.85 }, fx: [
+                    { type: 'flash', color: 'rgba(0, 212, 255, 0.22)', ms: 300 },
+                    { type: 'shake', intensity: 0.25, ms: 180 },
+                    { type: 'rocket', point: 'context.pipelineEl' },
+                    { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 500 }
+                ] },
+                { at: 1700, sound: 'rocket', soundOptions: { volume: 0.55, cutAt: 1800 } },
+                { at: 1850, sound: 'fanfare_small', fx: { type: 'banner', text: 'context.banner', tone: 'accent', ms: 1300 } }
+            ],
+            short: [
+                { at: 0, sound: 'ui_pop', soundOptions: { pitch: 0 }, fx: [
+                    { type: 'pipeline', target: 'context.anchor', ms: 1200 },
+                    { type: 'pipelineStage', index: 0, status: 'ok' }
+                ] },
+                { at: 110, sound: 'ui_pop', soundOptions: { pitch: 4 }, fx: { type: 'pipelineStage', index: 1, status: 'ok' } },
+                { at: 220, sound: 'ui_pop', soundOptions: { pitch: 7 }, fx: { type: 'pipelineStage', index: 2, status: 'ok' } },
+                { at: 360, sound: 'fanfare_small', soundOptions: { volume: 0.8 }, fx: [
+                    { type: 'flash', color: 'rgba(0, 212, 255, 0.16)', ms: 300 },
+                    { type: 'rocket', point: 'context.pipelineEl' },
                     { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 400 }
                 ] }
             ]
         },
-        release_normal: {
-            priority: 'medium',
+        // Arriesgada: el pipeline pasa con avisos. Glitch RGB breve y zumbido, sin sacudida.
+        release_risky: {
+            priority: 'big',
             steps: [
-                { at: 0, sound: 'fanfare_small', fx: [
-                    { type: 'flash', color: 'rgba(0, 212, 255, 0.16)', ms: 320 },
-                    { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 600 }
-                ] },
-                { at: 120, fx: { type: 'burst', preset: 'confettiExplosions', point: 'center', ms: 1300 } }
+                { at: 0, sound: 'ui_whoosh', fx: { type: 'pipeline', target: 'context.anchor', ms: 1900 } },
+                { at: 260, sound: 'ui_pop', soundOptions: { pitch: 0 }, fx: { type: 'pipelineStage', index: 0, status: 'ok' } },
+                { at: 520, sound: 'ui_pop', soundOptions: { pitch: 1 }, fx: { type: 'pipelineStage', index: 1, status: 'warn' } },
+                { at: 780, sound: 'ui_glitch', fx: { type: 'pipelineStage', index: 2, status: 'warn' } },
+                { at: 900, sound: 'glitch_error', soundOptions: { volume: 0.55, cutAt: 650 }, fx: [
+                    { type: 'glitch', target: 'context.anchor', ms: 320 },
+                    { type: 'glitch', target: 'context.pipelineEl', ms: 320 },
+                    { type: 'flash', color: 'rgba(255, 183, 3, 0.14)', ms: 280 },
+                    { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 450, chars: '!<>-_\\/[]{}=+*^?#' }
+                ] }
             ],
             short: [
-                { at: 0, sound: 'fanfare_small', fx: { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 400 } }
+                { at: 0, sound: 'ui_glitch', fx: [
+                    { type: 'pipeline', target: 'context.anchor', ms: 1000 },
+                    { type: 'pipelineStage', index: 0, status: 'ok' },
+                    { type: 'pipelineStage', index: 1, status: 'warn' },
+                    { type: 'pipelineStage', index: 2, status: 'warn' }
+                ] },
+                { at: 200, sound: 'glitch_error', soundOptions: { volume: 0.45, cutAt: 500 }, fx: [
+                    { type: 'glitch', target: 'context.anchor', ms: 260 },
+                    { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 350, chars: '!<>-_\\/[]{}=+*^?#' }
+                ] }
             ]
         },
+        // Inestable: el deploy falla. Glitch RGB más largo, zumbido completo y tinte rojo, sin sacudida.
         release_unstable: {
-            priority: 'medium',
+            priority: 'big',
             steps: [
-                { at: 0, sound: 'glitch_error', fx: [
-                    { type: 'flash', color: 'rgba(255, 0, 80, 0.28)', ms: 320 },
-                    { type: 'shake', intensity: 0.6, ms: 320 },
-                    { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 600, chars: '!<>-_\\/[]{}—=+*^?#' }
-                ] },
-                { at: 150, sound: 'crack', fx: { type: 'crack', target: '#labReleaseVersion', point: '#labReleaseVersion' } }
+                { at: 0, sound: 'ui_whoosh', fx: { type: 'pipeline', target: 'context.anchor', ms: 2200 } },
+                { at: 260, sound: 'ui_pop', soundOptions: { pitch: 0 }, fx: { type: 'pipelineStage', index: 0, status: 'ok' } },
+                { at: 520, sound: 'ui_glitch', fx: { type: 'pipelineStage', index: 1, status: 'warn' } },
+                { at: 780, sound: 'ui_error', fx: { type: 'pipelineStage', index: 2, status: 'fail' } },
+                { at: 900, sound: 'glitch_error', fx: [
+                    { type: 'glitch', target: 'context.anchor', ms: 650 },
+                    { type: 'glitch', target: 'context.pipelineEl', ms: 650 },
+                    { type: 'flash', color: 'rgba(255, 0, 80, 0.22)', ms: 420 },
+                    { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 700, chars: '!<>-_\\/[]{}—=+*^?#' }
+                ] }
             ],
             short: [
-                { at: 0, sound: 'glitch_error', fx: { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 400 } }
+                { at: 0, sound: 'ui_error', fx: [
+                    { type: 'pipeline', target: 'context.anchor', ms: 1100 },
+                    { type: 'pipelineStage', index: 0, status: 'ok' },
+                    { type: 'pipelineStage', index: 1, status: 'warn' },
+                    { type: 'pipelineStage', index: 2, status: 'fail' }
+                ] },
+                { at: 200, sound: 'glitch_error', soundOptions: { volume: 0.7, cutAt: 700 }, fx: [
+                    { type: 'glitch', target: 'context.anchor', ms: 420 },
+                    { type: 'flash', color: 'rgba(255, 0, 80, 0.18)', ms: 320 },
+                    { type: 'scramble', target: '#labReleaseVersion', text: 'context.version', ms: 400, chars: '!<>-_\\/[]{}—=+*^?#' }
+                ] }
+            ]
+        },
+        // --- Potencia de 10 del código total, desde 1M (alto) ---
+        // Contexto: power, impactSound, shake/shakeShort, shakeMs, quantity, subVolume,
+        // tierColor, from/to (contador), banner. Todo escala con la potencia.
+        code_power: {
+            priority: 'big',
+            steps: [
+                // Anticipación + tensión: riser de 1 s y el contador se carga con el color del nuevo tier.
+                { at: 0, sound: 'riser_short', duck: { bus: 'ambient', amount: 0.25, ms: 2600 },
+                    fx: { type: 'charge', target: '.progress-section', ms: 1000, color: 'context.tierColor' } },
+                // 1000–1100 ms: silencio. Impacto con sub drop y sacudida proporcional.
+                { at: 1100, sound: 'context.impactSound', fx: [
+                    { type: 'freeze', ms: 70 },
+                    { type: 'flash', color: 'rgba(255, 255, 255, 0.42)', ms: 420 },
+                    { type: 'shake', intensity: 'context.shake', ms: 'context.shakeMs' },
+                    { type: 'tier', power: 'context.power' },
+                    { type: 'odometer', target: '#codeDisplay', from: 'context.from', to: 'context.to', ms: 1100, tick: true },
+                    { type: 'odometer', target: '#currentCodeHeader', from: 'context.from', to: 'context.to', ms: 1100 }
+                ] },
+                { at: 1100, sound: 'sub_drop', soundOptions: { volume: 'context.subVolume' } },
+                { at: 1180, fx: [
+                    { type: 'burst', preset: 'confettiExplosions', point: '#codeDisplay', ms: 1500, quantity: 'context.quantity', colors: 'context.colors' },
+                    { type: 'banner', text: 'context.banner', tone: 'gold', ms: 1700 }
+                ] },
+                // Calma
+                { at: 1900, sound: 'reveal_chord', soundOptions: { volume: 0.45, cutAt: 1800 } }
+            ],
+            short: [
+                { at: 0, sound: 'context.impactSound', soundOptions: { volume: 0.75, cutAt: 1500 }, fx: [
+                    { type: 'flash', color: 'rgba(255, 255, 255, 0.3)', ms: 320 },
+                    { type: 'shake', intensity: 'context.shakeShort', ms: 260 },
+                    { type: 'tier', power: 'context.power' },
+                    { type: 'odometer', target: '#codeDisplay', from: 'context.from', to: 'context.to', ms: 700 },
+                    { type: 'odometer', target: '#currentCodeHeader', from: 'context.from', to: 'context.to', ms: 700 }
+                ] },
+                { at: 0, sound: 'sub_drop', soundOptions: { volume: 0.6, cutAt: 1500 } },
+                { at: 80, fx: { type: 'banner', text: 'context.banner', tone: 'gold', ms: 1200 } }
             ]
         },
         prestige: {

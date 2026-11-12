@@ -2758,13 +2758,253 @@ body .click-info p.click-passive-share {
     text-shadow: 0 0 22px rgba(255, 183, 3, 0.75);
 }
 
+/* Sello "x2" del hito: cae sobre la tarjeta y rebota */
+.fx-stamp {
+    position: absolute;
+    padding: 0.15em 0.45em;
+    border: 3px solid #00d4ff;
+    border-radius: 10px;
+    color: #e8fbff;
+    background: rgba(5, 12, 30, 0.72);
+    font-family: 'Fira Code', monospace;
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-shadow: 0 0 12px rgba(0, 212, 255, 0.9);
+    box-shadow: 0 0 22px rgba(0, 212, 255, 0.55), inset 0 0 12px rgba(0, 212, 255, 0.35);
+    white-space: nowrap;
+    will-change: transform, opacity;
+}
+
+/* Número flotante de las compras */
+.fx-floater {
+    position: absolute;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #ffb3c6;
+    text-shadow: 0 0 8px rgba(255, 0, 110, 0.6);
+    white-space: nowrap;
+    will-change: transform, opacity;
+}
+
+/* Chispas (racha) */
+.fx-spark {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    margin: -2px 0 0 -2px;
+    border-radius: 50%;
+    will-change: transform, opacity;
+}
+
+/* Aura de racha: crece y se calienta con cada escalón (25/50/100).
+   Los colores (--aura-a/--aura-b) los pone fxModule.setAura desde CONFIG. */
+#streak[data-aura],
+#clickBtn[data-aura] {
+    --aura-size: 14px;
+    animation: fx-aura-flicker 0.42s ease-in-out infinite alternate !important;
+}
+
+#streak[data-aura="2"],
+#clickBtn[data-aura="2"] {
+    --aura-size: 26px;
+    animation-duration: 0.3s !important;
+}
+
+#streak[data-aura="3"],
+#clickBtn[data-aura="3"] {
+    --aura-size: 40px;
+    animation-duration: 0.18s !important;
+}
+
+#streak[data-aura] {
+    display: inline-block;
+    padding: 0 0.4em;
+    border-radius: 6px;
+    color: var(--aura-b);
+    text-shadow: 0 0 8px var(--aura-a);
+}
+
+#clickBtn[data-aura] {
+    border-color: var(--aura-a);
+}
+
+@keyframes fx-aura-flicker {
+    from {
+        box-shadow: 0 0 calc(var(--aura-size) * 0.55) var(--aura-a), inset 0 -2px calc(var(--aura-size) * 0.4) var(--aura-b);
+    }
+    to {
+        box-shadow: 0 0 var(--aura-size) var(--aura-b), 0 calc(var(--aura-size) * -0.25) calc(var(--aura-size) * 0.9) var(--aura-a), inset 0 -4px calc(var(--aura-size) * 0.6) var(--aura-a);
+    }
+}
+
+/* Monedas del commit dorado */
+.fx-coin {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff6c2 0 18%, #ffd700 40%, #c98a00 100%);
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
+    border: 1px solid rgba(255, 240, 180, 0.9);
+    will-change: transform;
+}
+
+/* Pestaña recién desbloqueada: bloque cifrado con candado */
+.nav-link.fx-encrypted {
+    font-family: 'Fira Code', monospace;
+    color: #7dffb8 !important;
+    background: repeating-linear-gradient(90deg, rgba(0, 255, 136, 0.12) 0 6px, rgba(0, 255, 136, 0.04) 6px 12px) !important;
+    border: 1px dashed rgba(0, 255, 136, 0.6) !important;
+}
+
+.fx-lock-icon {
+    color: #ffd166;
+    display: inline-block;
+}
+
+.fx-cipher-text {
+    letter-spacing: 0.06em;
+}
+
+/* Pipeline de release: Build → Test → Deploy */
+.fx-pipeline {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    max-width: calc(100vw - 32px);
+    border-radius: 12px;
+    background: rgba(8, 14, 32, 0.92);
+    border: 1px solid rgba(0, 212, 255, 0.4);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    font-family: 'Fira Code', monospace;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+
+.fx-pipe-stage {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    color: var(--text-secondary, #9aa4c7);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.fx-pipe-stage[data-status="ok"] {
+    color: #00ff88;
+    border-color: rgba(0, 255, 136, 0.6);
+    background: rgba(0, 255, 136, 0.1);
+}
+
+.fx-pipe-stage[data-status="warn"] {
+    color: #ffb703;
+    border-color: rgba(255, 183, 3, 0.6);
+    background: rgba(255, 183, 3, 0.1);
+}
+
+.fx-pipe-stage[data-status="fail"] {
+    color: #ff4d6d;
+    border-color: rgba(255, 0, 80, 0.7);
+    background: rgba(255, 0, 80, 0.14);
+}
+
+.fx-pipe-link {
+    width: 18px;
+    height: 2px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.15);
+    transition: background 0.2s ease;
+}
+
+.fx-pipe-link.is-done {
+    background: #00d4ff;
+}
+
+/* Cohete de la release */
+.fx-rocket {
+    position: absolute;
+    font-size: 2rem;
+    color: #ffffff;
+    text-shadow: 0 0 14px rgba(0, 212, 255, 0.9);
+    will-change: transform;
+}
+
+.fx-rocket i {
+    display: block;
+    transform: rotate(-45deg);
+}
+
+.fx-rocket::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 85%;
+    width: 8px;
+    height: 46px;
+    margin-left: -4px;
+    border-radius: 4px;
+    background: linear-gradient(to bottom, rgba(255, 183, 3, 0.95), rgba(255, 61, 0, 0.5), transparent);
+}
+
+/* Glitch RGB (release arriesgada/inestable): canales separados y cortes */
+.fx-glitch {
+    animation: fx-glitch 0.16s steps(2, end) infinite !important;
+}
+
+@keyframes fx-glitch {
+    /* Separación RGB con text-shadow (un filter drop-shadow en una tarjeta entera
+       cuesta frames largos) + cortes con clip-path. `translate` (no `transform`)
+       para no pisar las transformaciones de GSAP del pipeline. */
+    0% {
+        translate: 2px 0;
+        clip-path: inset(0 0 55% 0);
+        text-shadow: -3px 0 rgba(255, 0, 80, 0.9), 3px 0 rgba(0, 212, 255, 0.9);
+    }
+    50% {
+        translate: -3px 1px;
+        clip-path: inset(40% 0 0 0);
+        text-shadow: 3px 0 rgba(255, 0, 80, 0.9), -3px 0 rgba(0, 212, 255, 0.9);
+    }
+    100% {
+        translate: 1px -1px;
+        clip-path: inset(0 0 0 0);
+        text-shadow: -2px 0 rgba(255, 0, 80, 0.9), 2px 0 rgba(0, 212, 255, 0.9);
+    }
+}
+
+/* Sin movimiento: solo el tinte, sin desplazamientos ni cortes */
+.fx-glitch-soft {
+    box-shadow: 0 0 0 2px rgba(255, 0, 80, 0.55), 0 0 18px rgba(255, 0, 80, 0.35) !important;
+}
+
+/* Color de tier del contador (potencias de 10 del código total) */
+#codeDisplay[data-code-tier],
+#currentCodeHeader[data-code-tier] {
+    color: var(--code-tier-color);
+    text-shadow: 0 0 10px var(--code-tier-color);
+    transition: color 0.3s ease;
+}
+
 /* "Reducir movimiento" elegido en el juego: también frena las animaciones CSS decorativas. */
 body[data-reduce-motion="true"] .golden-commit,
 body[data-reduce-motion="true"] .tab-new-badge,
 body[data-reduce-motion="true"] .panel-view-btn.has-new::after,
 body[data-reduce-motion="true"] .mobile-view-btn.has-new::after,
-body[data-reduce-motion="true"] .progress-bar-animated {
+body[data-reduce-motion="true"] .progress-bar-animated,
+body[data-reduce-motion="true"] #streak[data-aura],
+body[data-reduce-motion="true"] #clickBtn[data-aura] {
     animation: none !important;
+}
+
+/* Aura sin parpadeo: un halo fijo del color del nivel */
+body[data-reduce-motion="true"] #streak[data-aura],
+body[data-reduce-motion="true"] #clickBtn[data-aura] {
+    box-shadow: 0 0 calc(var(--aura-size) * 0.6) var(--aura-a);
 }
 
 /* =========== Panel de sonido y efectos ================================= */

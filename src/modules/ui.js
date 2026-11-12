@@ -116,7 +116,33 @@ const uiModule = {
         this.setText('prestigePoints', gameState.prestigePoints);
     },
 
+    // === TIER DEL CONTADOR (potencias de 10 del código total) ===
+    getCodeTierColor(power) {
+        const { MIN_POWER, TIER_COLORS } = CONFIG.CODE_POWER;
+        if (power < MIN_POWER) return null;
+        return TIER_COLORS[Math.min(TIER_COLORS.length - 1, power - MIN_POWER)];
+    },
+
+    // El color cambia en el impacto de la coreografía 'code_power' (paso 'tier'),
+    // no en cuanto se cruza la cifra. Al cargar se toma del récord guardado.
+    setCodeTier(power) {
+        this.codeTier = Number(power) || 0;
+        const color = this.getCodeTierColor(this.codeTier);
+        ['codeDisplay', 'currentCodeHeader'].forEach(id => {
+            const element = document.getElementById(id);
+            if (!element) return;
+            if (color) {
+                element.dataset.codeTier = String(this.codeTier);
+                element.style.setProperty('--code-tier-color', color);
+            } else {
+                delete element.dataset.codeTier;
+                element.style.removeProperty('--code-tier-color');
+            }
+        });
+    },
+
     updateProgress() {
+        if (this.codeTier === undefined) this.setCodeTier(gameState.codePowerRecord);
         this.setText('codeDisplay', Math.floor(gameState.code).toLocaleString());
         const rawProgressPercent = (gameState.commitProgress / CONFIG.CODE_PER_COMMIT) * 100;
         const progressPercent = Math.max(0, Math.min(100, rawProgressPercent));
@@ -1299,7 +1325,8 @@ const uiModule = {
         // El commit (coreografía 'commit') usa el mismo botón: no pisar su latido.
         const button = document.getElementById('clickBtn');
         if (gsap.isTweening(button)) return;
-        gsap.fromTo(button, { scale: 1 }, { scale: 0.95, duration: 0.05, yoyo: true, repeat: 1, clearProps: 'scale' });
+        // Rebote: se hunde al pulsar y vuelve con un pequeño sobrepaso.
+        gsap.fromTo(button, { scale: 0.93 }, { scale: 1, duration: 0.24, ease: 'back.out(4)', immediateRender: true, clearProps: 'scale' });
     }
 };
 

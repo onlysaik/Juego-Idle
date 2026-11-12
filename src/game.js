@@ -22,7 +22,7 @@ const gameEngine = {
             });
 
             goldenCommitModule.tick(now);
-            audioModule.updateStreakAura(now); // el aura se apaga cuando la racha caduca
+            gameLogic.updateStreakFeedback(now); // el aura (visual y sonido) se apaga cuando la racha caduca
             onboardingModule.tick(now); // checkFeatureUnlocks() como mucho 1 vez/s
 
             let deltaTime = rawDelta;
@@ -43,8 +43,10 @@ const gameEngine = {
                 gameState.trackResponsibilityTime(deltaTime);
             }
             
-            // Chequear commit
-            gameLogic.processCommits({ showFeedback: false });
+            // Chequear commit (automático: como mucho feedback de nivel pequeño)
+            gameLogic.processCommits({ showFeedback: false, auto: true });
+            // Nueva potencia de 10 del código total (desde 1M): momento alto
+            gameLogic.checkCodePower();
             
             // Decrementar cooldown de eventos (con el tiempo real, también tras un hueco)
             if (gameState.eventCooldown > 0) {

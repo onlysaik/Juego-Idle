@@ -79,7 +79,9 @@ class GameState {
         this.visualSettings = { ...CONFIG.VISUAL_SETTINGS_DEFAULTS };
         // Veces que se vio cada coreografía (para usar la versión corta después)
         this.seenChoreographies = {};
-        
+        // Mayor potencia de 10 de código total ya celebrada (récord: se conserva en el prestige)
+        this.codePowerRecord = 0;
+
         // Eventos
         this.eventCooldown = 0;
         
@@ -200,6 +202,12 @@ class GameState {
     recordChoreographyView(id) {
         this.seenChoreographies[id] = (this.seenChoreographies[id] || 0) + 1;
         return this.seenChoreographies[id];
+    }
+
+    // Potencia de 10 del código total de la run (1M → 6). 0 sin código.
+    getCodePower(totalCode = this.totalCode) {
+        if (!(totalCode >= 1)) return 0;
+        return Math.floor(Math.log10(totalCode) + 1e-9);
     }
 
     // === MÉTODOS DE PROGRESO ===
@@ -1616,7 +1624,8 @@ class GameState {
             // Preferencias del jugador
             audioSettings: this.audioSettings,
             visualSettings: this.visualSettings,
-            seenChoreographies: this.seenChoreographies
+            seenChoreographies: this.seenChoreographies,
+            codePowerRecord: this.codePowerRecord
         };
 
         this.reset();
@@ -1633,6 +1642,7 @@ class GameState {
         this.audioSettings = preserved.audioSettings;
         this.visualSettings = preserved.visualSettings;
         this.seenChoreographies = preserved.seenChoreographies;
+        this.codePowerRecord = preserved.codePowerRecord;
         this.responsibility.value = this.getResponsibilityBaselineValue();
         this.responsibility.lastState = this.getResponsibilityState().key;
         this.lastUpdate = Date.now();
@@ -1901,6 +1911,7 @@ class GameState {
             audioSettings: this.audioSettings,
             visualSettings: this.visualSettings,
             seenChoreographies: this.seenChoreographies,
+            codePowerRecord: this.codePowerRecord,
             lastSavedAt: now
         };
     }
@@ -2001,6 +2012,10 @@ class GameState {
                 .filter(([id, count]) => CONFIG.CHOREOGRAPHIES[id] && Number.isFinite(count) && count > 0)
                 .map(([id, count]) => [id, Math.floor(count)])
         );
+        // Partidas sin el campo: lo ya alcanzado cuenta como celebrado (no se dispara al cargar).
+        this.codePowerRecord = Number.isFinite(data.codePowerRecord) && data.codePowerRecord >= 0
+            ? Math.floor(data.codePowerRecord)
+            : this.getCodePower(this.totalCode);
         this.lastSavedAt = num(data.lastSavedAt, this.lastSavedAt);
         this.lastPersistAt = 0;
         this.admin = { ...this.admin, ...obj(data.admin) };

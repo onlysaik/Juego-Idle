@@ -92,6 +92,11 @@ src/
 - Prioridades: un momento grande cancela los pequeños y medianos en curso; dos medianos no se superponen (uno cada 1,5 s, el resto en cola); los grandes se encolan entre sí; los pequeños se descartan durante uno grande.
 - `skip()` (tecla Esc) lleva lo que está en curso a su estado final: aplica textos finales, apaga sus sonidos y retira lo pasajero.
 - Usa la versión corta de una coreografía a partir de la 4.ª vista, o siempre con "Celebraciones cortas".
+- Con `context.auto` (commits de la producción pasiva) usa la versión `auto`, nunca pasa del nivel pequeño y se espacia `AUTO_MIN_GAP_MS`.
+- Cada efecto se resuelve justo antes de lanzarse, así uno puede dejar datos en el contexto para el siguiente (`encrypt` → `label`/`lock`, `pipeline` → `pipelineEl`). Una coreografía descartada o cancelada aplica igualmente sus estados finales.
+- Pasos con `soundOptions.cutAt` (corta el sonido para dejar el silencio previo al impacto) y `soundRepeat` (repite subiendo de tono).
+- Efectos nuevos en `fx.js`: `charge`, `stamp`, `floater`, `sparks`/`setAura`, `coins`, `encrypt`/`reveal`, `pipeline`/`pipelineStage`, `rocket`, `glitch`; `tier` vive en `uiModule.setCodeTier`.
+- `gameLogic` arma los contextos (`buildStreakContext`, `buildMilestoneContext`, `buildReleaseContext`, `buildCodePowerContext`); `gameState.codePowerRecord` (guardado, se conserva en el prestige) evita repetir `code_power`.
 
 ### [src/modules/settings.js](src/modules/settings.js)
 

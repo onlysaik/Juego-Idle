@@ -328,12 +328,20 @@ const audioModule = window.audioModule = {
         };
     },
 
-    playKey() {
+    // Semitonos que sube la tecla según la racha: +1 cada EVERY clicks, tope MAX_SEMITONES.
+    // Con la racha cortada (streak vuelve a 1) la tecla vuelve al tono base.
+    getStreakSemitones(streak = gameState.streak) {
+        const { EVERY, MAX_SEMITONES } = CONFIG.AUDIO.KEYBOARD.STREAK_PITCH;
+        return Math.min(MAX_SEMITONES, Math.floor(Math.max(0, streak) / EVERY));
+    },
+
+    playKey(streak = gameState.streak) {
         const { SOUND, POOL_SIZE, JITTER } = CONFIG.AUDIO.KEYBOARD;
         const profile = this.getKeyboardProfile();
+        const streakRate = Math.pow(2, this.getStreakSemitones(streak) / 12);
         const handle = this.play(SOUND, {
             volume: profile.volume,
-            rate: profile.rate * (1 + ((Math.random() * 2 - 1) * JITTER))
+            rate: profile.rate * streakRate * (1 + ((Math.random() * 2 - 1) * JITTER))
         });
         if (!handle) return null;
 
@@ -346,18 +354,30 @@ const audioModule = window.audioModule = {
     },
 
     // === AURA DE RACHA ===
-    updateStreakAura(now = Date.now()) {
-        const { SOUND, MIN_STREAK, VOLUME, FADE_MS } = CONFIG.AUDIO.STREAK_AURA;
-        const streakActive = now - gameState.lastClickTime < CONFIG.STREAK_TIMEOUT;
-        const shouldPlay = this.enabled && streakActive && gameState.streak >= MIN_STREAK;
+    // Capa de chisporroteo en bucle mientras dure la racha (nivel 1–3 según
+    // AUDIO.STREAK_CHORDS); sube de volumen con cada escalón. 0 = se apaga.
+    updateStreakAura(level = 0) {
+        const { SOUND, VOLUME_BY_LEVEL, FADE_MS } = CONFIG.AUDIO.STREAK_AURA;
+        const shouldPlay = this.enabled && level > 0;
+        const volume = VOLUME_BY_LEVEL[Math.min(VOLUME_BY_LEVEL.length, Math.max(1, level)) - 1];
 
         if (shouldPlay && !this.aura) {
-            this.aura = this.play(SOUND, { loop: true, volume: VOLUME });
+            this.aura = this.play(SOUND, { loop: true, volume });
+            this.auraLevel = level;
             const instance = this.aura?.instance;
-            if (instance) instance.howl.fade(0, VOLUME * this.getBusGain(instance.bus), FADE_MS, instance.sid);
+            if (instance) instance.howl.fade(0, instance.baseVolume * this.getBusGain(instance.bus), FADE_MS, instance.sid);
+        } else if (shouldPlay && this.aura && level !== this.auraLevel) {
+            this.auraLevel = level;
+            const instance = this.aura.instance;
+            if (instance && this.active.has(instance)) {
+                const definitionVolume = SOUND_MANIFEST?.[instance.id]?.volume ?? 1;
+                instance.baseVolume = definitionVolume * volume;
+                instance.howl.fade(instance.howl.volume(instance.sid), instance.baseVolume * this.getBusGain(instance.bus), 300, instance.sid);
+            }
         } else if (!shouldPlay && this.aura) {
             this.aura.stop(FADE_MS);
             this.aura = null;
+            this.auraLevel = 0;
         }
     },
 

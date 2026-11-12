@@ -135,17 +135,47 @@ const onboardingModule = {
     },
 
     // === TIPS ===
+    // Coreografía 'unlock': la pestaña nueva aparece cifrada con candado, se
+    // descifra, el candado se rompe y, al final (onDone), sale el aviso tipo commit.
     showTipOnce(key) {
         const feature = gameState.getFeatureDefinition(key);
         if (!feature?.tip || gameState.hasSeenTip(key)) return false;
         gameState.markTipSeen(key);
-        const notification = uiModule.showCommitTip(key, feature.tip);
-        // El texto del tip se descifra con su sonido (coreografía 'unlock').
-        feedbackModule.play('unlock', {
-            element: notification?.querySelector('.commit-tip-text'),
-            text: feature.tip.text
-        });
+        const showTip = () => {
+            const notification = uiModule.showCommitTip(key, feature.tip);
+            // El texto del tip se descifra con su sonido (coreografía 'tip').
+            feedbackModule.play('tip', {
+                element: notification?.querySelector('.commit-tip-text'),
+                text: feature.tip.text
+            });
+            this.renderBadges(); // el badge NEW vuelve a su sitio tras el descifrado
+        };
+        const context = this.buildUnlockContext(feature);
+        if (!context) {
+            showTip();
+            return true;
+        }
+        context.onDone = showTip;
+        feedbackModule.play('unlock', context);
         return true;
+    },
+
+    // Pestaña a descifrar (la primera nueva de la feature) y lo que se ve de ella:
+    // la propia pestaña o, si el panel de pestañas está oculto (móvil), el botón que lleva a él.
+    buildUnlockContext(feature) {
+        const tabIds = feature.tabIds || [];
+        const tabId = tabIds.find(id => gameState.newTabBadges.includes(id)) || tabIds[0];
+        const tab = tabId ? document.getElementById(tabId) : null;
+        if (!tab) return null;
+        const label = tab.cloneNode(true);
+        label.querySelector('.tab-new-badge')?.remove();
+        const anchor = [tab, document.getElementById('managementContentToggle'), document.getElementById('management-view-tab')]
+            .find(element => element && fxModule.isVisible(element)) || tab;
+        return {
+            element: tab,
+            anchor,
+            text: label.textContent.trim()
+        };
     },
 
     // === BIENVENIDA ===

@@ -8,6 +8,7 @@ const gameLogic = {
     processCommits(options = {}) {
         const {
             showFeedback = false,
+            auto = false, // commits de la producción pasiva: feedback mínimo (nivel pequeño, sin sonido)
             maxCommits = CONFIG.COMMIT_BATCH_LIMIT
         } = options;
 
@@ -23,6 +24,8 @@ const gameLogic = {
             const label = commitsProcessed === 1 ? '¡Commit realizado!' : `¡${commitsProcessed} commits realizados!`;
             uiModule.showNotification(label, 'success');
             feedbackModule.play('commit');
+        } else if (auto) {
+            feedbackModule.play('commit', { auto: true });
         }
 
         achievementsModule.checkAll();
@@ -38,12 +41,9 @@ const gameLogic = {
     handleClick() {
         onboardingModule.dismissWelcomeHint();
 
-        // Animación
+        // Animación: rebote del botón
         uiModule.animateClickButton();
-        
-        // Sonido: pool del teclado mecánico (mejora con el nivel del upgrade)
-        audioModule.playKey();
-        
+
         // Progreso
         const amount = gameState.calculateClickPower();
         gameState.earnCode(amount);
@@ -51,12 +51,16 @@ const gameLogic = {
         gameState.updateStreak();
         gameState.applyProjectHealthImpact(gameState.getClickProjectHealthImpact());
 
-        // Racha: acorde en cada escalón (más agudo cuanto más alto) y aura en bucle.
+        // Sonido: pool del teclado mecánico (mejora con el nivel del upgrade y sube
+        // un semitono cada 5 clicks de racha).
+        audioModule.playKey(gameState.streak);
+
+        // Racha: acorde en cada escalón y aura (CSS + chispas + chisporroteo) que crece.
         const chordIndex = CONFIG.AUDIO.STREAK_CHORDS.indexOf(gameState.streak);
-        if (chordIndex >= 0) feedbackModule.play('streak', { pitch: chordIndex * 2 });
-        audioModule.updateStreakAura();
-        
-        // Visuales
+        if (chordIndex >= 0) feedbackModule.play('streak', this.buildStreakContext(chordIndex + 1));
+        this.updateStreakFeedback();
+
+        // Visuales: número flotante
         uiModule.createFloatingText(amount);
         
         // Chequear logros
@@ -74,7 +78,32 @@ const gameLogic = {
     makeCommit() {
         return this.processCommits({ showFeedback: true, maxCommits: 1 });
     },
-    
+
+    // === RACHA ===
+    // Nivel de aura: escalones de STREAK_CHORDS alcanzados mientras la racha siga viva.
+    getStreakLevel(now = Date.now()) {
+        if (now - gameState.lastClickTime >= CONFIG.STREAK_TIMEOUT) return 0;
+        return CONFIG.AUDIO.STREAK_CHORDS.filter(threshold => gameState.streak >= threshold).length;
+    },
+
+    // Desde cada click y desde el game loop (el aura se apaga cuando la racha caduca).
+    updateStreakFeedback(now = Date.now()) {
+        const level = this.getStreakLevel(now);
+        audioModule.updateStreakAura(level);
+        fxModule.setAura(level);
+    },
+
+    buildStreakContext(level) {
+        const colors = CONFIG.STREAK_AURA_FX.COLORS[Math.min(CONFIG.STREAK_AURA_FX.COLORS.length, level) - 1];
+        return {
+            level,
+            pitch: (level - 1) * 2, // acorde más agudo en cada escalón
+            sparks: 10 + (level * 8),
+            sparksShort: 4 + (level * 3),
+            flashColor: `${colors[0]}2b` // hex + alfa ≈ 0.17
+        };
+    },
+
     // === FEEDBACK DE COMPRAS ===
     // Tarjeta de la tienda/equipo/lab (para animarla). Se busca después de
     // reconstruir la UI, así se anima la tarjeta nueva y no la que se quitó.
@@ -84,13 +113,40 @@ const gameLogic = {
         return document.querySelector(`[data-shop-collection="${collection}"][data-shop-key="${key}"]`)?.closest('.upgrade-card, .language-card') || null;
     },
 
-    purchaseFeedback(collection, key, milestone = null) {
+    // Lo que hay antes de comprar, para mostrar lo gastado como número flotante.
+    getWallet() {
+        return { code: gameState.code, rep: gameState.prestigePoints };
+    },
+
+    formatSpent(before) {
+        if (!before) return null;
+        const code = before.code - gameState.code;
+        if (code >= 1) return `-${uiModule.formatCompactNumber(Math.floor(code))}`;
+        const rep = before.rep - gameState.prestigePoints;
+        return rep > 0 ? `-${rep} rep` : null;
+    },
+
+    buildMilestoneContext(element, milestone) {
+        const label = element?.querySelector('[data-milestone-label]') || null;
+        return {
+            element,
+            label,
+            labelText: label?.textContent || '',
+            stamp: `x${CONFIG.MILESTONES.MULTIPLIER}`,
+            banner: `${milestone.name} x${milestone.multiplier}`
+        };
+    },
+
+    purchaseFeedback(collection, key, milestone = null, walletBefore = null) {
         const element = this.findCard(collection, key);
         if (milestone) {
-            feedbackModule.play('milestone', { element, banner: `${milestone.name} x${milestone.multiplier}` });
+            feedbackModule.play('milestone', this.buildMilestoneContext(element, milestone));
             return;
         }
-        feedbackModule.play(collection === 'upgrades' && key === 'keyboard' ? 'keyboard_upgrade' : 'purchase', { element });
+        feedbackModule.play(collection === 'upgrades' && key === 'keyboard' ? 'keyboard_upgrade' : 'purchase', {
+            element,
+            spent: this.formatSpent(walletBefore)
+        });
     },
 
     purchaseFailFeedback(collection, key) {
@@ -99,6 +155,7 @@ const gameLogic = {
 
     // === COMPRAR UPGRADE ===
     buyUpgrade(key) {
+        const walletBefore = this.getWallet();
         if (gameState.buyUpgrade(key)) {
             const upgrade = gameState.upgrades[key];
             uiModule.showNotification(`✨ ${upgrade.name}!`, 'success');
@@ -106,7 +163,7 @@ const gameLogic = {
             achievementsModule.checkAll();
             this.afterProgressAction();
             uiModule.update();
-            this.purchaseFeedback('upgrades', key);
+            this.purchaseFeedback('upgrades', key, null, walletBefore);
             gameState.save(true);
         } else {
             const upgrade = gameState.upgrades[key];
@@ -135,6 +192,7 @@ const gameLogic = {
 
     buyLanguage(key) {
         const ownedBefore = gameState.languages[key]?.owned ?? 0;
+        const walletBefore = this.getWallet();
         if (gameState.buyLanguage(key)) {
             const language = gameState.languages[key];
             const milestone = this.checkMilestone(language.name, ownedBefore, language.owned);
@@ -148,7 +206,7 @@ const gameLogic = {
             achievementsModule.checkAll();
             this.afterProgressAction();
             uiModule.update();
-            this.purchaseFeedback('languages', key, milestone);
+            this.purchaseFeedback('languages', key, milestone, walletBefore);
             gameState.save(true);
         } else {
             this.purchaseFailFeedback('languages', key);
@@ -158,6 +216,7 @@ const gameLogic = {
 
     // === COMPRAR FRAMEWORK ===
     buyFramework(key) {
+        const walletBefore = this.getWallet();
         if (gameState.buyFramework(key)) {
             const framework = gameState.frameworks[key];
             const languageKey = framework.requires;
@@ -168,7 +227,7 @@ const gameLogic = {
             uiModule.animateLanguageChange(language.name, framework.name);
             this.afterProgressAction();
             uiModule.update();
-            this.purchaseFeedback('frameworks', key);
+            this.purchaseFeedback('frameworks', key, null, walletBefore);
             gameState.save(true);
         } else {
             this.purchaseFailFeedback('frameworks', key);
@@ -178,6 +237,7 @@ const gameLogic = {
 
     buyTeam(key) {
         const ownedBefore = gameState.team[key]?.owned ?? 0;
+        const walletBefore = this.getWallet();
         if (gameState.buyTeamMember(key)) {
             const member = gameState.team[key];
             const milestone = this.checkMilestone(member.name, ownedBefore, member.owned);
@@ -187,7 +247,7 @@ const gameLogic = {
             uiModule.update();
             achievementsModule.checkAll();
             this.afterProgressAction();
-            this.purchaseFeedback('team', key, milestone);
+            this.purchaseFeedback('team', key, milestone, walletBefore);
             gameState.save(true);
         } else {
             this.purchaseFailFeedback('team', key);
@@ -196,13 +256,14 @@ const gameLogic = {
     },
 
     buyArtifact(key) {
+        const walletBefore = this.getWallet();
         if (gameState.buyArtifact(key)) {
             const artifact = gameState.artifacts[key];
             uiModule.showNotification(`🧪 ${artifact.name} equipado`, 'success');
             uiModule.update();
             achievementsModule.checkAll();
             this.afterProgressAction();
-            this.purchaseFeedback('artifacts', key);
+            this.purchaseFeedback('artifacts', key, null, walletBefore);
             gameState.save(true);
         } else {
             this.purchaseFailFeedback('artifacts', key);
@@ -398,13 +459,70 @@ const gameLogic = {
         uiModule.update();
         achievementsModule.checkAll();
         this.afterProgressAction();
-        // clean → momento grande; normal → mediano; risky/unstable → glitch.
-        const choreography = { clean: 'release_clean', normal: 'release_normal' }[result.band.key] || 'release_unstable';
-        feedbackModule.play(choreography, {
+        // Pipeline Build → Test → Deploy y desenlace según la banda de calidad:
+        // limpia (cohete + fuegos), sólida (cohete), arriesgada/inestable (glitch, en tono menor).
+        feedbackModule.play(this.getReleaseChoreography(result.band.key), this.buildReleaseContext(result));
+        gameState.save(true);
+    },
+
+    getReleaseChoreography(bandKey) {
+        return {
+            clean: 'release_clean',
+            normal: 'release_normal',
+            risky: 'release_risky',
+            unstable: 'release_unstable'
+        }[bandKey] || 'release_unstable';
+    },
+
+    buildReleaseContext(result) {
+        return {
+            anchor: document.querySelector('.release-card'),
             version: result.version,
             banner: `${result.version} · ${result.band.label}`
-        });
+        };
+    },
+
+    // === POTENCIAS DE 10 DEL CÓDIGO TOTAL ===
+    // Desde el game loop: cada nueva potencia desde 1M (récord histórico) es un momento alto.
+    checkCodePower() {
+        const power = gameState.getCodePower();
+        if (power < CONFIG.CODE_POWER.MIN_POWER || power <= gameState.codePowerRecord) return false;
+        gameState.codePowerRecord = power;
+        const context = this.buildCodePowerContext(power);
+        uiModule.showNotification(`🏆 ${context.banner}`, 'success', { duration: 4500 });
+        feedbackModule.play('code_power', context);
         gameState.save(true);
+        return true;
+    },
+
+    // Todo escala con la potencia: sacudida, partículas, volumen y peso del impacto.
+    buildCodePowerContext(power) {
+        const config = CONFIG.CODE_POWER;
+        const steps = Math.max(0, power - config.MIN_POWER);
+        const shake = Math.min(1, config.SHAKE_BASE + (steps * config.SHAKE_PER_POWER));
+        const tierColor = uiModule.getCodeTierColor(power);
+        const to = Math.floor(gameState.code);
+        return {
+            power,
+            impactSound: power >= config.HEAVY_FROM_POWER ? 'impact_heavy' : 'impact_medium',
+            shake,
+            shakeShort: shake * 0.6,
+            shakeMs: Math.min(700, 300 + (steps * 70)),
+            quantity: config.PARTICLES_BASE + (steps * config.PARTICLES_PER_POWER),
+            subVolume: Math.min(1, 0.6 + (steps * 0.1)),
+            tierColor,
+            colors: [tierColor, '#ffffff'],
+            from: Math.floor(to * 0.5),
+            to,
+            banner: config.BANNER.replace('{value}', this.formatPowerOfTen(power))
+        };
+    },
+
+    // 6 → "1M", 7 → "10M", 9 → "1B"...
+    formatPowerOfTen(power) {
+        const units = ['', 'k', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx'];
+        const group = Math.min(units.length - 1, Math.floor(power / 3));
+        return `${Math.pow(10, power - (group * 3)).toLocaleString()}${units[group]}`;
     },
 
     startMaintenance() {

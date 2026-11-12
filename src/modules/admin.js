@@ -141,7 +141,7 @@ const adminModule = {
         }
 
         if (command === 'help') {
-            this.setStatus('Comandos: godmode, addcode N, addrep N, creative on|off, decision, event, golden, missions, release, resources, unlockall, fx <id>|list, sound <id>|list.', 'success');
+            this.setStatus('Comandos: godmode, addcode N, addrep N, creative on|off, decision, event, golden, missions, release, resources, unlockall, fx <id> [n]|list, sound <id>|list.', 'success');
             return true;
         }
 
@@ -194,7 +194,7 @@ const adminModule = {
                 this.setStatus('Commit dorado generado.', 'success');
                 return true;
             case 'fx':
-                return this.runFxCommand(args[0]);
+                return this.runFxCommand(args[0], args[1]);
             case 'sound':
                 return this.runSoundCommand(args[0]);
             case 'missions':
@@ -265,8 +265,10 @@ const adminModule = {
         eventsModule.triggerRandomStandard();
     },
 
-    // fx <id>: reproduce una coreografía con un contexto de prueba. fx list: las lista.
-    runFxCommand(id) {
+    // fx <id> [n]: reproduce una coreografía con un contexto de prueba armado igual
+    // que en el juego. n = nivel de racha (streak 1–3) o potencia (code_power, 6+).
+    // fx list: las lista.
+    runFxCommand(id, arg) {
         const ids = feedbackModule.list();
         if (!id || id === 'list') {
             this.setStatus(`Coreografías (${ids.length}): ${ids.join(', ')}`, 'success');
@@ -290,13 +292,65 @@ const adminModule = {
             version: gameState.getVersionLabel(),
             points: String(gameState.prestigePoints),
             banner: `fx ${id}`,
-            pitch: 0
+            pitch: 0,
+            spent: '-1.2k'
         };
+        Object.assign(context, this.buildFxTestContext(id, arg, context));
         // Cerrar la consola para ver el efecto (y no tapar el destello).
         this.closeConsole();
         const result = feedbackModule.play(id, context);
         uiModule.showNotification(`fx ${id}: ${result === 'queued' ? 'en cola' : result ? 'reproduciendo' : 'descartada por prioridad'}`, 'info', { duration: 1500 });
         return true;
+    },
+
+    // Contextos de prueba con los mismos constructores que usa el juego.
+    buildFxTestContext(id, arg, base) {
+        const number = Number(arg);
+        const visibleCard = [...document.querySelectorAll('.language-card, .upgrade-card, .team-card')]
+            .find(card => fxModule.isVisible(card) && card.querySelector('[data-milestone-label]'));
+        switch (id) {
+            case 'milestone':
+                return gameLogic.buildMilestoneContext(visibleCard || null, { name: 'JavaScript', multiplier: CONFIG.MILESTONES.MULTIPLIER });
+            case 'purchase':
+            case 'keyboard_upgrade':
+            case 'purchase_fail':
+                return { element: visibleCard || base.element };
+            case 'streak':
+                return gameLogic.buildStreakContext(Number.isFinite(number) ? Math.max(1, Math.min(3, number)) : 2);
+            case 'golden_claim': {
+                const reward = { type: 'code', amount: gameState.getRewardGenerationBase() * 120 };
+                return goldenCommitModule.buildClaimContext({ x: base.x, y: base.y }, gameState.code, reward);
+            }
+            case 'release_clean':
+            case 'release_normal':
+            case 'release_risky':
+            case 'release_unstable': {
+                const bandKey = id.replace('release_', '');
+                const band = CONFIG.RELEASE_HEALTH.BANDS[bandKey];
+                return gameLogic.buildReleaseContext({ version: gameState.getVersionLabel(), band: { label: band?.label || bandKey } });
+            }
+            case 'code_power': {
+                const power = Number.isFinite(number) ? Math.max(CONFIG.CODE_POWER.MIN_POWER, number) : Math.max(CONFIG.CODE_POWER.MIN_POWER, gameState.codePowerRecord);
+                return gameLogic.buildCodePowerContext(power);
+            }
+            case 'unlock': {
+                const feature = CONFIG.FEATURE_UNLOCKS.find(item => (item.tabIds || []).some(tabId => fxModule.isVisible(document.getElementById(tabId))))
+                    || CONFIG.FEATURE_UNLOCKS[0];
+                const context = onboardingModule.buildUnlockContext(feature) || {};
+                context.onDone = () => {
+                    const notification = uiModule.showCommitTip(feature.key, feature.tip);
+                    feedbackModule.play('tip', { element: notification?.querySelector('.commit-tip-text'), text: feature.tip?.text });
+                };
+                return context;
+            }
+            case 'tip': {
+                const tip = { type: 'feat', text: base.text };
+                const notification = uiModule.showCommitTip('fx', tip);
+                return { element: notification?.querySelector('.commit-tip-text'), text: tip.text };
+            }
+            default:
+                return {};
+        }
     },
 
     // sound <id>: reproduce un sonido de SOUND_MANIFEST (o su respaldo ZzFX). sound list: los lista.

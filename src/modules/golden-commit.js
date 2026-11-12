@@ -79,16 +79,33 @@ const goldenCommitModule = {
 
         uiModule.showNotification(this.describeReward(reward), 'success', { duration: 4500 });
         uiModule.update();
-        // Monedas ascendentes + explosión dorada donde estaba el botón; el contador rueda
-        // hasta el nuevo valor si la recompensa fue código.
-        feedbackModule.play('golden_claim', {
-            x: origin.x,
-            y: origin.y,
-            from: Math.floor(codeBefore),
-            to: Math.floor(gameState.code)
-        });
+        // Slowmo + explosión dorada donde estaba el botón; las monedas vuelan al
+        // contador (más cuanto mayor la recompensa) y el contador rueda al nuevo valor.
+        feedbackModule.play('golden_claim', this.buildClaimContext(origin, codeBefore, reward));
         achievementsModule.checkAll();
         gameState.save(true);
+    },
+
+    buildClaimContext(origin, codeBefore, reward = { type: 'code' }) {
+        // Contador visible: el de la barra de progreso o, si no se ve, el del header.
+        const counter = ['codeDisplay', 'currentCodeHeader']
+            .map(id => document.getElementById(id))
+            .find(element => element && fxModule.isVisible(element)) || document.getElementById('codeDisplay');
+        // Intensidad según la recompensa: segundos de producción que vale (código) o tipo.
+        const production = Math.max(1e-9, gameState.getRewardGenerationBase());
+        const seconds = reward.type === 'code' ? (reward.amount || 0) / production : 120;
+        const count = Math.round(Math.max(6, Math.min(16, 6 + (seconds / 30))));
+        return {
+            x: origin.x,
+            y: origin.y,
+            counter,
+            count,
+            countShort: Math.max(4, Math.round(count / 2)),
+            quantity: 30 + (count * 3),
+            odometerMs: 300 + (count * 70),
+            from: Math.floor(codeBefore),
+            to: Math.floor(gameState.code)
+        };
     },
 
     describeReward(reward) {

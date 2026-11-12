@@ -19,6 +19,7 @@ const feedbackModule = window.feedbackModule = {
     mediumQueue: [],
     bigQueue: [],
     lastMediumStart: -Infinity,
+    lastAutoAt: {},
     trace: [],
     ready: false,
 
@@ -45,23 +46,37 @@ const feedbackModule = window.feedbackModule = {
             return false;
         }
         if (!this.ready) {
-            // Sin GSAP: al menos el sonido de cada paso.
-            definition.steps.forEach(step => step.sound && audioModule.play(step.sound, { delay: step.at }));
+            // Sin GSAP: el sonido de cada paso y el estado final de sus efectos.
+            const steps = this.pickSteps(definition, context, false);
+            steps.forEach(step => {
+                const sound = this.resolveValue(step.sound, context);
+                if (sound) audioModule.play(sound, { delay: step.at });
+            });
+            this.applyFinalStates(steps, context);
             return 'audio-only';
         }
 
         const { big, medium } = CONFIG.FEEDBACK.PRIORITIES;
-        const priority = this.getPriority(definition);
+        let priority = this.getPriority(definition);
         const bigRunning = this.runs.some(run => run.priority >= big);
+
+        // Lo que dispara el juego solo nunca pasa del nivel pequeño ni se repite seguido.
+        if (context.auto) {
+            const now = performance.now();
+            if (now - (this.lastAutoAt[id] ?? -Infinity) < CONFIG.FEEDBACK.AUTO_MIN_GAP_MS) return false;
+            this.lastAutoAt[id] = now;
+            priority = Math.min(priority, CONFIG.FEEDBACK.PRIORITIES[CONFIG.FEEDBACK.AUTO_MAX_PRIORITY]);
+        }
 
         if (priority >= big) {
             if (bigRunning) {
                 this.bigQueue.push({ id, context });
                 return 'queued';
             }
-            // Un momento grande cancela los pequeños y medianos en curso.
+            // Un momento grande cancela los pequeños y medianos en curso (y los
+            // medianos en espera), dejándolos en su estado final.
             this.runs.filter(run => run.priority < big).forEach(run => this.finishRun(run));
-            this.mediumQueue = [];
+            this.mediumQueue.splice(0).forEach(entry => this.discard(entry));
             return this.start(id, definition, context, priority);
         }
 
@@ -72,7 +87,10 @@ const feedbackModule = window.feedbackModule = {
                 || now - this.lastMediumStart < CONFIG.FEEDBACK.MEDIUM_MIN_GAP_MS
                 || this.mediumQueue.length > 0;
             if (mustWait) {
-                if (this.mediumQueue.length >= CONFIG.FEEDBACK.MEDIUM_QUEUE_MAX) return false;
+                if (this.mediumQueue.length >= CONFIG.FEEDBACK.MEDIUM_QUEUE_MAX) {
+                    this.discard({ id, context });
+                    return false;
+                }
                 this.mediumQueue.push({ id, context });
                 return 'queued';
             }
@@ -80,26 +98,50 @@ const feedbackModule = window.feedbackModule = {
         }
 
         // Pequeños: se descartan durante un momento grande.
-        if (bigRunning) return false;
+        if (bigRunning) {
+            this.discard({ id, context });
+            return false;
+        }
         return this.start(id, definition, context, priority);
+    },
+
+    // Versión a usar: auto (disparada por el juego), corta (vista ya varias veces o
+    // "Celebraciones cortas") o completa.
+    pickSteps(definition, context, useShort) {
+        if (context.auto) return definition.auto || definition.short || definition.steps;
+        return useShort ? definition.short : definition.steps;
+    },
+
+    // Una coreografía que no llega a sonar (cola llena, cancelada por un momento
+    // grande) deja igualmente su estado final: textos, tier, avisos pendientes.
+    discard(entry) {
+        const definition = CONFIG.CHOREOGRAPHIES[entry.id];
+        if (!definition) return;
+        this.applyFinalStates(this.pickSteps(definition, entry.context, false), entry.context);
+    },
+
+    applyFinalStates(steps, context) {
+        steps.forEach(step => [].concat(step.fx || []).forEach(spec => {
+            fxModule.applyFinalState(this.resolveSpec(spec, context), context);
+        }));
     },
 
     start(id, definition, context, priority) {
         const previousViews = gameState.seenChoreographies[id] || 0;
-        gameState.recordChoreographyView(id);
+        if (!context.auto) gameState.recordChoreographyView(id);
         const useShort = Boolean(definition.short)
             && (gameState.visualSettings.shortCelebrations || previousViews >= CONFIG.FEEDBACK.SHORT_AFTER_VIEWS);
-        const steps = useShort ? definition.short : definition.steps;
+        const steps = this.pickSteps(definition, context, useShort);
 
         const run = {
             id,
             priority,
-            short: useShort,
+            short: useShort || Boolean(context.auto),
             context,
             sounds: [],
             skipping: false,
             startedAt: performance.now(),
-            duration: this.getVisualDuration(steps),
+            duration: this.getVisualDuration(steps, context),
             tl: gsap.timeline({ paused: true })
         };
         steps.forEach(step => run.tl.call(() => this.runStep(run, step), [], step.at / 1000));
@@ -113,10 +155,13 @@ const feedbackModule = window.feedbackModule = {
     },
 
     // Duración visual: último paso + la duración de su efecto más largo.
-    getVisualDuration(steps) {
+    getVisualDuration(steps, context = {}) {
         return steps.reduce((max, step) => {
             const fxList = [].concat(step.fx || []);
-            const fxMs = fxList.reduce((longest, spec) => Math.max(longest, spec.ms || 400), 0);
+            const fxMs = fxList.reduce((longest, spec) => {
+                const ms = Number(this.resolveValue(spec.ms, context));
+                return Math.max(longest, Number.isFinite(ms) ? ms : 400);
+            }, 0);
             return Math.max(max, step.at + fxMs);
         }, 0);
     },
@@ -164,24 +209,26 @@ const feedbackModule = window.feedbackModule = {
     },
 
     runStep(run, step) {
-        const fxList = [].concat(step.fx || []).map(spec => this.resolveSpec(spec, run.context));
+        // Cada efecto se resuelve justo antes de lanzarse: uno puede dejar en el
+        // contexto lo que usa el siguiente (encrypt → label, pipeline → pipelineEl).
+        const specs = [].concat(step.fx || []);
 
         // Al saltar: sin sonido ni efectos pasajeros, solo el estado final.
         if (run.skipping) {
-            fxList.forEach(spec => fxModule.applyFinalState(spec, run.context));
+            specs.forEach(spec => fxModule.applyFinalState(this.resolveSpec(spec, run.context), run.context));
             return;
         }
 
         const frame = gsap.ticker.frame;
         const startedAt = performance.now();
+        const sound = this.resolveValue(step.sound, run.context);
         if (step.duck) audioModule.duck(step.duck.bus, step.duck.amount, step.duck.ms);
-        if (step.sound) {
-            const options = step.soundOptions ? this.resolveSpec(step.soundOptions, run.context) : {};
-            if (!Number.isFinite(options.pitch)) delete options.pitch;
-            const handle = audioModule.play(step.sound, options);
-            if (handle) run.sounds.push(handle);
-        }
-        fxList.forEach(spec => this.runFx(spec, run.context));
+        if (sound) this.playStepSound(run, sound, step);
+        const fxTypes = specs.map(spec => {
+            const resolved = this.resolveSpec(spec, run.context);
+            this.runFx(resolved, run.context);
+            return resolved.type;
+        });
 
         // Traza para depurar la sincronía: frame, inicio real (ms) y coste del paso.
         this.trace.push({
@@ -190,10 +237,45 @@ const feedbackModule = window.feedbackModule = {
             frame,
             time: startedAt,
             costMs: performance.now() - startedAt,
-            sound: step.sound || null,
-            fx: fxList.map(spec => spec.type)
+            sound: sound || null,
+            fx: fxTypes
         });
         if (this.trace.length > 80) this.trace.shift();
+    },
+
+    // Sonido del paso. cutAt corta con un fundido corto (el silencio antes del
+    // impacto); soundRepeat lo repite subiendo de tono (clicks ascendentes).
+    playStepSound(run, sound, step) {
+        const options = step.soundOptions ? this.resolveSpec(step.soundOptions, run.context) : {};
+        const { cutAt } = options;
+        delete options.cutAt;
+        if (!Number.isFinite(options.pitch)) delete options.pitch;
+        if (!Number.isFinite(options.volume)) delete options.volume;
+
+        const plays = [];
+        const repeat = step.soundRepeat;
+        if (repeat) {
+            for (let i = 0; i < repeat.count; i++) {
+                plays.push({
+                    ...options,
+                    pitch: (options.pitch || 0) + (i * (repeat.pitchStep || 0)),
+                    volume: repeat.volume ?? options.volume,
+                    delay: i * repeat.every
+                });
+            }
+        } else {
+            plays.push(options);
+        }
+
+        plays.forEach(playOptions => {
+            const handle = audioModule.play(sound, playOptions);
+            if (!handle) return;
+            run.sounds.push(handle);
+            if (Number.isFinite(cutAt)) {
+                // Temporizador real: el corte no debe alargarse con un slowmo.
+                setTimeout(() => handle.stop?.(50), cutAt + (playOptions.delay || 0));
+            }
+        });
     },
 
     runFx(spec, context) {
@@ -207,17 +289,43 @@ const feedbackModule = window.feedbackModule = {
             case 'burst': {
                 const point = fxModule.resolvePoint(spec.point || 'center', context);
                 // La cantidad respeta el perfil de rendimiento visual (móvil/equipos lentos).
-                const quantity = spec.quantity ?? uiModule.scaleCelebrationCount(60);
-                return fxModule.burst(point.x, point.y, spec.preset, { ms: spec.ms, quantity });
+                const quantity = uiModule.scaleCelebrationCount(Number.isFinite(spec.quantity) ? spec.quantity : 60);
+                return fxModule.burst(point.x, point.y, spec.preset, { ms: spec.ms, quantity, colors: spec.colors });
             }
             case 'shards':
-                return fxModule.shards(spec.point, spec.count, context);
+                return fxModule.shards(spec.point, spec.count, context, { size: spec.size });
+            case 'charge':
+                return fxModule.charge(spec.target, spec.ms, spec.color, context);
+            case 'stamp':
+                return fxModule.stamp(spec.target, spec.text, { ms: spec.ms }, context);
+            case 'floater':
+                return fxModule.floater(spec.target, spec.text, context);
+            case 'sparks':
+                return fxModule.sparks(spec.target, spec.count, spec.level, context);
+            case 'coins':
+                return fxModule.coins(spec.point, spec.target, spec.count, spec, context);
+            case 'encrypt':
+                return fxModule.encrypt(spec.target, context);
+            case 'reveal':
+                return fxModule.reveal(spec.target, context);
+            case 'pipeline':
+                return fxModule.pipeline(spec.target, spec.ms, context);
+            case 'pipelineStage':
+                return fxModule.pipelineStage(spec.index, spec.status, context);
+            case 'rocket':
+                return fxModule.rocket(spec.point, context);
+            case 'glitch':
+                return fxModule.glitch(spec.target, spec.ms, context);
+            case 'tier':
+                return uiModule.setCodeTier(spec.power);
+            case 'callback':
+                return fxModule.runCallback(spec.name, context);
             case 'scramble':
                 return fxModule.scramble(spec.target, spec.text, { ms: spec.ms, chars: spec.chars }, context);
             case 'odometer':
                 return fxModule.odometer(spec.target, Number(spec.from), Number(spec.to), { ms: spec.ms, tick: spec.tick }, context);
             case 'pulse':
-                return fxModule.pulse(spec.target, spec.scale, spec.ms, context);
+                return fxModule.pulse(spec.target, spec.scale, spec.ms, context, spec.ease);
             case 'glow':
                 return fxModule.glow(spec.target, spec.color, spec.ms, context);
             case 'banner':

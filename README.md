@@ -70,7 +70,7 @@ Una vez activado `godmode`, la consola soporta:
 - `release`
 - `resources`
 - `unlockall` (logros y todas las pestañas)
-- `fx <id>` reproduce una coreografía · `fx list` las lista
+- `fx <id> [n]` reproduce una coreografía (n = nivel de racha 1–3 o potencia de 10) · `fx list` las lista
 - `sound <id>` reproduce un sonido (indica bus, duración y si usó el respaldo ZzFX) · `sound list` los lista
 
 Hotkeys activas en admin: `D`, `E`, `C`, `M`, `R`, `K`, `U`.
@@ -127,7 +127,16 @@ El orden de carga de los scripts está en [ARCHITECTURE.md](ARCHITECTURE.md#orde
 ## Audio y efectos
 
 - Cada momento del juego (compra, commit, logro, misión, hito, release, prestige, commit dorado, eventos, desbloqueos) es una **coreografía** en `CHOREOGRAPHIES` ([src/config.js](src/config.js)). Cada paso lanza en el mismo instante su sonido y sus efectos.
-- Prioridades: un momento grande (release limpia, prestige) cancela los pequeños; dos medianos no se superponen (uno cada 1,5 s). `Esc` salta la celebración en curso y la deja en su estado final.
+- Catálogo de momentos (arco anticipación → tensión → silencio → impacto → calma, escalado por nivel):
+  - **Pequeños** (compra, click, commit): número flotante y rebote. La tecla sube 1 semitono cada 5 clicks de racha (tope 12) y vuelve al tono base al cortarse.
+  - **Racha 25/50/100**: aura (CSS + chispas) que crece en cada nivel, acorde y capa de chisporroteo mientras dure.
+  - **Hito x2**: la tarjeta se carga 0,6 s, 80 ms de silencio, cae el sello "x2" con rebote y el multiplicador se descifra.
+  - **Desbloqueo de sistema**: la pestaña aparece cifrada con candado, se descifra con clicks ascendentes, el candado se agrieta y se rompe; después sale el aviso tipo commit.
+  - **Commit dorado**: 150 ms de cámara lenta, explosión y monedas que vuelan al contador (cada una más aguda) y campana final.
+  - **Release** (`release_clean`/`normal`/`risky`/`unstable`): pipeline Build → Test → Deploy con tick ascendente; limpia con cohete y fuegos artificiales, sólida sin fuegos, arriesgada/inestable con glitch RGB y zumbido, sin sacudida.
+  - **Potencia de 10 del código total desde 1M** (`code_power`): riser, silencio, impacto con sub drop y sacudida proporcional, contador tipo odómetro y color de tier (`CODE_POWER`).
+  - Los commits automáticos (producción pasiva) nunca pasan del nivel pequeño y sin sonido. Prueba cualquiera con `fx <id>` (`fx streak 3`, `fx code_power 8`).
+- Prioridades: un momento grande (release, prestige, potencia de 10) cancela los pequeños; dos medianos no se superponen (uno cada 1,5 s). `Esc` salta la celebración en curso y la deja en su estado final.
 - Tras ver 3 veces una celebración se usa su versión corta (o siempre, con "Celebraciones cortas").
 - Buses de mezcla `ui`, `sfx`, `music` y `ambient` (`AUDIO_BUSES`) con limitador en el master: los 38 sonidos se verificaron sin saturar, también apilados.
 - "Reducir movimiento" quita sacudidas, cámara lenta, grietas, fragmentos y partículas; quedan destellos suaves, fundidos y sonido.
